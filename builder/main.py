@@ -62,20 +62,23 @@ def _get_board_memory_type(env):
         ),
     )
 
-def _get_board_img_freq(env):
-    board_config = env.BoardConfig()
-    img_freq = board_config.get("build.img_freq", "")
-    if img_freq =="":
-        img_freq = board_config.get("build.f_flash", "")
-    img_freq = str(img_freq).replace("L", "")
-    return str(int(int(img_freq) / 1000000)) + "m"
+
+def _normalize_frequency(frequency):
+    frequency = str(frequency).replace("L", "")
+    return str(int(int(frequency) / 1000000)) + "m"
 
 
 def _get_board_f_flash(env):
+    frequency = env.subst("$BOARD_F_FLASH")
+    return _normalize_frequency(frequency)
+
+
+def _get_board_f_image(env):
     board_config = env.BoardConfig()
-    frequency = board_config.get("build.f_flash", "")
-    frequency = str(frequency).replace("L", "")
-    return str(int(int(frequency) / 1000000)) + "m"
+    if "build.f_image" in board_config:
+        return _normalize_frequency(board_config.get("build.f_image"))
+
+    return _get_board_f_flash(env)
 
 
 def _get_board_flash_mode(env):
@@ -213,7 +216,7 @@ if "INTEGRATION_EXTRA_DATA" not in env:
 env.Replace(
     __get_board_boot_mode=_get_board_boot_mode,
     __get_board_f_flash=_get_board_f_flash,
-    __get_board_img_freq=_get_board_img_freq,
+    __get_board_f_image=_get_board_f_image,
     __get_board_flash_mode=_get_board_flash_mode,
     __get_board_memory_type=_get_board_memory_type,
 
@@ -285,7 +288,7 @@ env.Append(
                 "--chip", mcu, "elf2image",
                 "--dont-append-digest",
                 "--flash_mode", "${__get_board_flash_mode(__env__)}",
-                "--flash_freq", "${__get_board_img_freq(__env__)}",
+                "--flash_freq", "${__get_board_f_image(__env__)}",
                 "--flash_size", board.get("upload.flash_size", "4MB"),
                 "-o", "$TARGET", "$SOURCES"
             ]), "Building $TARGET"),
@@ -416,7 +419,7 @@ elif upload_protocol == "esptool":
             "--after", board.get("upload.after_reset", "hard_reset"),
             "write_flash", "-z",
             "--flash_mode", "${__get_board_flash_mode(__env__)}",
-            "--flash_freq", "${__get_board_img_freq(__env__)}",
+            "--flash_freq", "${__get_board_f_image(__env__)}",
             "--flash_size", "detect"
         ],
         UPLOADCMD='"$PYTHONEXE" "$UPLOADER" $UPLOADERFLAGS $ESP32_APP_OFFSET $SOURCE'
@@ -434,7 +437,7 @@ elif upload_protocol == "esptool":
                 "--after", board.get("upload.after_reset", "hard_reset"),
                 "write_flash", "-z",
                 "--flash_mode", "${__get_board_flash_mode(__env__)}",
-                "--flash_freq", "${__get_board_img_freq(__env__)}",
+                "--flash_freq", "${__get_board_f_image(__env__)}",
                 "--flash_size", "detect",
                 "$FS_START"
             ],
