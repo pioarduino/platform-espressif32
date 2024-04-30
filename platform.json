@@ -12,7 +12,7 @@
     "RISC-V"
   ],
   "engines": {
-    "platformio": ">=6.1.14"
+    "platformio": ">=6.1.15"
   },
   "repository": {
     "type": "git",
@@ -33,13 +33,13 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://codeload.github.com/espressif/arduino-esp32/zip/4070a8799f7167bb627ff14504cd01d4df076b98"
+      "version": "https://codeload.github.com/espressif/arduino-esp32/zip/7e7c01aadf81af799ab296574827d16ddfe8621f"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://codeload.github.com/espressif/esp32-arduino-libs/zip/ad1f97a1623c5c41a0db40a1def6d3fb8548a37d"
+      "version": "https://codeload.github.com/espressif/esp32-arduino-libs/zip/b0850286f4be64cb08eeedcf1594cbd5b59ea7f1"
     },
     "framework-espidf": {
       "type": "framework",
