@@ -33,13 +33,13 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://codeload.github.com/espressif/arduino-esp32/zip/cbf1e94dd5f9ac8bdabaae9603611a3b81d8fbe4"
+      "version": "https://github.com/espressif/arduino-esp32/archive/refs/heads/master.zip"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://codeload.github.com/espressif/esp32-arduino-libs/zip/81f40959b1f1beee1fb24822d757221cb496a41f"
+      "version": "https://github.com/espressif/esp32-arduino-libs/archive/refs/heads/idf-release/v5.1.zip"
     },
     "framework-espidf": {
       "type": "framework",
