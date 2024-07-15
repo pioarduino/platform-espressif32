@@ -1,6 +1,6 @@
-# Espressif 32: development platform for [PlatformIO](https://platformio.org)
+# Fork of Platformio Espressif 32: development platform for [PlatformIO](https://platformio.org)
 
-[![Build Status](https://github.com/platformio/platform-espressif32/workflows/Examples/badge.svg)](https://github.com/platformio/platform-espressif32/actions)
+[![Build Status](https://github.com/pioarduino/platform-espressif32/workflows/Examples/badge.svg)](https://github.com/pioarduino/platform-espressif32/actions)
 
 ESP32 is a series of low-cost, low-power system on a chip microcontrollers with integrated Wi-Fi and Bluetooth. ESP32 integrates an antenna switch, RF balun, power amplifier, low-noise receive amplifier, filters, and power management modules.
 
@@ -12,12 +12,23 @@ ESP32 is a series of low-cost, low-power system on a chip microcontrollers with 
 1. [Install PlatformIO](https://platformio.org)
 2. Create PlatformIO project and configure a platform option in [platformio.ini](https://docs.platformio.org/page/projectconf.html) file:
 
+## Stable version
+espressif Arduino 3.0.2 and IDF 5.1.4
+
+See `platform` [documentation](https://docs.platformio.org/en/latest/projectconf/sections/env/options/platform/platform.html#projectconf-env-platform) for details.
+
+```ini
+[env:stable]
+platform = https://github.com/pioarduino/platform-espressif32/releases/download/2024.07.00/platform-espressif32.zip
+board = ...
+...
+```
+
 ## Development version
 
 ```ini
 [env:development]
-platform = https://github.com/jason2866/platform-espressif32.git#Arduino/IDF5_org
-
+platform = https://github.com/pioarduino/platform-espressif32.git#Arduino/IDF51
 board = ...
 ...
 ```
