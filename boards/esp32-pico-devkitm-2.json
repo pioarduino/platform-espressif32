@@ -5,16 +5,14 @@
     },
     "core": "esp32",
     "extra_flags": [
-      "-mfix-esp32-psram-cache-issue",
-      "-mfix-esp32-psram-cache-strategy=memw",
-      "-DBOARD_HAS_PSRAM",
-      "-DARDUINO_IOXESP32PS"
+      "-DARDUINO_ESP32_PICO_DEVKITM_2",
+      "-DBOARD_HAS_PSRAM"
     ],
     "f_cpu": "240000000L",
     "f_flash": "80000000L",
     "flash_mode": "qio",
     "mcu": "esp32",
-    "variant": "ioxesp32"
+    "variant": "esp32"
   },
   "connectivity": [
     "wifi",
@@ -22,21 +20,18 @@
     "ethernet",
     "can"
   ],
-  "debug": {
-    "openocd_board": "esp-wroom-32.cfg"
-  },
   "frameworks": [
     "arduino",
     "espidf"
   ],
-  "name": "ArtronShop IOXESP32PS",
+  "name": "Espressif ESP32-PICO-DevKitM-2",
   "upload": {
-    "flash_size": "4MB",
+    "flash_size": "8MB",
     "maximum_ram_size": 327680,
-    "maximum_size": 4194304,
+    "maximum_size": 8388608,
     "require_upload_port": true,
-    "speed": 460800
+    "speed": 921600
   },
-  "url": "https://docs.ioxesp32.com/",
-  "vendor": "ArtronShop"
+  "url": "https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/esp32/get-started-pico-devkitm-2.html",
+  "vendor": "Espressif Systems"
 }
