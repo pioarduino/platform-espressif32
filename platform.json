@@ -33,7 +33,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/archive/refs/heads/master.zip"
+      "version": "https://github.com/espressif/arduino-esp32/archive/refs/tags/3.0.2.zip"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
