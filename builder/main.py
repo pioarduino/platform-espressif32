@@ -22,10 +22,14 @@ from SCons.Script import (
 
 from platformio.util import get_serial_ports
 
+env = DefaultEnvironment()
+platform = env.PioPlatform()
+
 #
 # Helpers
 #
 
+FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
 
 def BeforeUpload(target, source, env):
     upload_options = {}
@@ -58,7 +62,6 @@ def _get_board_memory_type(env):
         ),
     )
 
-
 def _normalize_frequency(frequency):
     frequency = str(frequency).replace("L", "")
     return str(int(int(frequency) / 1000000)) + "m"
@@ -76,7 +79,6 @@ def _get_board_f_image(env):
 
     return _get_board_f_flash(env)
 
-
 def _get_board_f_boot(env):
     board_config = env.BoardConfig()
     if "build.f_boot" in board_config:
@@ -86,7 +88,7 @@ def _get_board_f_boot(env):
 
 
 def _get_board_flash_mode(env):
-    if ["arduino"] == env.get("PIOFRAMEWORK") and _get_board_memory_type(env) in (
+    if _get_board_memory_type(env) in (
         "opi_opi",
         "opi_qspi",
     ):
@@ -101,7 +103,7 @@ def _get_board_flash_mode(env):
 def _get_board_boot_mode(env):
     memory_type = env.BoardConfig().get("build.arduino.memory_type", "")
     build_boot = env.BoardConfig().get("build.boot", "$BOARD_FLASH_MODE")
-    if ["arduino"] == env.get("PIOFRAMEWORK") and memory_type in ("opi_opi", "opi_qspi"):
+    if memory_type in ("opi_opi", "opi_qspi"):
         build_boot = "opi"
     return build_boot
 
@@ -128,9 +130,8 @@ def _parse_partitions(env):
         return
 
     result = []
-    # The first offset is 0x9000 because partition table is flashed to 0x8000 and
-    # occupies an entire flash sector, which size is 0x1000
-    next_offset = 0x9000
+    next_offset = 0
+    bound = int(board.get("upload.offset_address", "0x10000"), 16) # default 0x10000
     with open(partitions_csv) as fp:
         for line in fp.readlines():
             line = line.strip()
@@ -139,22 +140,23 @@ def _parse_partitions(env):
             tokens = [t.strip() for t in line.split(",")]
             if len(tokens) < 5:
                 continue
-
-            bound = 0x10000 if tokens[1] in ("0", "app") else 4
-            calculated_offset = (next_offset + bound - 1) & ~(bound - 1)
             partition = {
                 "name": tokens[0],
                 "type": tokens[1],
                 "subtype": tokens[2],
-                "offset": tokens[3] or calculated_offset,
+                "offset": tokens[3] or next_offset,
                 "size": tokens[4],
                 "flags": tokens[5] if len(tokens) > 5 else None
             }
             result.append(partition)
-            next_offset = _parse_size(partition["offset"]) + _parse_size(
-                partition["size"]
-            )
-
+            next_offset = _parse_size(partition["offset"])
+            if (partition["subtype"] == "ota_0"):
+                bound = next_offset
+            next_offset = (next_offset + bound - 1) & ~(bound - 1)
+    # Configure application partition offset
+    env.Replace(ESP32_APP_OFFSET=str(hex(bound)))
+    # Propagate application offset to debug configurations
+    env["INTEGRATION_EXTRA_DATA"].update({"application_offset": str(hex(bound))})
     return result
 
 
@@ -181,15 +183,11 @@ def _update_max_upload_size(env):
                 "table! Default partition will be used!" % custom_app_partition_name
             )
 
-    # Otherwise, one of the `factory` or `ota_0` partitions is used to determine
-    # available memory size. If both partitions are set, we should prefer the `factory`,
-    # but there are cases (e.g. Adafruit's `partitions-4MB-tinyuf2.csv`) that uses the
-    # `factory` partition for their UF2 bootloader. So let's use the first match
-    # https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#subtype
     for p in partitions.values():
-        if p["type"] in ("0", "app") and p["subtype"] in ("factory", "ota_0"):
+        if p["type"] in ("0", "app") and p["subtype"] in ("ota_0"):
             board.update("upload.maximum_size", _parse_size(p["size"]))
             break
+
 
 
 def _to_unix_slashes(path):
@@ -230,13 +228,11 @@ def __fetch_fs_size(target, source, env):
     return (target, source)
 
 
-env = DefaultEnvironment()
-platform = env.PioPlatform()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 toolchain_arch = "xtensa-%s" % mcu
 filesystem = board.get("build.filesystem", "spiffs")
-if mcu in ("esp32c3", "esp32c6"):
+if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2"):
     toolchain_arch = "riscv32-esp"
 
 if "INTEGRATION_EXTRA_DATA" not in env:
@@ -257,15 +253,14 @@ env.Replace(
     GDB=join(
         platform.get_package_dir(
             "tool-riscv32-esp-elf-gdb"
-            if mcu in ("esp32c3", "esp32c6")
+            if mcu in ("esp32c2", "esp32c3", "esp32c6")
             else "tool-xtensa-esp-elf-gdb"
         )
         or "",
         "bin",
         "%s-elf-gdb" % toolchain_arch,
-    ) if env.get("PIOFRAMEWORK") == ["espidf"] else "%s-elf-gdb" % toolchain_arch,
-    OBJCOPY=join(
-        platform.get_package_dir("tool-esptoolpy") or "", "esptool.py"),
+    ),
+    OBJCOPY=join(platform.get_package_dir("tool-esptoolpy") or "", "esptool.py"),
     RANLIB="%s-elf-gcc-ranlib" % toolchain_arch,
     SIZETOOL="%s-elf-size" % toolchain_arch,
 
@@ -302,7 +297,7 @@ env.Replace(
         "ESP32_FS_IMAGE_NAME", env.get("ESP32_SPIFFS_IMAGE_NAME", filesystem)
     ),
 
-    ESP32_APP_OFFSET=board.get("upload.offset_address", "0x10000"),
+    ESP32_APP_OFFSET=env.get("INTEGRATION_EXTRA_DATA").get("application_offset"),
 
     PROGSUFFIX=".elf"
 )
@@ -315,7 +310,7 @@ env.Append(
     BUILDERS=dict(
         ElfToBin=Builder(
             action=env.VerboseAction(" ".join([
-                        '"$PYTHONEXE" "$OBJCOPY"',
+                '"$PYTHONEXE" "$OBJCOPY"',
                 "--chip", mcu, "elf2image",
                 "--flash_mode", "${__get_board_flash_mode(__env__)}",
                 "--flash_freq", "${__get_board_f_image(__env__)}",
@@ -335,7 +330,7 @@ env.Append(
                             "-b",
                             "$FS_BLOCK",
                         ]
-                        if filesystem in ("spiffs", "littlefs")
+                        if filesystem in ("littlefs", "spiffs")
                         else []
                     )
                     + ["$TARGET"]
@@ -388,9 +383,6 @@ if env.get("PIOMAINPROG"):
         env.VerboseAction(
             lambda source, target, env: _update_max_upload_size(env),
             "Retrieving maximum program size $SOURCES"))
-# remove after PIO Core 3.6 release
-elif set(["checkprogsize", "upload"]) & set(COMMAND_LINE_TARGETS):
-    _update_max_upload_size(env)
 
 #
 # Target: Print binary size
@@ -432,9 +424,7 @@ if upload_protocol == "espota":
             "See https://docs.platformio.org/page/platforms/"
             "espressif32.html#over-the-air-ota-update\n")
     env.Replace(
-        UPLOADER=join(
-            platform.get_package_dir("framework-arduinoespressif32") or "",
-            "tools", "espota.py"),
+        UPLOADER=join(FRAMEWORK_DIR,"tools", "espota.py"),
         UPLOADERFLAGS=["--debug", "--progress", "-i", "$UPLOAD_PORT"],
         UPLOADCMD='"$PYTHONEXE" "$UPLOADER" $UPLOADERFLAGS -f $SOURCE'
     )
@@ -455,7 +445,7 @@ elif upload_protocol == "esptool":
             "write_flash", "-z",
             "--flash_mode", "${__get_board_flash_mode(__env__)}",
             "--flash_freq", "${__get_board_f_image(__env__)}",
-            "--flash_size", board.get("upload.flash_size", "detect")
+            "--flash_size", "detect"
         ],
         UPLOADCMD='"$PYTHONEXE" "$UPLOADER" $UPLOADERFLAGS $ESP32_APP_OFFSET $SOURCE'
     )
@@ -473,7 +463,7 @@ elif upload_protocol == "esptool":
                 "write_flash", "-z",
                 "--flash_mode", "${__get_board_flash_mode(__env__)}",
                 "--flash_freq", "${__get_board_f_image(__env__)}",
-                "--flash_size", board.get("upload.flash_size", "detect"),
+                "--flash_size", "detect",
                 "$FS_START"
             ],
             UPLOADCMD='"$PYTHONEXE" "$UPLOADER" $UPLOADERFLAGS $SOURCE',
@@ -483,7 +473,6 @@ elif upload_protocol == "esptool":
         env.VerboseAction(BeforeUpload, "Looking for upload port..."),
         env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE")
     ]
-
 
 elif upload_protocol == "dfu":
 
@@ -508,6 +497,7 @@ elif upload_protocol == "dfu":
 
 
 elif upload_protocol in debug_tools:
+    _parse_partitions(env)
     openocd_args = ["-d%d" % (2 if int(ARGUMENTS.get("PIOVERBOSE", 0)) else 1)]
     openocd_args.extend(
         debug_tools.get(upload_protocol).get("server").get("arguments", []))
@@ -520,9 +510,7 @@ elif upload_protocol in debug_tools:
             % (
                 "$FS_START"
                 if "uploadfs" in COMMAND_LINE_TARGETS
-                else board.get(
-                    "upload.offset_address", "$ESP32_APP_OFFSET"
-                )
+                else env.get("INTEGRATION_EXTRA_DATA").get("application_offset")
             ),
         ]
     )
@@ -563,6 +551,21 @@ env.AddPlatformTarget(
     "uploadfsota", target_firm, upload_actions, "Upload Filesystem Image OTA")
 
 #
+# Target: Erase Flash and Upload
+#
+
+env.AddPlatformTarget(
+    "erase_upload",
+    target_firm,
+    [
+        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
+        env.VerboseAction("$ERASECMD", "Erasing..."),
+        env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE")
+    ],
+    "Erase Flash and Upload",
+)
+
+#
 # Target: Erase Flash
 #
 
@@ -570,19 +573,11 @@ env.AddPlatformTarget(
     "erase",
     None,
     [
-        env.VerboseAction(env.AutodetectUploadPort, "Looking for serial port..."),
+        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
         env.VerboseAction("$ERASECMD", "Erasing...")
     ],
     "Erase Flash",
 )
-
-#
-# Information about obsolete method of specifying linker scripts
-#
-
-if any("-Wl,-T" in f for f in env.get("LINKFLAGS", [])):
-    print("Warning! '-Wl,-T' option for specifying linker scripts is deprecated. "
-          "Please use 'board_build.ldscript' option in your 'platformio.ini' file.")
 
 #
 # Override memory inspection behavior

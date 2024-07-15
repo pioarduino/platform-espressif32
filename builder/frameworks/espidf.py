@@ -67,15 +67,7 @@ IDF5 = (
 IDF_ENV_VERSION = "1.0.0"
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
 TOOLCHAIN_DIR = platform.get_package_dir(
-    "toolchain-riscv32-esp"
-    if mcu in ("esp32c3", "esp32c6")
-    else (
-        (
-            "toolchain-xtensa-esp-elf"
-            if "arduino" not in env.subst("$PIOFRAMEWORK")
-            else "toolchain-xtensa-%s" % mcu
-        )
-    )
+    "toolchain-%s" % ("riscv32-esp" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xtensa-%s" % mcu))
 )
 
 
@@ -256,7 +248,7 @@ def populate_idf_env_vars(idf_env):
         os.path.dirname(get_python_exe()),
     ]
 
-    if mcu not in ("esp32c3", "esp32c6"):
+    if mcu not in ("esp32c2", "esp32c3", "esp32c6","esp32h2"):
         additional_packages.append(
             os.path.join(platform.get_package_dir("toolchain-esp32ulp"), "bin"),
         )
@@ -511,7 +503,7 @@ def extract_linker_script_fragments_backup(framework_components_dir, sdk_config)
         sys.stderr.write("Error: Failed to extract paths to linker script fragments\n")
         env.Exit(1)
 
-    if mcu in ("esp32c3", "esp32c6"):
+    if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2"):
         result.append(os.path.join(framework_components_dir, "riscv", "linker.lf"))
 
     # Add extra linker fragments
@@ -1201,6 +1193,7 @@ def install_python_deps():
         return
 
     deps = {
+        "wheel": ">=0.35.1",
         # https://github.com/platformio/platformio-core/issues/4614
         "urllib3": "<2",
         # https://github.com/platformio/platform-espressif32/issues/635
@@ -1606,7 +1599,7 @@ env.Prepend(
         (
             board.get(
                 "upload.bootloader_offset",
-                "0x0" if mcu in ("esp32c3", "esp32c6", "esp32s3") else "0x1000",
+                "0x0" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32s3", "esp32h2") else "0x1000",
             ),
             os.path.join("$BUILD_DIR", "bootloader.bin"),
         ),
@@ -1717,7 +1710,7 @@ env["BUILDERS"]["ElfToBin"].action = action
 #
 
 ulp_dir = os.path.join(PROJECT_DIR, "ulp")
-if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c3", "esp32c6"):
+if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "esp32c3", "esp32c6", "esp32h2"):
     env.SConscript("ulp.py", exports="env sdk_config project_config idf_variant")
 
 #

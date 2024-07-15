@@ -7,9 +7,7 @@
 #include <Arduino.h>
 
 // Set LED_BUILTIN if it is not defined by Arduino framework
-#ifndef LED_BUILTIN
-    #define LED_BUILTIN 2
-#endif
+// #define LED_BUILTIN 2
 
 void setup()
 {
