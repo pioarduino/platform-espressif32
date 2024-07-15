@@ -1,7 +1,7 @@
 {
   "name": "espressif32",
   "title": "Espressif 32",
-  "description": "ESP32 is a series of low-cost, low-power system on a chip microcontrollers with integrated Wi-Fi and Bluetooth. ESP32 integrates an antenna switch, RF balun, power amplifier, low-noise receive amplifier, filters, and power management modules.",
+  "description": "Espressif Systems is a privately held fabless semiconductor company. They provide wireless communications and Wi-Fi chips which are widely used in mobile devices and the Internet of Things applications.",
   "homepage": "https://espressif.com/",
   "license": "Apache-2.0",
   "keywords": [
@@ -12,16 +12,15 @@
     "RISC-V"
   ],
   "engines": {
-    "platformio": "^6"
+    "platformio": ">=6.1.15"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/platformio/platform-espressif32.git"
+    "url": "https://github.com/tasmota/platform-espressif32.git"
   },
-  "version": "6.7.0",
+  "version": "2024.00.99",
   "frameworks": {
     "arduino": {
-      "package": "framework-arduinoespressif32",
       "script": "builder/frameworks/arduino.py"
     },
     "espidf": {
@@ -30,35 +29,47 @@
     }
   },
   "packages": {
+    "framework-arduinoespressif32": {
+      "type": "framework",
+      "optional": true,
+      "owner": "espressif",
+      "version": "https://github.com/espressif/arduino-esp32/archive/refs/heads/master.zip"
+    },
+    "framework-arduinoespressif32-libs": {
+      "type": "framework",
+      "optional": true,
+      "owner": "espressif",
+      "version": "https://github.com/espressif/esp32-arduino-libs/archive/refs/heads/idf-release/v5.1.zip"
+    },
+    "framework-espidf": {
+      "type": "framework",
+      "optional": true,
+      "owner": "jason2866",
+      "version": "https://github.com/Jason2866/esp-idf/releases/download/v5.1.4.240625/esp-idf-v5.1.4.zip"
+    },
     "toolchain-xtensa-esp32": {
       "type": "toolchain",
+      "optional": true,
       "owner": "espressif",
-      "version": "8.4.0+2021r2-patch5"
+      "version": "12.2.0+20230208"
     },
     "toolchain-xtensa-esp32s2": {
       "type": "toolchain",
       "optional": true,
       "owner": "espressif",
-      "version": "8.4.0+2021r2-patch5"
+      "version": "12.2.0+20230208"
     },
-     "toolchain-xtensa-esp32s3": {
+    "toolchain-xtensa-esp32s3": {
       "type": "toolchain",
       "optional": true,
       "owner": "espressif",
-      "version": "8.4.0+2021r2-patch5"
+      "version": "12.2.0+20230208"
     },
     "toolchain-riscv32-esp": {
       "type": "toolchain",
       "optional": true,
       "owner": "espressif",
-      "version": "8.4.0+2021r2-patch5",
-      "optionalVersions": ["13.2.0+20230928"]
-    },
-    "toolchain-xtensa-esp-elf": {
-      "type": "toolchain",
-      "optional": true,
-      "owner": "platformio",
-      "version": "13.2.0+20230928"
+      "version": "12.2.0+20230208"
     },
     "toolchain-esp32ulp": {
       "type": "toolchain",
@@ -66,7 +77,7 @@
       "owner": "platformio",
       "version": "~1.23500.0"
     },
-    "tool-xtensa-esp-elf-gdb": {
+      "tool-xtensa-esp-elf-gdb": {
       "type": "debugger",
       "optional": true,
       "owner": "espressif",
@@ -78,23 +89,10 @@
       "owner": "espressif",
       "version": "~12.1.0"
     },
-    "framework-arduinoespressif32": {
-      "type": "framework",
-      "optional": true,
-      "owner": "platformio",
-      "version": "~3.20017.0"
-    },
-    "framework-espidf": {
-      "type": "framework",
-      "optional": true,
-      "owner": "platformio",
-      "version": "~3.50202.0",
-      "optionalVersions": ["~3.40407.0"]
-    },
     "tool-esptoolpy": {
       "type": "uploader",
-      "owner": "platformio",
-      "version": "~1.40501.0"
+      "owner": "tasmota",
+      "version": "https://github.com/tasmota/esptool/releases/download/v4.7.3/esptool.zip"
     },
     "tool-dfuutil-arduino": {
       "type": "uploader",
@@ -108,17 +106,10 @@
       "owner": "platformio",
       "version": "~2.1100.0"
     },
-    "tool-mkspiffs": {
-      "type": "uploader",
-      "optional": true,
-      "owner": "platformio",
-      "version": "~2.230.0"
-    },
     "tool-mklittlefs": {
       "type": "uploader",
-      "optional": true,
-      "owner": "platformio",
-      "version": "~1.203.0"
+      "owner": "tasmota",
+      "version": "^3.2.0"
     },
     "tool-mkfatfs": {
       "type": "uploader",
@@ -126,10 +117,16 @@
       "owner": "platformio",
       "version": "~2.0.0"
     },
+    "tool-mkspiffs": {
+      "type": "uploader",
+      "optional": true,
+      "owner": "platformio",
+      "version": "~2.230.0"
+    },
     "tool-cmake": {
       "optional": true,
       "owner": "platformio",
-      "version": "~3.16.0"
+      "version": "~3.21.0"
     },
     "tool-ninja": {
       "optional": true,
