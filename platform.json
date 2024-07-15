@@ -33,7 +33,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.0.2/esp32-3.0.2.zip"
+      "version": "https://github.com/espressif/arduino-esp32/archive/refs/heads/master.zip"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
@@ -45,7 +45,7 @@
       "type": "framework",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/Jason2866/esp-idf/releases/download/v5.1.4.240625/esp-idf-v5.1.4.zip"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.1.4.240708/esp-idf-v5.1.4.zip"
     },
     "toolchain-xtensa-esp32": {
       "type": "toolchain",
