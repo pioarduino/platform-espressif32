@@ -1,5 +1,16 @@
 # Fork of Platformio Espressif 32: development platform for [PlatformIO](https://platformio.org)
 
+> [!NOTE]  
+> This fork was created due to the lack of ongoing development for the Espressif 32 Arduino Core in the PlatformIO registry to support developers who have used PlatformIO for their ESP32 projects.
+>
+> For additional information, please refer to these GitHub links:
+> 
+> https://github.com/espressif/arduino-esp32/discussions/10039
+> https://github.com/platformio/platform-espressif32/issues/1225
+> https://github.com/espressif/arduino-esp32/pull/8606
+>
+> The discussions are self-explanatory, allowing you to draw your own conclusions.
+
 [![Build Status](https://github.com/pioarduino/platform-espressif32/workflows/Examples/badge.svg)](https://github.com/pioarduino/platform-espressif32/actions)
 
 ESP32 is a series of low-cost, low-power system on a chip microcontrollers with integrated Wi-Fi and Bluetooth. ESP32 integrates an antenna switch, RF balun, power amplifier, low-noise receive amplifier, filters, and power management modules.
