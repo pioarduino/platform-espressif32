@@ -1,4 +1,4 @@
-# Fork of Platformio Espressif 32: development platform for [PlatformIO](https://platformio.org)
+# Fork of PlatformIO Espressif 32: development platform for [PlatformIO](https://platformio.org)
 
 > [!NOTE]  
 > This fork was created due to the lack of ongoing development for the Espressif 32 Arduino Core in the PlatformIO registry to support developers who have used PlatformIO for their ESP32 projects.
