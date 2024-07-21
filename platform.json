@@ -1,7 +1,7 @@
 {
   "name": "espressif32",
   "title": "Espressif 32",
-  "description": "ESP32 is a series of low-cost, low-power system on a chip microcontrollers with integrated Wi-Fi and Bluetooth. ESP32 integrates an antenna switch, RF balun, power amplifier, low-noise receive amplifier, filters, and power management modules.",
+  "description": "Espressif Systems is a privately held fabless semiconductor company. They provide wireless communications and Wi-Fi chips which are widely used in mobile devices and the Internet of Things applications.",
   "homepage": "https://espressif.com/",
   "license": "Apache-2.0",
   "keywords": [
@@ -12,16 +12,15 @@
     "RISC-V"
   ],
   "engines": {
-    "platformio": "^6"
+    "platformio": ">=6.1.15"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/platformio/platform-espressif32.git"
+    "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "6.7.0",
+  "version": "51.03.03",
   "frameworks": {
     "arduino": {
-      "package": "framework-arduinoespressif32",
       "script": "builder/frameworks/arduino.py"
     },
     "espidf": {
@@ -30,71 +29,70 @@
     }
   },
   "packages": {
+    "framework-arduinoespressif32": {
+      "type": "framework",
+      "optional": true,
+      "owner": "espressif",
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.0.3/esp32-3.0.3.zip"
+    },
+    "framework-arduinoespressif32-libs": {
+      "type": "framework",
+      "optional": true,
+      "owner": "espressif",
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.0.3/esp32-arduino-libs-3.0.3.zip"
+    },
+    "framework-espidf": {
+      "type": "framework",
+      "optional": false,
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.1.4.240712/esp-idf-v5.1.4.zip"
+    },
     "toolchain-xtensa-esp32": {
       "type": "toolchain",
+      "optional": true,
       "owner": "espressif",
-      "version": "8.4.0+2021r2-patch5"
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/toolchain-xtensa-esp32.zip"
     },
     "toolchain-xtensa-esp32s2": {
       "type": "toolchain",
       "optional": true,
       "owner": "espressif",
-      "version": "8.4.0+2021r2-patch5"
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/toolchain-xtensa-esp32s2.zip"
     },
-     "toolchain-xtensa-esp32s3": {
+    "toolchain-xtensa-esp32s3": {
       "type": "toolchain",
       "optional": true,
       "owner": "espressif",
-      "version": "8.4.0+2021r2-patch5"
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/toolchain-xtensa-esp32s3.zip"
     },
     "toolchain-riscv32-esp": {
       "type": "toolchain",
       "optional": true,
       "owner": "espressif",
-      "version": "8.4.0+2021r2-patch5",
-      "optionalVersions": ["13.2.0+20230928"]
-    },
-    "toolchain-xtensa-esp-elf": {
-      "type": "toolchain",
-      "optional": true,
-      "owner": "platformio",
-      "version": "13.2.0+20230928"
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/toolchain-riscv32-esp.zip"
     },
     "toolchain-esp32ulp": {
       "type": "toolchain",
       "optional": true,
-      "owner": "platformio",
-      "version": "~1.23500.0"
+      "owner": "espressif",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/toolchain-esp32ulp.zip"
     },
-    "tool-xtensa-esp-elf-gdb": {
+      "tool-xtensa-esp-elf-gdb": {
       "type": "debugger",
       "optional": true,
       "owner": "espressif",
-      "version": "~12.1.0"
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/xtensa-esp-elf-gdb.zip"
     },
     "tool-riscv32-esp-elf-gdb": {
       "type": "debugger",
       "optional": true,
       "owner": "espressif",
-      "version": "~12.1.0"
-    },
-    "framework-arduinoespressif32": {
-      "type": "framework",
-      "optional": true,
-      "owner": "platformio",
-      "version": "~3.20017.0"
-    },
-    "framework-espidf": {
-      "type": "framework",
-      "optional": true,
-      "owner": "platformio",
-      "version": "~3.50202.0",
-      "optionalVersions": ["~3.40407.0"]
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/riscv32-esp-elf-gdb.zip"
     },
     "tool-esptoolpy": {
       "type": "uploader",
-      "owner": "platformio",
-      "version": "~1.40501.0"
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/esptool/releases/download/v4.7.5/esptool.zip"
     },
     "tool-dfuutil-arduino": {
       "type": "uploader",
@@ -108,17 +106,10 @@
       "owner": "platformio",
       "version": "~2.1100.0"
     },
-    "tool-mkspiffs": {
-      "type": "uploader",
-      "optional": true,
-      "owner": "platformio",
-      "version": "~2.230.0"
-    },
     "tool-mklittlefs": {
       "type": "uploader",
-      "optional": true,
-      "owner": "platformio",
-      "version": "~1.203.0"
+      "owner": "tasmota",
+      "version": "^3.2.0"
     },
     "tool-mkfatfs": {
       "type": "uploader",
@@ -126,25 +117,21 @@
       "owner": "platformio",
       "version": "~2.0.0"
     },
+    "tool-mkspiffs": {
+      "type": "uploader",
+      "optional": true,
+      "owner": "platformio",
+      "version": "~2.230.0"
+    },
     "tool-cmake": {
       "optional": true,
       "owner": "platformio",
-      "version": "~3.16.0"
+      "version": "~3.21.0"
     },
     "tool-ninja": {
       "optional": true,
       "owner": "platformio",
       "version": "^1.7.0"
-    },
-    "tool-mconf": {
-      "optional": true,
-      "owner": "platformio",
-      "version": "~1.4060000.0"
-    },
-    "tool-idf": {
-      "optional": true,
-      "owner": "platformio",
-      "version": "~1.0.1"
     }
   }
 }
