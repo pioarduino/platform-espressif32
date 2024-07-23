@@ -27,7 +27,7 @@ ESP32 is a series of low-cost, low-power system on a chip microcontrollers with 
 - Search for the official `platformio ide` extension.
 - Install PlatformIO IDE extension.
 
-![image](https://github.com/user-attachments/assets/9549991b-6a8b-4d77-ad9f-3b08873d7e30)
+![image](idesetup.png)
 
 # Usage
 1. Setup new VSCode PlatformIO project.
