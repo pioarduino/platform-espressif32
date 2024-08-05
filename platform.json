@@ -18,7 +18,7 @@
     "type": "git",
     "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "51.03.03",
+  "version": "51.03.04",
   "frameworks": {
     "arduino": {
       "script": "builder/frameworks/arduino.py"
@@ -33,105 +33,118 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.0.3/esp32-3.0.3.zip"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.0.4/esp32-3.0.4.zip"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.0.3/esp32-arduino-libs-3.0.3.zip"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.0.4/esp32-arduino-libs-3.0.4.zip"
     },
     "framework-espidf": {
       "type": "framework",
-      "optional": false,
+      "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.1.4.240712/esp-idf-v5.1.4.zip"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.1.4.240804/esp-idf-v5.1.4.zip"
     },
-    "toolchain-xtensa-esp32": {
+    "tc-xt-esp32": {
       "type": "toolchain",
       "optional": true,
-      "owner": "espressif",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/toolchain-xtensa-esp32.zip"
+      "owner": "",
+      "version": ""
     },
-    "toolchain-xtensa-esp32s2": {
+    "tc-xt-esp32s2": {
       "type": "toolchain",
       "optional": true,
-      "owner": "espressif",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/toolchain-xtensa-esp32s2.zip"
+      "owner": "",
+      "version": ""
     },
-    "toolchain-xtensa-esp32s3": {
+    "tc-xt-esp32s3": {
       "type": "toolchain",
       "optional": true,
-      "owner": "espressif",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/toolchain-xtensa-esp32s3.zip"
+      "owner": "",
+      "version": ""
     },
-    "toolchain-riscv32-esp": {
+    "tc-rv32": {
       "type": "toolchain",
       "optional": true,
-      "owner": "espressif",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/toolchain-riscv32-esp.zip"
+      "owner": "",
+      "version": ""
     },
-    "toolchain-esp32ulp": {
+    "tc-ulp": {
       "type": "toolchain",
       "optional": true,
-      "owner": "espressif",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/toolchain-esp32ulp.zip"
+      "owner": "",
+      "version": ""
     },
-      "tool-xtensa-esp-elf-gdb": {
+      "tl-xt-gdb": {
       "type": "debugger",
       "optional": true,
-      "owner": "espressif",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/xtensa-esp-elf-gdb.zip"
+      "owner": "",
+      "version": ""
     },
-    "tool-riscv32-esp-elf-gdb": {
+    "tl-rv-gdb": {
       "type": "debugger",
       "optional": true,
-      "owner": "espressif",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/riscv32-esp-elf-gdb.zip"
+      "owner": "",
+      "version": ""
     },
-    "tool-esptoolpy": {
+    "tool-esptool": {
       "type": "uploader",
+      "optional": false,
       "owner": "pioarduino",
       "version": "https://github.com/pioarduino/esptool/releases/download/v4.7.5/esptool.zip"
     },
-    "tool-dfuutil-arduino": {
+    "tl-install": {
+      "optional": false,
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/esp_install/releases/download/v1.5.1/esp_install-v1.5.1.zip"
+    },
+    "tool-dfuutil": {
       "type": "uploader",
       "optional": true,
-      "owner": "platformio",
-      "version": "~1.11.0"
+      "owner": "",
+      "version": ""
     },
-    "tool-openocd-esp32": {
+    "tool-openocd": {
       "type": "debugger",
       "optional": true,
-      "owner": "platformio",
-      "version": "~2.1100.0"
+      "owner": "",
+      "version": ""
     },
     "tool-mklittlefs": {
       "type": "uploader",
-      "owner": "tasmota",
-      "version": "^3.2.0"
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
+    "tool-mklittlefs400": {
+      "type": "uploader",
+      "optional": true,
+      "owner": "",
+      "version": ""
     },
     "tool-mkfatfs": {
       "type": "uploader",
       "optional": true,
-      "owner": "platformio",
-      "version": "~2.0.0"
+      "owner": "",
+      "version": ""
     },
     "tool-mkspiffs": {
       "type": "uploader",
       "optional": true,
-      "owner": "platformio",
-      "version": "~2.230.0"
+      "owner": "",
+      "version": ""
     },
     "tool-cmake": {
       "optional": true,
-      "owner": "platformio",
-      "version": "~3.21.0"
+      "owner": "",
+      "version": ""
     },
     "tool-ninja": {
       "optional": true,
-      "owner": "platformio",
-      "version": "^1.7.0"
+      "owner": "",
+      "version": ""
     }
   }
 }

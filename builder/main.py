@@ -14,8 +14,10 @@
 
 import re
 import sys
+import shutil
 import subprocess
-from os.path import isfile, join
+import os
+from os.path import isfile, isdir, join
 
 from SCons.Script import (
     ARGUMENTS, COMMAND_LINE_TARGETS, AlwaysBuild, Builder, Default,
@@ -32,14 +34,16 @@ platform = env.PioPlatform()
 
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
 
-idf_toolspy = join(platform.get_package_dir("framework-espidf"), "tools", "idf_tools.py")
-idf_toolspy_flag = ["install"]
-idf_toolspy_cmd = [env["PYTHONEXE"], idf_toolspy] + idf_toolspy_flag
+#IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
+#IDF_TOOLS = join(platform.get_package_dir("tl-install"), "tools", "idf_tools.py")
+#IDF_TOOLS_FLAG = ["install"]
+#IDF_TOOLS_CMD = [env["PYTHONEXE"], IDF_TOOLS] + IDF_TOOLS_FLAG
 
-rc = subprocess.call(idf_toolspy_cmd)
-
-if rc != 0:
-    sys.stderr.write("Error: Couldn't execute 'idf_tools.py install' \n")
+## IDF Install is needed only one time
+#if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")):
+#    rc = subprocess.call(IDF_TOOLS_CMD)
+#    if rc != 0:
+#        sys.stderr.write("Error: Couldn't execute 'idf_tools.py install' \n")
 
 
 def BeforeUpload(target, source, env):
@@ -263,15 +267,15 @@ env.Replace(
     CXX="%s-elf-g++" % toolchain_arch,
     GDB=join(
         platform.get_package_dir(
-            "tool-riscv32-esp-elf-gdb"
+            "tl-rv-gdb"
             if mcu in ("esp32c2", "esp32c3", "esp32c6")
-            else "tool-xtensa-esp-elf-gdb"
+            else "tl-xt-gdb"
         )
         or "",
         "bin",
         "%s-elf-gdb" % toolchain_arch,
     ),
-    OBJCOPY=join(platform.get_package_dir("tool-esptoolpy") or "", "esptool.py"),
+    OBJCOPY=join(platform.get_package_dir("tool-esptool") or "", "esptool.py"),
     RANLIB="%s-elf-gcc-ranlib" % toolchain_arch,
     SIZETOOL="%s-elf-size" % toolchain_arch,
 
@@ -446,7 +450,7 @@ if upload_protocol == "espota":
 elif upload_protocol == "esptool":
     env.Replace(
         UPLOADER=join(
-            platform.get_package_dir("tool-esptoolpy") or "", "esptool.py"),
+            platform.get_package_dir("tool-esptool") or "", "esptool.py"),
         UPLOADERFLAGS=[
             "--chip", mcu,
             "--port", '"$UPLOAD_PORT"',
@@ -495,7 +499,7 @@ elif upload_protocol == "dfu":
 
     env.Replace(
         UPLOADER=join(
-            platform.get_package_dir("tool-dfuutil-arduino") or "", "dfu-util"
+            platform.get_package_dir("tool-dfuutil") or "", "dfu-util"
         ),
         UPLOADERFLAGS=[
             "-d",
@@ -539,7 +543,7 @@ elif upload_protocol in debug_tools:
         f.replace(
             "$PACKAGE_DIR",
             _to_unix_slashes(
-                platform.get_package_dir("tool-openocd-esp32") or ""))
+                platform.get_package_dir("tl-openocd") or ""))
         for f in openocd_args
     ]
     env.Replace(

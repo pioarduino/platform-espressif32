@@ -58,7 +58,6 @@ board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 idf_variant = mcu.lower()
 
-# Required until Arduino switches to v5
 IDF5 = (
     platform.get_package_version("framework-espidf")
     .split(".")[1]
@@ -67,7 +66,7 @@ IDF5 = (
 IDF_ENV_VERSION = "1.0.0"
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
 TOOLCHAIN_DIR = platform.get_package_dir(
-    "toolchain-%s" % ("riscv32-esp" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xtensa-%s" % mcu))
+    "tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu))
 )
 
 
@@ -248,13 +247,10 @@ def populate_idf_env_vars(idf_env):
         os.path.dirname(get_python_exe()),
     ]
 
-    if mcu not in ("esp32c2", "esp32c3", "esp32c6","esp32h2"):
+    if mcu not in ("esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4"):
         additional_packages.append(
-            os.path.join(platform.get_package_dir("toolchain-esp32ulp"), "bin"),
+            os.path.join(platform.get_package_dir("tc-ulp"), "bin"),
         )
-
-#    if IS_WINDOWS:
-#        additional_packages.append(platform.get_package_dir("tool-mconf"))
 
     idf_env["PATH"] = os.pathsep.join(additional_packages + [idf_env["PATH"]])
 
@@ -503,7 +499,7 @@ def extract_linker_script_fragments_backup(framework_components_dir, sdk_config)
         sys.stderr.write("Error: Failed to extract paths to linker script fragments\n")
         env.Exit(1)
 
-    if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2"):
+    if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4"):
         result.append(os.path.join(framework_components_dir, "riscv", "linker.lf"))
 
     # Add extra linker fragments
@@ -644,16 +640,31 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
         '--objdump "{objdump}"'
     ).format(**args)
 
+    initial_ld_script = os.path.join(
+        FRAMEWORK_DIR,
+        "components",
+        "esp_system",
+        "ld",
+        idf_variant,
+        "sections.ld.in",
+    )
+
+    framework_version = [int(v) for v in get_framework_version().split(".")]
+    if framework_version[:2] > [5, 2]:
+        initial_ld_script = preprocess_linker_file(
+            initial_ld_script,
+            os.path.join(
+                BUILD_DIR,
+                "esp-idf",
+                "esp_system",
+                "ld",
+                "sections.ld.in",
+            )
+        )
+
     return env.Command(
         os.path.join("$BUILD_DIR", "sections.ld"),
-        os.path.join(
-            FRAMEWORK_DIR,
-            "components",
-            "esp_system",
-            "ld",
-            idf_variant,
-            "sections.ld.in",
-        ),
+        initial_ld_script,
         env.VerboseAction(cmd, "Generating project linker script $TARGET"),
     )
 
@@ -1103,6 +1114,46 @@ def get_app_partition_offset(pt_table, pt_offset):
     return app_params.get("offset", "0x10000")
 
 
+def preprocess_linker_file(src_ld_script, target_ld_script):
+    return env.Command(
+        target_ld_script,
+        src_ld_script,
+        env.VerboseAction(
+            " ".join(
+                [
+                    os.path.join(
+                        platform.get_package_dir("tool-cmake"),
+                        "bin",
+                        "cmake",
+                    ),
+                    "-DCC=%s"
+                    % os.path.join(
+                        TOOLCHAIN_DIR,
+                        "bin",
+                        "$CC",
+                    ),
+                    "-DSOURCE=$SOURCE",
+                    "-DTARGET=$TARGET",
+                    "-DCONFIG_DIR=%s" % os.path.join(BUILD_DIR, "config"),
+                    "-DLD_DIR=%s"
+                    % os.path.join(
+                        FRAMEWORK_DIR, "components", "esp_system", "ld"
+                    ),
+                    "-P",
+                    os.path.join(
+                        "$BUILD_DIR",
+                        "esp-idf",
+                        "esp_system",
+                        "ld",
+                        "linker_script_generator.cmake",
+                    ),
+                ]
+            ),
+            "Generating LD script $TARGET",
+        ),
+    )
+
+
 def generate_mbedtls_bundle(sdk_config):
     bundle_path = os.path.join("$BUILD_DIR", "x509_crt_bundle")
     if os.path.isfile(env.subst(bundle_path)):
@@ -1349,19 +1400,31 @@ generate_default_component()
 #
 
 if not board.get("build.ldscript", ""):
-    linker_script = env.Command(
-        os.path.join("$BUILD_DIR", "memory.ld"),
-        board.get(
-            "build.esp-idf.ldscript",
+    initial_ld_script = board.get("build.esp-idf.ldscript", os.path.join(
+        FRAMEWORK_DIR,
+        "components",
+        "esp_system",
+        "ld",
+        idf_variant,
+        "memory.ld.in",
+    ))
+
+    framework_version = [int(v) for v in get_framework_version().split(".")]
+    if framework_version[:2] > [5, 2]:
+        initial_ld_script = preprocess_linker_file(
+            initial_ld_script,
             os.path.join(
-                FRAMEWORK_DIR,
-                "components",
+                BUILD_DIR,
+                "esp-idf",
                 "esp_system",
                 "ld",
-                idf_variant,
                 "memory.ld.in",
-            ),
-        ),
+            )
+        )
+
+    linker_script = env.Command(
+        os.path.join("$BUILD_DIR", "memory.ld"),
+        initial_ld_script,
         env.VerboseAction(
             '$CC -I"$BUILD_DIR/config" -I"%s" -C -P -x c -E $SOURCE -o $TARGET'
             % os.path.join(FRAMEWORK_DIR, "components", "esp_system", "ld"),
@@ -1523,7 +1586,9 @@ libs = find_lib_deps(
 
 # Extra flags which need to be explicitly specified in LINKFLAGS section because SCons
 # cannot merge them correctly
-extra_flags = filter_args(link_args["LINKFLAGS"], ["-T", "-u"])
+extra_flags = filter_args(
+    link_args["LINKFLAGS"], ["-T", "-u", "-Wl,--start-group", "-Wl,--end-group"]
+)
 link_args["LINKFLAGS"] = sorted(list(set(link_args["LINKFLAGS"]) - set(extra_flags)))
 
 # remove the main linker script flags '-T memory.ld'
@@ -1612,7 +1677,7 @@ env.Prepend(
         (
             board.get(
                 "upload.bootloader_offset",
-                "0x0" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32s3", "esp32h2") else "0x1000",
+                "0x0" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32s3", "esp32h2") else ("0x2000" if mcu in ("esp32p4") else "0x1000"),
             ),
             os.path.join("$BUILD_DIR", "bootloader.bin"),
         ),
@@ -1723,7 +1788,7 @@ env["BUILDERS"]["ElfToBin"].action = action
 #
 
 ulp_dir = os.path.join(PROJECT_DIR, "ulp")
-if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "esp32c3", "esp32c6", "esp32h2"):
+if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4"):
     env.SConscript("ulp.py", exports="env sdk_config project_config idf_variant")
 
 #

@@ -13,16 +13,24 @@
 # limitations under the License.
 
 import os
+import subprocess
 import urllib
 import sys
 import json
 import re
 import requests
+import shutil
+from os.path import isfile, isdir, join
 
 from platformio.public import PlatformBase, to_unix_path
+from platformio.proc import get_pythonexe_path
 
-
+python_exe = get_pythonexe_path()
 IS_WINDOWS = sys.platform.startswith("win")
+IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
+IDF_TOOLS = os.path.join(os.path.expanduser("~"), ".platformio", "packages", "tl-install", "tools", "idf_tools.py")
+IDF_TOOLS_FLAG = ["install"]
+IDF_TOOLS_CMD = [python_exe, IDF_TOOLS] + IDF_TOOLS_FLAG
 
 
 class Espressif32Platform(PlatformBase):
@@ -34,6 +42,17 @@ class Espressif32Platform(PlatformBase):
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
         frameworks = variables.get("pioframework", [])
 
+        self.packages["tl-install"]["optional"] = False
+
+        # IDF Install is needed only one time
+        if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and os.path.exists(IDF_TOOLS):
+            rc = subprocess.call(IDF_TOOLS_CMD)
+            if rc != 0:
+                sys.stderr.write("Error: Couldn't execute 'idf_tools.py install' \n")
+            else:
+                shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
+
+
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
@@ -41,94 +60,80 @@ class Espressif32Platform(PlatformBase):
         if "buildfs" in targets:
             filesystem = variables.get("board_build.filesystem", "littlefs")
             if filesystem == "littlefs":
+                tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mklittlefs")
                 self.packages["tool-mklittlefs"]["optional"] = False
+                self.packages["tool-mklittlefs"]["version"] = tl_path
             elif filesystem == "fatfs":
+                tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mkfatfs")
                 self.packages["tool-mkfatfs"]["optional"] = False
-            else:
-                self.packages["tool-mkspiffs"]["optional"] = False
+                self.packages["tool-mkfatfs"]["version"] = tl_path
+            tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mkspiffs")
+            self.packages["tool-mkspiffs"]["optional"] = False
+            self.packages["tool-mkspiffs"]["version"] = tl_path
+
         if variables.get("upload_protocol"):
-            self.packages["tool-openocd-esp32"]["optional"] = False
-        if os.path.isdir("ulp"):
-            self.packages["toolchain-esp32ulp"]["optional"] = False
+            tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-openocd")
+            self.packages["tool-openocd"]["optional"] = False
+            self.packages["tool-openocd"]["version"] = tl_path
+
+        if os.path.isdir("ulp") and os.path.exists(IDF_TOOLS):
+            ulp_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-ulp")
+            self.packages["tc-ulp"]["optional"] = False
+            self.packages["tc-ulp"]["version"] = ulp_path
 
         if "downloadfs" in targets:
             filesystem = variables.get("board_build.filesystem", "littlefs")
             if filesystem == "littlefs":
-                # Use Tasmota mklittlefs v4.0.0 to unpack, older version is incompatible
-                self.packages["tool-mklittlefs"]["version"] = "~4.0.0"
+                # Use mklittlefs v4.0.0 to unpack, older version is incompatible
+                tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mklittlefs400")
+                self.packages["tool-mklittlefs"]["optional"] = False
+                self.packages["tool-mklittlefs"]["version"] = tl_path
+                #del self.packages["tool-mklittlefs"]
 
         # Currently only Arduino Nano ESP32 uses the dfuutil tool as uploader
         if variables.get("board") == "arduino_nano_esp32":
-            self.packages["tool-dfuutil-arduino"]["optional"] = False
+            tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-dfuutil")
+            self.packages["tool-dfuutil"]["optional"] = False
+            self.packages["tool-dfuutil"]["version"] = tl_path
         else:
-            del self.packages["tool-dfuutil-arduino"]
-
-        build_core = variables.get(
-            "board_build.core", board_config.get("build.core", "arduino")
-        ).lower()
-
-        if frameworks == ["arduino"] and build_core == "esp32":
-            # In case the upstream Arduino framework is specified in the configuration
-            # file then we need to dynamically extract toolchain versions from the
-            # Arduino index file. This feature can be disabled via a special option:
-            if (
-                variables.get(
-                    "board_build.arduino.upstream_packages",
-                    board_config.get("build.arduino.upstream_packages", "no"),
-                ).lower()
-                == "yes"
-            ):
-                package_version = self.packages["framework-arduinoespressif32"][
-                    "version"
-                ]
-
-                url_items = urllib.parse.urlparse(package_version)
-                # Only GitHub repositories support dynamic packages
-                if (
-                    url_items.scheme in ("http", "https")
-                    and url_items.netloc.startswith("github")
-                    and url_items.path.endswith(".git")
-                ):
-                    try:
-                        self.configure_upstream_arduino_packages(url_items)
-                    except Exception as e:
-                        sys.stderr.write(
-                            "Error! Failed to extract upstream toolchain"
-                            "configurations:\n%s\n" % str(e)
-                        )
-                        sys.stderr.write(
-                            "You can disable this feature via the "
-                            "`board_build.arduino.upstream_packages = no` setting in "
-                            "your `platformio.ini` file.\n"
-                        )
-                        sys.exit(1)
+            del self.packages["tool-dfuutil"]
 
         # Starting from v12, Espressif's toolchains are shipped without
         # bundled GDB. Instead, it's distributed as separate packages for Xtensa
         # and RISC-V targets.
-        for gdb_package in ("tool-xtensa-esp-elf-gdb", "tool-riscv32-esp-elf-gdb"):
-            self.packages[gdb_package]["optional"] = False
+        if os.path.exists(IDF_TOOLS):
+            for gdb_package in ("tl-xt-gdb", "tl-rv-gdb"):
+                tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", gdb_package)
+                self.packages[gdb_package]["optional"] = False
+                self.packages[gdb_package]["version"] = tl_path
 
         # Common packages for IDF and mixed Arduino+IDF projects
-        if "espidf" in frameworks:
-            self.packages["toolchain-esp32ulp"]["optional"] = False
+        if "espidf" in frameworks and os.path.exists(IDF_TOOLS):
+            ulp_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-ulp")
+            self.packages["tc-ulp"]["optional"] = False
+            self.packages["tc-ulp"]["version"] = ulp_path
             for p in self.packages:
                 if p in ("tool-cmake", "tool-ninja"):
+                    tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
                     self.packages[p]["optional"] = False
-#                elif p in ("tool-mconf", "tool-idf") and IS_WINDOWS:
-#                    self.packages[p]["optional"] = False
+                    self.packages[p]["version"] = tl_path
 
         for available_mcu in ("esp32", "esp32s2", "esp32s3"):
-            if available_mcu == mcu:
-                self.packages["toolchain-xtensa-%s" % mcu]["optional"] = False
+            if available_mcu == mcu and os.path.exists(IDF_TOOLS):
+                tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-xt-%s" % mcu)
+                self.packages["tc-xt-%s" % mcu]["optional"] = False
+                self.packages["tc-xt-%s" % mcu]["version"] = tc_path
             else:
-                self.packages.pop("toolchain-xtensa-%s" % available_mcu, None)
+                self.packages.pop("tc-xt-%s" % available_mcu, None)
 
         if mcu in ("esp32s2", "esp32s3", "esp32c2", "esp32c3", "esp32c6", "esp32h2"):
             if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2"):
-                self.packages.pop("toolchain-esp32ulp", None)
+                self.packages.pop("tc-ulp", None)
             # RISC-V based toolchain for ESP32C3, ESP32C6 ESP32S2, ESP32S3 ULP
-            self.packages["toolchain-riscv32-esp"]["optional"] = False
+            if os.path.exists(IDF_TOOLS):
+                rv32_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-rv32")
+                self.packages["tc-rv32"]["optional"] = False
+                self.packages["tc-rv32"]["version"] = rv32_path
 
         return super().configure_default_packages(variables, targets)
 
@@ -218,7 +223,7 @@ class Espressif32Platform(PlatformBase):
 
             debug["tools"][link] = {
                 "server": {
-                    "package": "tool-openocd-esp32",
+                    "package": "tool-openocd",
                     "executable": "bin/openocd",
                     "arguments": server_args,
                 },
@@ -278,114 +283,3 @@ class Espressif32Platform(PlatformBase):
             )
         )
         debug_config.load_cmds = load_cmds
-
-
-    @staticmethod
-    def extract_toolchain_versions(tool_deps):
-        def _parse_version(original_version):
-            assert original_version
-            version_patterns = (
-                r"^gcc(?P<MAJOR>\d+)_(?P<MINOR>\d+)_(?P<PATCH>\d+)-esp-(?P<EXTRA>.+)$",
-                r"^esp-(?P<EXTRA>.+)-(?P<MAJOR>\d+)\.(?P<MINOR>\d+)\.?(?P<PATCH>\d+)$",
-                r"^esp-(?P<MAJOR>\d+)\.(?P<MINOR>\d+)\.(?P<PATCH>\d+)(_(?P<EXTRA>.+))?$",
-            )
-            for pattern in version_patterns:
-                match = re.search(pattern, original_version)
-                if match:
-                    result = "%s.%s.%s" % (
-                        match.group("MAJOR"),
-                        match.group("MINOR"),
-                        match.group("PATCH"),
-                    )
-                    if match.group("EXTRA"):
-                        result = result + "+%s" % match.group("EXTRA")
-                    return result
-
-            raise ValueError("Bad package version `%s`" % original_version)
-
-        if not tool_deps:
-            raise ValueError(
-                ("Failed to extract tool dependencies from the remote package file")
-            )
-
-        toolchain_remap = {
-            "xtensa-esp32-elf-gcc": "toolchain-xtensa-esp32",
-            "xtensa-esp32s2-elf-gcc": "toolchain-xtensa-esp32s2",
-            "xtensa-esp32s3-elf-gcc": "toolchain-xtensa-esp32s3",
-            "riscv32-esp-elf-gcc": "toolchain-riscv32-esp",
-        }
-
-        result = dict()
-        for tool in tool_deps:
-            if tool["name"] in toolchain_remap:
-                result[toolchain_remap[tool["name"]]] = _parse_version(tool["version"])
-
-        return result
-
-    @staticmethod
-    def parse_tool_dependencies(index_data):
-        for package in index_data.get("packages", []):
-            if package["name"] == "esp32":
-                for platform in package["platforms"]:
-                    if platform["name"] == "esp32":
-                        return platform["toolsDependencies"]
-
-        return []
-
-    @staticmethod
-    def download_remote_package_index(url_items):
-        def _prepare_url_for_index_file(url_items):
-            tag = "master"
-            if url_items.fragment:
-                tag = url_items.fragment
-            return (
-                "https://raw.githubusercontent.com/%s/"
-                "%s/package/package_esp32_index.template.json"
-                % (url_items.path.replace(".git", ""), tag)
-            )
-
-        index_file_url = _prepare_url_for_index_file(url_items)
-
-        try:
-            from platformio.public import fetch_http_content
-            content = fetch_http_content(index_file_url)
-        except ImportError:
-            import requests
-            content = requests.get(index_file_url, timeout=5).text
-
-        return json.loads(content)
-
-    def configure_arduino_toolchains(self, package_index):
-        if not package_index:
-            return
-
-        toolchain_packages = self.extract_toolchain_versions(
-            self.parse_tool_dependencies(package_index)
-        )
-        for toolchain_package, version in toolchain_packages.items():
-            if toolchain_package not in self.packages:
-                self.packages[toolchain_package] = dict()
-            self.packages[toolchain_package]["version"] = version
-            self.packages[toolchain_package]["owner"] = "espressif"
-            self.packages[toolchain_package]["type"] = "toolchain"
-
-    def configure_upstream_arduino_packages(self, url_items):
-        framework_index_file = os.path.join(
-            self.get_package_dir("framework-arduinoespressif32") or "",
-            "package",
-            "package_esp32_index.template.json",
-        )
-
-        # Detect whether the remote is already cloned
-        if os.path.isfile(framework_index_file) and os.path.isdir(
-            os.path.join(
-                self.get_package_dir("framework-arduinoespressif32") or "", ".git"
-            )
-        ):
-            with open(framework_index_file) as fp:
-                self.configure_arduino_toolchains(json.load(fp))
-        else:
-            print("Configuring toolchain packages from a remote source...")
-            self.configure_arduino_toolchains(
-                self.download_remote_package_index(url_items)
-            )
