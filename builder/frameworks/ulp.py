@@ -89,7 +89,7 @@ def generate_ulp_config(target_config):
                 "components",
                 "ulp",
                 "cmake",
-                "tc-%sulp%s.cmake"
+                "toolchain-%sulp%s.cmake"
                 % (
                     "" if riscv_ulp_enabled else idf_variant + "-",
                     "-riscv" if riscv_ulp_enabled else "",
