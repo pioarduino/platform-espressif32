@@ -52,29 +52,60 @@ class Espressif32Platform(PlatformBase):
             else:
                 shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
 
+        tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mklittlefs")
+        self.packages["tool-mklittlefs"]["optional"] = False
+        self.packages["tool-mklittlefs"]["version"] = tl_path
+        tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mkfatfs")
+        self.packages["tool-mkfatfs"]["optional"] = False
+        self.packages["tool-mkfatfs"]["version"] = tl_path
+        tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mkspiffs")
+        self.packages["tool-mkspiffs"]["optional"] = False
+        self.packages["tool-mkspiffs"]["version"] = tl_path
+        tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-dfuutil")
+        self.packages["tool-dfuutil"]["optional"] = False
+        self.packages["tool-dfuutil"]["version"] = tl_path
+        tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-openocd")
+        self.packages["tool-openocd"]["optional"] = False
+        self.packages["tool-openocd"]["version"] = tl_path
+
 
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
 
-        if "buildfs" in targets:
+        if "".join(targets) in ("upload", "buildfs", "uploadfs"):
             filesystem = variables.get("board_build.filesystem", "littlefs")
             if filesystem == "littlefs":
+                # Use mklittlefs v3.2.0 to generate FS
                 tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mklittlefs")
                 self.packages["tool-mklittlefs"]["optional"] = False
                 self.packages["tool-mklittlefs"]["version"] = tl_path
+                del self.packages["tool-mkfatfs"]
+                del self.packages["tool-mkspiffs"]
             elif filesystem == "fatfs":
-                tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mkfatfs")
                 self.packages["tool-mkfatfs"]["optional"] = False
-                self.packages["tool-mkfatfs"]["version"] = tl_path
-            tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mkspiffs")
-            self.packages["tool-mkspiffs"]["optional"] = False
-            self.packages["tool-mkspiffs"]["version"] = tl_path
+                del self.packages["tool-mklittlefs"]
+                del self.packages["tool-mkspiffs"]
+            elif filesystem == "spiffs":
+                self.packages["tool-mkspiffs"]["optional"] = False
+                del self.packages["tool-mkfatfs"]
+                del self.packages["tool-mklittlefs"]
+        else:
+            del self.packages["tool-mklittlefs"]
+            del self.packages["tool-mkfatfs"]
+            del self.packages["tool-mkspiffs"]
 
         if variables.get("upload_protocol"):
-            tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-openocd")
             self.packages["tool-openocd"]["optional"] = False
-            self.packages["tool-openocd"]["version"] = tl_path
+        else:
+            del self.packages["tool-openocd"]
+
+
+        if os.path.isdir("ulp") and os.path.exists(IDF_TOOLS):
+            ulp_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-ulp")
+            self.packages["tc-ulp"]["optional"] = False
+            self.packages["tc-ulp"]["version"] = ulp_path
+
 
         if os.path.isdir("ulp") and os.path.exists(IDF_TOOLS):
             ulp_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-ulp")
@@ -88,7 +119,6 @@ class Espressif32Platform(PlatformBase):
                 tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mklittlefs400")
                 self.packages["tool-mklittlefs"]["optional"] = False
                 self.packages["tool-mklittlefs"]["version"] = tl_path
-                #del self.packages["tool-mklittlefs"]
 
         # Currently only Arduino Nano ESP32 uses the dfuutil tool as uploader
         if variables.get("board") == "arduino_nano_esp32":
