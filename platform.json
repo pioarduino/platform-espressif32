@@ -100,6 +100,11 @@
       "owner": "pioarduino",
       "version": "https://github.com/pioarduino/esp_install/releases/download/v1.5.1/esp_install-v1.5.1.zip"
     },
+    "tool-ninja": {
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
     "tool-dfuutil": {
       "type": "uploader",
       "optional": true,
@@ -135,10 +140,35 @@
       "owner": "",
       "version": ""
     },
-    "tool-ninja": {
+    "tool-scons": {
+      "optional": false,
+      "owner": "",
+      "version": "https://github.com/pioarduino/scons/releases/download/4.7.0/scons-local-4.7.0.tar.gz"
+    },
+    "tool-cppcheck": {
       "optional": true,
       "owner": "",
       "version": ""
+    },
+    "tool-clangtidy": {
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
+    "tool-pvs-studio": {
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
+    "contrib-piohome": {
+      "optional": true,
+      "owner": "",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/contrib-piohome-3.4.4.tar.gz"
+    },
+    "contrib-pioremote": {
+      "optional": true,
+      "owner": "",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/contrib-pioremote-1.0.1.tar.gz"
     }
   }
 }
