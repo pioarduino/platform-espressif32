@@ -77,7 +77,7 @@
       "owner": "",
       "version": ""
     },
-      "tl-xt-gdb": {
+    "tl-xt-gdb": {
       "type": "debugger",
       "optional": true,
       "owner": "",
@@ -99,6 +99,11 @@
       "optional": false,
       "owner": "pioarduino",
       "version": "https://github.com/pioarduino/esp_install/releases/download/v1.5.1/esp_install-v1.5.1.zip"
+    },
+    "tool-cmake": {
+      "optional": true,
+      "owner": "",
+      "version": ""
     },
     "tool-ninja": {
       "optional": true,
@@ -131,11 +136,6 @@
     },
     "tool-mkspiffs": {
       "type": "uploader",
-      "optional": true,
-      "owner": "",
-      "version": ""
-    },
-    "tool-cmake": {
       "optional": true,
       "owner": "",
       "version": ""
