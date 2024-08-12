@@ -57,9 +57,6 @@ class Espressif32Platform(PlatformBase):
                     self.packages[p]["optional"] = False
                     self.packages[p]["version"] = tl_path
 
-        if os.path.exists(IDF_TOOLS):
-                self.packages["tl-install"]["optional"] = True
-
 
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
