@@ -54,7 +54,7 @@ class Espressif32Platform(PlatformBase):
             # Install all tools and toolchains
             self.packages["tl-install"]["optional"] = True
             for p in self.packages:
-                if p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
+                if p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "contrib-piohome", "contrib-pioremote", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
                     tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
                     self.packages[p]["optional"] = False
                     self.packages[p]["version"] = tl_path
