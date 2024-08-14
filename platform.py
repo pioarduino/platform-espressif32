@@ -54,14 +54,27 @@ class Espressif32Platform(PlatformBase):
             # Install all tools and toolchains
             self.packages["tl-install"]["optional"] = True
             for p in self.packages:
-                if p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "contrib-piohome", "contrib-pioremote", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
+                if p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "contrib-piohome", "contrib-pioremote", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
                     tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
                     self.packages[p]["optional"] = False
                     self.packages[p]["version"] = tl_path
             # Enable common packages for IDF and mixed Arduino+IDF projects
             for p in self.packages:
-                if p in ("tool-cmake", "tool-ninja", "tc-ulp"):
+                if p in ("tool-scons", "tool-cmake", "tool-ninja", "tc-ulp"):
                     self.packages[p]["optional"] = False if "espidf" in frameworks else True
+
+        # Enable debug tool gdb only when build debug is enabled
+        if variables.get("build_type") or  "debug" in "".join(targets):
+            self.packages["tl-rv-gdb"]["optional"] = False if mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
+            self.packages["tl-xt-gdb"]["optional"] = False if not mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
+        else:
+            self.packages["tl-rv-gdb"]["optional"] = True
+            self.packages["tl-xt-gdb"]["optional"] = True
+
+        # Enable check tools only when "check_tool" is enabled
+        for p in self.packages:
+            if p in ("tool-cppcheck", "tool-clangtidy", "tool-pvs-studio"):
+                self.packages[p]["optional"] = False if str(variables.get("check_tool")).strip("['']") in p else True
 
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
