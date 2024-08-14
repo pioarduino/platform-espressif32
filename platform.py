@@ -69,15 +69,15 @@ class Espressif32Platform(PlatformBase):
                 if p in ("tool-cmake", "tool-ninja", "tc-ulp"):
                     self.packages[p]["optional"] = False if "espidf" in frameworks else True
             # Enabling of following tools is not needed, installing is enough
-            try:
-                for p in self.packages:
-                    if p in ("contrib-pioremote", "contrib-piohome", "tool-scons"):
+            for p in self.packages:
+                if p in ("contrib-pioremote", "contrib-piohome", "tool-scons"):
+                    try:
                         pkg_dir = pm.get_package(p).path
                         # When package is not found an execption happens -> install is forced
                         # else the are removed from current env
-                        del self.packages[p]
-            except:
-                pass
+                        self.packages[p]["optional"] = True
+                    except:
+                        pass
 
 
         # Enable debug tool gdb only when build debug is enabled
