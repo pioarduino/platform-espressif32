@@ -24,6 +24,7 @@ from os.path import isfile, isdir, join
 
 from platformio.public import PlatformBase, to_unix_path
 from platformio.proc import get_pythonexe_path
+from platformio.package.manager.tool import ToolPackageManager
 
 python_exe = get_pythonexe_path()
 IS_WINDOWS = sys.platform.startswith("win")
@@ -62,6 +63,16 @@ class Espressif32Platform(PlatformBase):
             for p in self.packages:
                 if p in ("tool-scons", "tool-cmake", "tool-ninja", "tc-ulp"):
                     self.packages[p]["optional"] = False if "espidf" in frameworks else True
+            # Enabling of piohome and pioremote is not needed, installing is enough
+            pm = ToolPackageManager()
+            try:
+                pkg_dir = pm.get_package("contrib-pioremote").path
+                # When package is not found an execption happens -> install is forced
+                # else the are removed from current env
+                del self.packages["contrib-piohome"]
+                del self.packages["contrib-pioremote"]
+            except:
+                pass
 
         # Enable debug tool gdb only when build debug is enabled
         if variables.get("build_type") or  "debug" in "".join(targets):
