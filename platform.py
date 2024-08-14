@@ -66,15 +66,22 @@ class Espressif32Platform(PlatformBase):
                     self.packages[p]["version"] = tl_path
             # Enable common packages for IDF and mixed Arduino+IDF projects
             for p in self.packages:
-                if p in ("tool-scons", "tool-cmake", "tool-ninja", "tc-ulp"):
+                if p in ("tool-cmake", "tool-ninja", "tc-ulp"):
                     self.packages[p]["optional"] = False if "espidf" in frameworks else True
-            # Enabling of piohome and pioremote is not needed, installing is enough
+            # Enabling of following tools is not needed, installing is enough
             try:
                 pkg_dir = pm.get_package("contrib-pioremote").path
                 # When package is not found an execption happens -> install is forced
                 # else the are removed from current env
                 del self.packages["contrib-piohome"]
                 del self.packages["contrib-pioremote"]
+            except:
+                pass
+            try:
+                pkg_dir = pm.get_package("tool-scons").path
+                # When package is not found an execption happens -> install is forced
+                # else the are removed from current env
+                del self.packages["tool-scons"]
             except:
                 pass
 
