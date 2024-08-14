@@ -14,22 +14,23 @@
 
 import os
 import subprocess
-import urllib
 import sys
-import json
-import re
-import requests
 import shutil
-from os.path import isfile, isdir, join
+from os.path import isfile, join
 
 from platformio.public import PlatformBase, to_unix_path
 from platformio.proc import get_pythonexe_path
 from platformio.package.manager.tool import ToolPackageManager
 
 python_exe = get_pythonexe_path()
+pm = ToolPackageManager()
 IS_WINDOWS = sys.platform.startswith("win")
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
-IDF_TOOLS = os.path.join(os.path.expanduser("~"), ".platformio", "packages", "tl-install", "tools", "idf_tools.py")
+try:
+    tl_path = pm.get_package("tl-install").path
+    IDF_TOOLS = os.path.join(tl_path, "tools", "idf_tools.py")
+except:
+    IDF_TOOLS = ""
 IDF_TOOLS_FLAG = ["install"]
 IDF_TOOLS_CMD = [python_exe, IDF_TOOLS] + IDF_TOOLS_FLAG
 
@@ -42,16 +43,20 @@ class Espressif32Platform(PlatformBase):
         board_config = self.board_config(variables.get("board"))
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
         frameworks = variables.get("pioframework", [])
+        try:
+            tl_flag = bool(pm.get_package("tl-install").path)
+        except:
+            tl_flag = False
 
         # IDF Install is needed only one time
-        if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and os.path.exists(IDF_TOOLS):
+        if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and tl_flag:
             rc = subprocess.call(IDF_TOOLS_CMD)
             if rc != 0:
                 sys.stderr.write("Error: Couldn't execute 'idf_tools.py install' \n")
             else:
                 shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
 
-        if os.path.exists(IDF_TOOLS):
+        if tl_flag:
             # Install all tools and toolchains
             self.packages["tl-install"]["optional"] = True
             for p in self.packages:
@@ -64,7 +69,6 @@ class Espressif32Platform(PlatformBase):
                 if p in ("tool-scons", "tool-cmake", "tool-ninja", "tc-ulp"):
                     self.packages[p]["optional"] = False if "espidf" in frameworks else True
             # Enabling of piohome and pioremote is not needed, installing is enough
-            pm = ToolPackageManager()
             try:
                 pkg_dir = pm.get_package("contrib-pioremote").path
                 # When package is not found an execption happens -> install is forced
@@ -73,6 +77,7 @@ class Espressif32Platform(PlatformBase):
                 del self.packages["contrib-pioremote"]
             except:
                 pass
+
 
         # Enable debug tool gdb only when build debug is enabled
         if variables.get("build_type") or  "debug" in "".join(targets):
@@ -134,7 +139,7 @@ class Espressif32Platform(PlatformBase):
 
         # Enable needed toolchains
         for available_mcu in ("esp32", "esp32s2", "esp32s3"):
-            if available_mcu == mcu and os.path.exists(IDF_TOOLS):
+            if available_mcu == mcu and tl_flag:
                 tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-xt-%s" % mcu)
                 self.packages["tc-xt-%s" % mcu]["optional"] = False
                 self.packages["tc-xt-%s" % mcu]["version"] = tc_path
@@ -145,7 +150,7 @@ class Espressif32Platform(PlatformBase):
             if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2"):
                 del self.packages["tc-ulp"]
             # RISC-V based toolchain for ESP32C3, ESP32C6 ESP32S2, ESP32S3 ULP
-            if os.path.exists(IDF_TOOLS):
+            if tl_flag:
                 self.packages["tc-rv32"]["optional"] = False
 
         return super().configure_default_packages(variables, targets)
