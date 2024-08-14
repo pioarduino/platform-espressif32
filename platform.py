@@ -70,18 +70,12 @@ class Espressif32Platform(PlatformBase):
                     self.packages[p]["optional"] = False if "espidf" in frameworks else True
             # Enabling of following tools is not needed, installing is enough
             try:
-                pkg_dir = pm.get_package("contrib-pioremote").path
-                # When package is not found an execption happens -> install is forced
-                # else the are removed from current env
-                del self.packages["contrib-piohome"]
-                del self.packages["contrib-pioremote"]
-            except:
-                pass
-            try:
-                pkg_dir = pm.get_package("tool-scons").path
-                # When package is not found an execption happens -> install is forced
-                # else the are removed from current env
-                del self.packages["tool-scons"]
+                for p in self.packages:
+                    if p in ("contrib-pioremote", "contrib-piohome", "tool-scons"):
+                        pkg_dir = pm.get_package(p).path
+                        # When package is not found an execption happens -> install is forced
+                        # else the are removed from current env
+                        del self.packages[p]
             except:
                 pass
 
