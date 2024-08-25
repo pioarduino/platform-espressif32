@@ -47,6 +47,11 @@
       "owner": "pioarduino",
       "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.1.4.240805/esp-idf-v5.1.4.zip"
     },
+    "tool-install": {
+      "optional": false,
+      "owner": "pioarduino",
+      "version": ""
+    },
     "tc-xt-esp32": {
       "type": "toolchain",
       "optional": true,
