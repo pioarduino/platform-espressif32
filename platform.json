@@ -50,7 +50,7 @@
     "tool-install": {
       "optional": false,
       "owner": "pioarduino",
-      "version": ""
+      "version": "https://github.com/pioarduino/esp_install/releases/download/v1.7.0/tool-install.tar.gz"
     },
     "tc-xt-esp32": {
       "type": "toolchain",
