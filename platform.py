@@ -19,21 +19,11 @@ import shutil
 from os.path import isfile, join
 
 from platformio.public import PlatformBase, to_unix_path
-from platformio.proc import get_pythonexe_path
 from platformio.package.manager.tool import ToolPackageManager
 
-python_exe = get_pythonexe_path()
 pm = ToolPackageManager()
 IS_WINDOWS = sys.platform.startswith("win")
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
-try:
-    tl_path = pm.get_package("tool-install").path
-    IDF_TOOLS = os.path.join(tl_path, "tools", "idf_tools.py")
-except:
-    IDF_TOOLS = ""
-IDF_TOOLS_FLAG = ["install"]
-IDF_TOOLS_CMD = [python_exe, IDF_TOOLS] + IDF_TOOLS_FLAG
-
 
 class Espressif32Platform(PlatformBase):
     def configure_default_packages(self, variables, targets):
@@ -47,14 +37,6 @@ class Espressif32Platform(PlatformBase):
             tl_flag = bool(pm.get_package("tool-install").path)
         except:
             tl_flag = False
-
-        # IDF Install is needed only one time
-        if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and tl_flag:
-            rc = subprocess.call(IDF_TOOLS_CMD)
-            if rc != 0:
-                sys.stderr.write("Error: Couldn't execute 'idf_tools.py install' \n")
-            else:
-                shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
 
         if tl_flag:
             # Install all tools and toolchains
