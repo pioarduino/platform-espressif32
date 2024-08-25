@@ -27,7 +27,7 @@ pm = ToolPackageManager()
 IS_WINDOWS = sys.platform.startswith("win")
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
 try:
-    tl_path = pm.get_package("tl-install").path
+    tl_path = pm.get_package("tool-install").path
     IDF_TOOLS = os.path.join(tl_path, "tools", "idf_tools.py")
 except:
     IDF_TOOLS = ""
@@ -44,7 +44,7 @@ class Espressif32Platform(PlatformBase):
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
         frameworks = variables.get("pioframework", [])
         try:
-            tl_flag = bool(pm.get_package("tl-install").path)
+            tl_flag = bool(pm.get_package("tool-install").path)
         except:
             tl_flag = False
 
@@ -58,7 +58,6 @@ class Espressif32Platform(PlatformBase):
 
         if tl_flag:
             # Install all tools and toolchains
-            self.packages["tl-install"]["optional"] = True
             for p in self.packages:
                 if p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "contrib-piohome", "contrib-pioremote", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
                     tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
@@ -70,7 +69,7 @@ class Espressif32Platform(PlatformBase):
                     self.packages[p]["optional"] = False if "espidf" in frameworks else True
             # Enabling of following tools is not needed, installing is enough
             for p in self.packages:
-                if p in ("contrib-pioremote", "contrib-piohome", "tool-scons"):
+                if p in ("contrib-pioremote", "contrib-piohome"): #, "tool-scons"):
                     try:
                         pkg_dir = pm.get_package(p).path
                         # When package is not found an execption happens -> install is forced

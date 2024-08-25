@@ -95,11 +95,6 @@
       "owner": "pioarduino",
       "version": "https://github.com/pioarduino/esptool/releases/download/v4.7.5/esptool.zip"
     },
-    "tl-install": {
-      "optional": false,
-      "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp_install/releases/download/v1.6.0/esp_install-v1.6.0.zip"
-    },
     "tool-cmake": {
       "optional": true,
       "owner": "",
@@ -139,11 +134,6 @@
       "optional": true,
       "owner": "",
       "version": ""
-    },
-    "tool-scons": {
-      "optional": false,
-      "owner": "",
-      "version": "https://github.com/pioarduino/scons/releases/download/4.7.0/scons-local-4.7.0.tar.gz"
     },
     "tool-cppcheck": {
       "optional": true,

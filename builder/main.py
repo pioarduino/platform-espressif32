@@ -34,17 +34,6 @@ platform = env.PioPlatform()
 
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
 
-#IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
-#IDF_TOOLS = join(platform.get_package_dir("tl-install"), "tools", "idf_tools.py")
-#IDF_TOOLS_FLAG = ["install"]
-#IDF_TOOLS_CMD = [env["PYTHONEXE"], IDF_TOOLS] + IDF_TOOLS_FLAG
-
-## IDF Install is needed only one time
-#if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")):
-#    rc = subprocess.call(IDF_TOOLS_CMD)
-#    if rc != 0:
-#        sys.stderr.write("Error: Couldn't execute 'idf_tools.py install' \n")
-
 
 def BeforeUpload(target, source, env):
     upload_options = {}
