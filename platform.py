@@ -140,7 +140,9 @@ class Espressif32Platform(PlatformBase):
                     self.packages["tc-xt-%s" % mcu]["optional"] = False
                     self.packages["tc-xt-%s" % mcu]["version"] = tc_path
                 except:
-                    pm.install("tc-xt-%s" % mcu) = tc_path
+                    pm.install("tc-xt-%s" % mcu)
+                    self.packages["tc-xt-%s" % mcu]["optional"] = False
+                    self.packages["tc-xt-%s" % mcu]["version"] = tc_path
                 if available_mcu == "esp32":
                     del self.packages["tc-rv32"]
         # Enable ULP toolchains
