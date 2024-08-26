@@ -38,17 +38,25 @@ class Espressif32Platform(PlatformBase):
         except:
             tl_flag = False
 
-        if tl_flag:
+        if True: #tl_flag:
             # Install all tools and toolchains
             for p in self.packages:
                 if p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "contrib-piohome", "contrib-pioremote", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
                     tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
-                    self.packages[p]["optional"] = False
-                    self.packages[p]["version"] = tl_path
+                    try:
+                        pkg_dir = pm.get_package(p).path
+                        self.packages[p]["optional"] = False
+                        self.packages[p]["version"] = tl_path
+                    except:
+                        pass
             # Enable common packages for IDF and mixed Arduino+IDF projects
             for p in self.packages:
                 if p in ("tool-cmake", "tool-ninja", "tc-ulp"):
-                    self.packages[p]["optional"] = False if "espidf" in frameworks else True
+                    try:
+                        pkg_dir = pm.get_package(p).path
+                        self.packages[p]["optional"] = False if "espidf" in frameworks else True
+                    except:
+                        pass
             # Enabling of following tools is not needed, installing is enough
             for p in self.packages:
                 if p in ("contrib-pioremote", "contrib-piohome"): #, "tool-scons"):
@@ -72,7 +80,11 @@ class Espressif32Platform(PlatformBase):
         # Enable check tools only when "check_tool" is enabled
         for p in self.packages:
             if p in ("tool-cppcheck", "tool-clangtidy", "tool-pvs-studio"):
-                self.packages[p]["optional"] = False if str(variables.get("check_tool")).strip("['']") in p else True
+                try:
+                    pkg_dir = pm.get_package(p).path
+                    self.packages[p]["optional"] = False if str(variables.get("check_tool")).strip("['']") in p else True
+                except:
+                    pass
 
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
@@ -123,8 +135,12 @@ class Espressif32Platform(PlatformBase):
         for available_mcu in ("esp32", "esp32s2", "esp32s3"):
             if available_mcu == mcu and tl_flag:
                 tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-xt-%s" % mcu)
-                self.packages["tc-xt-%s" % mcu]["optional"] = False
-                self.packages["tc-xt-%s" % mcu]["version"] = tc_path
+                try:
+                    pkg_dir = pm.get_package("tc-xt-%s" % mcu).path
+                    self.packages["tc-xt-%s" % mcu]["optional"] = False
+                    self.packages["tc-xt-%s" % mcu]["version"] = tc_path
+                except:
+                    pass
                 if available_mcu == "esp32":
                     del self.packages["tc-rv32"]
         # Enable ULP toolchains
@@ -132,8 +148,12 @@ class Espressif32Platform(PlatformBase):
             if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2"):
                 del self.packages["tc-ulp"]
             # RISC-V based toolchain for ESP32C3, ESP32C6 ESP32S2, ESP32S3 ULP
-            if tl_flag:
+            #if tl_flag:
+            try:
+                pkg_dir = pm.get_package("tc-rv32").path
                 self.packages["tc-rv32"]["optional"] = False
+            except:
+                pass
 
         return super().configure_default_packages(variables, targets)
 
