@@ -136,7 +136,7 @@ class Espressif32Platform(PlatformBase):
             if available_mcu == mcu and tl_flag:
                 tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-xt-%s" % mcu)
                 try:
-                    pkg_dir = pm.get_package("toolchain-xtensa-%s" % mcu).path
+                    #pkg_dir = pm.get_package("toolchain-xtensa-%s" % mcu).path
                     self.packages["toolchain-xtensa-%s" % mcu]["optional"] = False
                     self.packages["toolchain-xtensa-%s" % mcu]["version"] = tc_path
                 except:
