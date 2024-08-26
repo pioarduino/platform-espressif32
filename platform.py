@@ -136,13 +136,13 @@ class Espressif32Platform(PlatformBase):
             if available_mcu == mcu and tl_flag:
                 tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-xt-%s" % mcu)
                 try:
-                    pkg_dir = pm.get_package("tc-xt-%s" % mcu).path
-                    self.packages["tc-xt-%s" % mcu]["optional"] = False
-                    self.packages["tc-xt-%s" % mcu]["version"] = tc_path
+                    pkg_dir = pm.get_package("toolchain-xtensa-%s" % mcu).path
+                    self.packages["toolchain-xtensa-%s" % mcu]["optional"] = False
+                    self.packages["toolchain-xtensa-%s" % mcu]["version"] = tc_path
                 except:
                     pm.install(tc_path)
-                    self.packages["tc-xt-%s" % mcu]["optional"] = False
-                    self.packages["tc-xt-%s" % mcu]["version"] = tc_path
+                    self.packages["toolchain-xtensa-%s" % mcu]["optional"] = False
+                    self.packages["toolchain-xtensa-%s" % mcu]["version"] = tc_path
                 if available_mcu == "esp32":
                     del self.packages["tc-rv32"]
         # Enable ULP toolchains
