@@ -29,6 +29,8 @@ from platformio.proc import exec_command, where_is_program
 pio_exe = where_is_program("platformio")
 env = DefaultEnvironment()
 platform = env.PioPlatform()
+board = env.BoardConfig()
+mcu = board.get("build.mcu", "esp32")
 
 #
 # Helpers
