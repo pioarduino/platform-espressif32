@@ -44,6 +44,7 @@ from platformio.proc import exec_command
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
 from platformio.package.manager.tool import ToolPackageManager
+from platformio.project.config import ProjectConfig
 
 # Added to avoid conflicts between installed Python packages from
 # the IDF virtual environment and PlatformIO Core
@@ -58,7 +59,7 @@ env.SConscript("_embed_files.py", exports="env")
 os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 
 platform = env.PioPlatform()
-platform_path = platform.path
+platform_path = ProjectConfig.get_instance().get("platformio", "platforms_dir")
 print("platform path:", platform_path)
 pm = ToolPackageManager()
 board = env.BoardConfig()
