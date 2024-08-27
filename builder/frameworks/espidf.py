@@ -62,7 +62,7 @@ os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 platform = env.PioPlatform()
 platform_path = os.path.join(ProjectConfig.get_instance().get("platformio", "platforms_dir"), "platform-espressif32")
 platform_path = "file://" + str(platform_path)
-platform_path = "file://" + "/home/runner/work/platform-espressif32/platform-espressif32" # since we dont use a platform!
+platform_path = "https://github.com/Jason2866/platform-espressif32.git#install_platform" # since we dont use a platform!
 print("platform path:", platform_path)
 pm = ToolPackageManager()
 board = env.BoardConfig()
