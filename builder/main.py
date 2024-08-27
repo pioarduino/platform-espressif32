@@ -24,7 +24,9 @@ from SCons.Script import (
     DefaultEnvironment)
 
 from platformio.util import get_serial_ports
+from platformio.proc import exec_command, where_is_program
 
+pio_exe = where_is_program("platformio")
 env = DefaultEnvironment()
 platform = env.PioPlatform()
 
@@ -32,10 +34,25 @@ platform = env.PioPlatform()
 # Helpers
 #
 
+PLATFORM_PATH = env.GetProjectOption("platform") # https://github.com/Jason2866/platform-espressif32.git#install_platform
+PLATFORM_CMD = (
+    pio_exe,
+    "pkg",
+    "install",
+    "--global",
+    "--platform",
+    PLATFORM_PATH,
+)
+
+if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
+    result = exec_command(PLATFORM_CMD)
+    if result["returncode"] != 0:
+        sys.stderr.write(result["err"] + "\n")
+        env.Exit(1)
+    # pio pkg install --global --platform <URL>
+
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
 
-print("platform", platform)
-print("platform from ProjectOptions", env.GetProjectOption("platform"))
 
 def BeforeUpload(target, source, env):
     upload_options = {}
