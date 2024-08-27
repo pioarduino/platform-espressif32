@@ -43,6 +43,7 @@ from platformio.compat import IS_WINDOWS
 from platformio.proc import exec_command
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
+from platformio.package.manager.tool import ToolPackageManager
 
 # Added to avoid conflicts between installed Python packages from
 # the IDF virtual environment and PlatformIO Core
@@ -57,6 +58,9 @@ env.SConscript("_embed_files.py", exports="env")
 os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 
 platform = env.PioPlatform()
+platform_path = platform.path
+print("platform path:", platform_path)
+pm = ToolPackageManager()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 idf_variant = mcu.lower()
@@ -67,11 +71,14 @@ IDF5 = (
     .startswith("5")
 )
 IDF_ENV_VERSION = "1.0.0"
+
+if platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu))) = None:
+    pm.install(platform_path)
+
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
 TOOLCHAIN_DIR = platform.get_package_dir(
     "tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu))
 )
-
 
 assert os.path.isdir(FRAMEWORK_DIR)
 assert os.path.isdir(TOOLCHAIN_DIR)
