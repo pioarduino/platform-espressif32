@@ -39,7 +39,7 @@ class Espressif32Platform(PlatformBase):
         board_config = self.board_config(variables.get("board"))
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
         frameworks = variables.get("pioframework", [])
-        tl_flag = bool(os.file.exists(IDF_TOOLS))
+        tl_flag = bool(os.path.exists(IDF_TOOLS))
 
         # IDF Install is needed only one time
         if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and tl_flag:
