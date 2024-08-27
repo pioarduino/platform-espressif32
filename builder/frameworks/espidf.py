@@ -42,11 +42,10 @@ from SCons.Script import (
 
 from platformio import fs, __version__
 from platformio.compat import IS_WINDOWS
-from platformio.proc import exec_command, get_pythonexe_path, where_is_program
+from platformio.proc import exec_command, where_is_program
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
-from platformio.package.manager.tool import ToolPackageManager
-from platformio.project.config import ProjectConfig
+#from platformio.project.config import ProjectConfig
 
 # Added to avoid conflicts between installed Python packages from
 # the IDF virtual environment and PlatformIO Core
@@ -54,11 +53,10 @@ from platformio.project.config import ProjectConfig
 if os.environ.get("PYTHONPATH"):
     del os.environ["PYTHONPATH"]
 
-python_exe = get_pythonexe_path()
 pio_exe = where_is_program("platformio")
 
-PLATFORM_PATH = "https://github.com/Jason2866/platform-espressif32.git#install_platform" # since we dont use a platform!#
-#PLATFORM_PATH = os.path.join(ProjectConfig.get_instance().get("platformio", "platforms_dir"), "platform-espressif32")
+PLATFORM_PATH = "https://github.com/Jason2866/platform-espressif32.git#install_platform" # todo
+# replace with path from platform in platformio.ini
 PLATFORM_CMD = (
     pio_exe,
     "pkg",
@@ -67,11 +65,6 @@ PLATFORM_CMD = (
     "--platform",
     PLATFORM_PATH,
 )
-result = exec_command(PLATFORM_CMD)
-if result["returncode"] != 0:
-    sys.stderr.write(result["err"] + "\n")
-    env.Exit(1)
-# pio pkg install --global --platform <URL>
 
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
@@ -80,10 +73,6 @@ env.SConscript("_embed_files.py", exports="env")
 os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 
 platform = env.PioPlatform()
-
-# platform_path = "https://github.com/Jason2866/platform-espressif32.git#install_platform" # since we dont use a platform!
-# print("platform path:", platform_path)
-# pm = ToolPackageManager()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 idf_variant = mcu.lower()
@@ -95,8 +84,12 @@ IDF5 = (
 )
 IDF_ENV_VERSION = "1.0.0"
 
-#if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
-#    pm.install(platform_path)
+if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
+    result = exec_command(PLATFORM_CMD)
+    if result["returncode"] != 0:
+        sys.stderr.write(result["err"] + "\n")
+        env.Exit(1)
+    # pio pkg install --global --platform <URL>
 
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
 TOOLCHAIN_DIR = platform.get_package_dir(
