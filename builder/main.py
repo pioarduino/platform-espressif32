@@ -34,7 +34,7 @@ platform = env.PioPlatform()
 # Helpers
 #
 
-PLATFORM_PATH = env.GetProjectOption("platform") # https://github.com/Jason2866/platform-espressif32.git#install_platform
+PLATFORM_PATH = env.GetProjectOption("platform")
 PLATFORM_CMD = (
     pio_exe,
     "pkg",
@@ -44,12 +44,12 @@ PLATFORM_CMD = (
     PLATFORM_PATH,
 )
 
+# install platform again to install missing packages, needed since no registry install
 if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
     result = exec_command(PLATFORM_CMD)
     if result["returncode"] != 0:
         sys.stderr.write(result["err"] + "\n")
         env.Exit(1)
-    # pio pkg install --global --platform <URL>
 
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
 
