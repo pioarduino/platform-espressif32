@@ -42,7 +42,7 @@ from SCons.Script import (
 
 from platformio import fs, __version__
 from platformio.compat import IS_WINDOWS
-from platformio.proc import exec_command, get_pythonexe_path
+from platformio.proc import exec_command, get_pythonexe_path, where_is_program
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
 from platformio.package.manager.tool import ToolPackageManager
@@ -55,12 +55,23 @@ if os.environ.get("PYTHONPATH"):
     del os.environ["PYTHONPATH"]
 
 python_exe = get_pythonexe_path()
+pio_exe = where_is_program("platformio")
 
-PLATFORM_PATH = os.path.join(ProjectConfig.get_instance().get("platformio", "platforms_dir"), "platform-espressif32")
-PLATFORM_TOOLS_FLAG = ["Platformio"]
-PLATFORM_CMD = [python_exe, PLATFORM_TOOLS_FLAG] + "pkg install --global --platform" + str(PLATFORM_PATH)
-rc = subprocess.call(PLATFORM_CMD)
-# pio pkg install --global --platform symlink://.
+PLATFORM_PATH = "https://github.com/Jason2866/platform-espressif32.git#install_platform" # since we dont use a platform!#
+#PLATFORM_PATH = os.path.join(ProjectConfig.get_instance().get("platformio", "platforms_dir"), "platform-espressif32")
+PLATFORM_CMD = (
+    pio_exe,
+    "pkg",
+    "install",
+    "--global",
+    "--platform",
+    PLATFORM_PATH,
+)
+result = exec_command(PLATFORM_CMD)
+if result["returncode"] != 0:
+    sys.stderr.write(result["err"] + "\n")
+    env.Exit(1)
+# pio pkg install --global --platform <URL>
 
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
@@ -70,8 +81,7 @@ os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 
 platform = env.PioPlatform()
 
-platform_path = "file://" + str(platform_path)
-platform_path = "https://github.com/Jason2866/platform-espressif32.git#install_platform" # since we dont use a platform!
+# platform_path = "https://github.com/Jason2866/platform-espressif32.git#install_platform" # since we dont use a platform!
 # print("platform path:", platform_path)
 # pm = ToolPackageManager()
 board = env.BoardConfig()
@@ -85,9 +95,8 @@ IDF5 = (
 )
 IDF_ENV_VERSION = "1.0.0"
 
-if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
-    pm.install(platform_path)
-pm.install(platform_path)
+#if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
+#    pm.install(platform_path)
 
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
 TOOLCHAIN_DIR = platform.get_package_dir(
