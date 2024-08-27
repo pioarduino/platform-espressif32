@@ -34,6 +34,8 @@ platform = env.PioPlatform()
 
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
 
+print("platform", env.get("platform"))
+
 def BeforeUpload(target, source, env):
     upload_options = {}
     if "BOARD" in env:
