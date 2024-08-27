@@ -19,11 +19,17 @@ import shutil
 from os.path import isfile, join
 
 from platformio.public import PlatformBase, to_unix_path
-from platformio.package.manager.tool import ToolPackageManager
+from platformio.proc import get_pythonexe_path
+#from platformio.package.manager.tool import ToolPackageManager
+from platformio.project.config import ProjectConfig
 
-pm = ToolPackageManager()
-IS_WINDOWS = sys.platform.startswith("win")
+python_exe = get_pythonexe_path()
+#pm = ToolPackageManager()
+
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
+IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
+IDF_TOOLS_FLAG = ["install"]
+IDF_TOOLS_CMD = [python_exe, IDF_TOOLS] + IDF_TOOLS_FLAG
 
 class Espressif32Platform(PlatformBase):
     def configure_default_packages(self, variables, targets):
@@ -33,33 +39,31 @@ class Espressif32Platform(PlatformBase):
         board_config = self.board_config(variables.get("board"))
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
         frameworks = variables.get("pioframework", [])
-        try:
-            tl_flag = bool(pm.get_package("tool-install").path)
-        except:
-            tl_flag = False
+        tl_flag = bool(os.path.exists(IDF_TOOLS))
 
-        if True: #tl_flag:
+        # IDF Install is needed only one time
+        if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and tl_flag:
+            rc = subprocess.call(IDF_TOOLS_CMD)
+            if rc != 0:
+                sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
+            else:
+                shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
+
+        if tl_flag:
             # Install all tools and toolchains
+            self.packages["tl-install"]["optional"] = True
             for p in self.packages:
                 if p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "contrib-piohome", "contrib-pioremote", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
                     tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
-                    try:
-                        pkg_dir = pm.get_package(p).path
-                        self.packages[p]["optional"] = False
-                        self.packages[p]["version"] = tl_path
-                    except:
-                        pass
+                    self.packages[p]["optional"] = False
+                    self.packages[p]["version"] = tl_path
             # Enable common packages for IDF and mixed Arduino+IDF projects
             for p in self.packages:
                 if p in ("tool-cmake", "tool-ninja", "tc-ulp"):
-                    try:
-                        pkg_dir = pm.get_package(p).path
-                        self.packages[p]["optional"] = False if "espidf" in frameworks else True
-                    except:
-                        pass
+                    self.packages[p]["optional"] = False if "espidf" in frameworks else True
             # Enabling of following tools is not needed, installing is enough
             for p in self.packages:
-                if p in ("contrib-pioremote", "contrib-piohome"): #, "tool-scons"):
+                if p in ("contrib-pioremote", "contrib-piohome", "tool-scons"):
                     try:
                         pkg_dir = pm.get_package(p).path
                         # When package is not found an execption happens -> install is forced
@@ -80,11 +84,7 @@ class Espressif32Platform(PlatformBase):
         # Enable check tools only when "check_tool" is enabled
         for p in self.packages:
             if p in ("tool-cppcheck", "tool-clangtidy", "tool-pvs-studio"):
-                try:
-                    pkg_dir = pm.get_package(p).path
-                    self.packages[p]["optional"] = False if str(variables.get("check_tool")).strip("['']") in p else True
-                except:
-                    pass
+                self.packages[p]["optional"] = False if str(variables.get("check_tool")).strip("['']") in p else True
 
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
@@ -135,14 +135,8 @@ class Espressif32Platform(PlatformBase):
         for available_mcu in ("esp32", "esp32s2", "esp32s3"):
             if available_mcu == mcu and tl_flag:
                 tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-xt-%s" % mcu)
-                try:
-                    #pkg_dir = pm.get_package("toolchain-xtensa-%s" % mcu).path
-                    self.packages["toolchain-xtensa-%s" % mcu]["optional"] = False
-                    self.packages["toolchain-xtensa-%s" % mcu]["version"] = tc_path
-                except:
-                    pm.install(tc_path)
-                    self.packages["toolchain-xtensa-%s" % mcu]["optional"] = False
-                    self.packages["toolchain-xtensa-%s" % mcu]["version"] = tc_path
+                self.packages["tc-xt-%s" % mcu]["optional"] = False
+                self.packages["tc-xt-%s" % mcu]["version"] = tc_path
                 if available_mcu == "esp32":
                     del self.packages["tc-rv32"]
         # Enable ULP toolchains
@@ -150,12 +144,8 @@ class Espressif32Platform(PlatformBase):
             if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2"):
                 del self.packages["tc-ulp"]
             # RISC-V based toolchain for ESP32C3, ESP32C6 ESP32S2, ESP32S3 ULP
-            #if tl_flag:
-            try:
-                pkg_dir = pm.get_package("tc-rv32").path
+            if tl_flag:
                 self.packages["tc-rv32"]["optional"] = False
-            except:
-                pass
 
         return super().configure_default_packages(variables, targets)
 
