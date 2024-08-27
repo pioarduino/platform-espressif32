@@ -63,7 +63,14 @@ class Espressif32Platform(PlatformBase):
             # Enabling of following tools is not needed, installing is enough
             for p in self.packages:
                 if p in ("contrib-pioremote", "contrib-piohome"):
-                    self.packages[p]["optional"] = True
+                    try:
+                        pkg_dir = pm.get_package(p).path
+                        # When package is not found an execption happens -> install is forced
+                        # else the are removed from current env
+                        self.packages[p]["optional"] = True
+                    except:
+                        pass
+
 
         # Enable debug tool gdb only when build debug is enabled
         if variables.get("build_type") or  "debug" in "".join(targets):
