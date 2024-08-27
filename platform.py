@@ -20,11 +20,11 @@ from os.path import isfile, join
 
 from platformio.public import PlatformBase, to_unix_path
 from platformio.proc import get_pythonexe_path
-from platformio.package.manager.tool import ToolPackageManager
+#from platformio.package.manager.tool import ToolPackageManager
 from platformio.project.config import ProjectConfig
 
 python_exe = get_pythonexe_path()
-pm = ToolPackageManager()
+#pm = ToolPackageManager()
 
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
 IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
