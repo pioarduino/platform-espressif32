@@ -72,7 +72,7 @@ IDF5 = (
 )
 IDF_ENV_VERSION = "1.0.0"
 
-if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) = False:
+if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
     pm.install(platform_path)
 
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
