@@ -53,17 +53,6 @@ if os.environ.get("PYTHONPATH"):
 
 pio_exe = where_is_program("platformio")
 
-PLATFORM_PATH = "https://github.com/Jason2866/platform-espressif32.git#install_platform" # todo
-# replace with path from platform in platformio.ini
-PLATFORM_CMD = (
-    pio_exe,
-    "pkg",
-    "install",
-    "--global",
-    "--platform",
-    PLATFORM_PATH,
-)
-
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
 
@@ -75,12 +64,15 @@ board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 idf_variant = mcu.lower()
 
-IDF5 = (
-    platform.get_package_version("framework-espidf")
-    .split(".")[1]
-    .startswith("5")
+PLATFORM_PATH = env.GetProjectOption("platform") # https://github.com/Jason2866/platform-espressif32.git#install_platform
+PLATFORM_CMD = (
+    pio_exe,
+    "pkg",
+    "install",
+    "--global",
+    "--platform",
+    PLATFORM_PATH,
 )
-IDF_ENV_VERSION = "1.0.0"
 
 if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
     result = exec_command(PLATFORM_CMD)
@@ -89,6 +81,13 @@ if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c
         env.Exit(1)
     # pio pkg install --global --platform <URL>
 
+IDF5 = (
+    platform.get_package_version("framework-espidf")
+    .split(".")[1]
+    .startswith("5")
+)
+
+IDF_ENV_VERSION = "1.0.0"
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
 TOOLCHAIN_DIR = platform.get_package_dir(
     "tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu))
