@@ -28,6 +28,7 @@ import shutil
 import os
 import re
 import platform as sys_platform
+from os.path import join
 
 import click
 import semantic_version
@@ -59,7 +60,7 @@ env.SConscript("_embed_files.py", exports="env")
 os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 
 platform = env.PioPlatform()
-platform_path = ProjectConfig.get_instance().get("platformio", "platforms_dir")
+platform_path = os.path.join(ProjectConfig.get_instance().get("platformio", "platforms_dir"), "platform-espressif32")
 print("platform path:", platform_path)
 pm = ToolPackageManager()
 board = env.BoardConfig()
@@ -75,6 +76,7 @@ IDF_ENV_VERSION = "1.0.0"
 
 if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
     pm.install(platform_path)
+pm.install(platform_path)
 
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
 TOOLCHAIN_DIR = platform.get_package_dir(
