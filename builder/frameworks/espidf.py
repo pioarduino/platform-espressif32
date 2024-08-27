@@ -26,7 +26,6 @@ import subprocess
 import sys
 import shutil
 import os
-import subprocess
 import re
 import platform as sys_platform
 from os.path import join
@@ -45,7 +44,6 @@ from platformio.compat import IS_WINDOWS
 from platformio.proc import exec_command, where_is_program
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
-#from platformio.project.config import ProjectConfig
 
 # Added to avoid conflicts between installed Python packages from
 # the IDF virtual environment and PlatformIO Core
