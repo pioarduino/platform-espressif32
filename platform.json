@@ -47,19 +47,19 @@
       "owner": "pioarduino",
       "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.1.4.240805/esp-idf-v5.1.4.zip"
     },
-    "toolchain-xtensa-esp32": {
+    "tc-xt-esp32": {
       "type": "toolchain",
       "optional": true,
       "owner": "",
       "version": ""
     },
-    "toolchain-xtensa-esp32s2": {
+    "tc-xt-esp32s2": {
       "type": "toolchain",
       "optional": true,
       "owner": "",
       "version": ""
     },
-    "toolchain-xtensa-esp32s3": {
+    "tc-xt-esp32s3": {
       "type": "toolchain",
       "optional": true,
       "owner": "",
@@ -94,6 +94,11 @@
       "optional": false,
       "owner": "pioarduino",
       "version": "https://github.com/pioarduino/esptool/releases/download/v4.7.5/esptool.zip"
+    },
+    "tl-install": {
+      "optional": false,
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/esp_install/releases/download/v1.7.0/esp_install-v1.7.0.zip"
     },
     "tool-cmake": {
       "optional": true,
@@ -134,6 +139,11 @@
       "optional": true,
       "owner": "",
       "version": ""
+    },
+    "tool-scons": {
+      "optional": false,
+      "owner": "",
+      "version": "https://github.com/pioarduino/scons/releases/download/4.7.0/scons-local-4.7.0.tar.gz"
     },
     "tool-cppcheck": {
       "optional": true,
