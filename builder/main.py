@@ -33,6 +33,8 @@ platform = env.PioPlatform()
 #
 
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
+PLATFORM_DIR = platform.get_platform_dir("platform-espressif32")
+print("platform dir:", PLATFORM_DIR)
 
 
 def BeforeUpload(target, source, env):
