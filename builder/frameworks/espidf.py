@@ -26,6 +26,7 @@ import subprocess
 import sys
 import shutil
 import os
+import subprocess
 import re
 import platform as sys_platform
 from os.path import join
@@ -41,7 +42,7 @@ from SCons.Script import (
 
 from platformio import fs, __version__
 from platformio.compat import IS_WINDOWS
-from platformio.proc import exec_command
+from platformio.proc import exec_command, get_pythonexe_path
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
 from platformio.package.manager.tool import ToolPackageManager
@@ -53,6 +54,14 @@ from platformio.project.config import ProjectConfig
 if os.environ.get("PYTHONPATH"):
     del os.environ["PYTHONPATH"]
 
+python_exe = get_pythonexe_path()
+
+PLATFORM_PATH = os.path.join(ProjectConfig.get_instance().get("platformio", "platforms_dir"), "platform-espressif32")
+PLATFORM_TOOLS_FLAG = ["Platformio"]
+PLATFORM_CMD = [python_exe, PLATFORM_TOOLS_FLAG] + "pkg install --global --platform" + str(PLATFORM_PATH)
+rc = subprocess.call(PLATFORM_CMD)
+# pio pkg install --global --platform symlink://.
+
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
 
@@ -60,11 +69,11 @@ env.SConscript("_embed_files.py", exports="env")
 os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 
 platform = env.PioPlatform()
-platform_path = os.path.join(ProjectConfig.get_instance().get("platformio", "platforms_dir"), "platform-espressif32")
+
 platform_path = "file://" + str(platform_path)
 platform_path = "https://github.com/Jason2866/platform-espressif32.git#install_platform" # since we dont use a platform!
-print("platform path:", platform_path)
-pm = ToolPackageManager()
+# print("platform path:", platform_path)
+# pm = ToolPackageManager()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 idf_variant = mcu.lower()
