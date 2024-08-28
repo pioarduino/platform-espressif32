@@ -28,6 +28,7 @@ import shutil
 import os
 import re
 import platform as sys_platform
+from os.path import join
 
 import click
 import semantic_version
@@ -40,7 +41,7 @@ from SCons.Script import (
 
 from platformio import fs, __version__
 from platformio.compat import IS_WINDOWS
-from platformio.proc import exec_command
+from platformio.proc import exec_command, where_is_program
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
 
@@ -49,6 +50,8 @@ from platformio.package.version import get_original_version, pepver_to_semver
 # Note: This workaround can be safely deleted when PlatformIO 6.1.7 is released
 if os.environ.get("PYTHONPATH"):
     del os.environ["PYTHONPATH"]
+
+pio_exe = where_is_program("platformio")
 
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
@@ -60,6 +63,23 @@ platform = env.PioPlatform()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 idf_variant = mcu.lower()
+
+PLATFORM_PATH = env.GetProjectOption("platform")
+PLATFORM_CMD = (
+    pio_exe,
+    "pkg",
+    "install",
+    "--global",
+    "--platform",
+    PLATFORM_PATH,
+)
+
+# install platform again to install missing packages, needed since no registry install
+if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
+    result = exec_command(PLATFORM_CMD)
+    if result["returncode"] != 0:
+        sys.stderr.write(result["err"] + "\n")
+        env.Exit(1)
 
 IDF5 = (
     platform.get_package_version("framework-espidf")
@@ -254,7 +274,6 @@ def populate_idf_env_vars(idf_env):
         additional_packages.append(
             os.path.join(platform.get_package_dir("tc-ulp"), "bin"),
         )
-
 
     idf_env["PATH"] = os.pathsep.join(additional_packages + [idf_env["PATH"]])
 
