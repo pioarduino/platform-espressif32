@@ -24,26 +24,36 @@ from SCons.Script import (
     DefaultEnvironment)
 
 from platformio.util import get_serial_ports
+from platformio.proc import exec_command, where_is_program
 
+pio_exe = where_is_program("platformio")
 env = DefaultEnvironment()
 platform = env.PioPlatform()
+board = env.BoardConfig()
+mcu = board.get("build.mcu", "esp32")
 
 #
 # Helpers
 #
 
+PLATFORM_PATH = env.GetProjectOption("platform")
+PLATFORM_CMD = (
+    pio_exe,
+    "pkg",
+    "install",
+    "--global",
+    "--platform",
+    PLATFORM_PATH,
+)
+
+# install platform again to install missing packages, needed since no registry install
+if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
+    result = exec_command(PLATFORM_CMD)
+    if result["returncode"] != 0:
+        sys.stderr.write(result["err"] + "\n")
+        env.Exit(1)
+
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
-
-#IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
-#IDF_TOOLS = join(platform.get_package_dir("tl-install"), "tools", "idf_tools.py")
-#IDF_TOOLS_FLAG = ["install"]
-#IDF_TOOLS_CMD = [env["PYTHONEXE"], IDF_TOOLS] + IDF_TOOLS_FLAG
-
-## IDF Install is needed only one time
-#if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")):
-#    rc = subprocess.call(IDF_TOOLS_CMD)
-#    if rc != 0:
-#        sys.stderr.write("Error: Couldn't execute 'idf_tools.py install' \n")
 
 
 def BeforeUpload(target, source, env):
