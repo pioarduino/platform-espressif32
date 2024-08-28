@@ -140,11 +140,6 @@
       "owner": "",
       "version": ""
     },
-    "tool-scons": {
-      "optional": false,
-      "owner": "",
-      "version": "https://github.com/pioarduino/scons/releases/download/4.7.0/scons-local-4.7.0.tar.gz"
-    },
     "tool-cppcheck": {
       "optional": true,
       "owner": "",
