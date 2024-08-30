@@ -64,7 +64,7 @@ class Espressif32Platform(PlatformBase):
             for p in self.packages:
                 if p in ("contrib-pioremote", "contrib-piohome"):
                     try:
-                        self.packages[p]["optional"] = True
+                        self.packages[p]["optional"] = False
                     except:
                         pass
 
