@@ -64,9 +64,6 @@ class Espressif32Platform(PlatformBase):
             for p in self.packages:
                 if p in ("contrib-pioremote", "contrib-piohome"):
                     try:
-                        pkg_dir = pm.get_package(p).path
-                        # When package is not found an execption happens -> install is forced
-                        # else the are removed from current env
                         self.packages[p]["optional"] = True
                     except:
                         pass
