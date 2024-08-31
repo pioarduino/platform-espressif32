@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import subprocess
 import sys
 import shutil
 from os.path import isfile, join
@@ -38,7 +39,7 @@ IDF_TOOLS_CMD = (
 tl_flag = bool(os.path.exists(IDF_TOOLS))
 if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and tl_flag:
     print("exec cmd:", IDF_TOOLS_CMD)
-    rc = exec_command(IDF_TOOLS_CMD)
+    rc = subprocess.call(IDF_TOOLS_CMD)
     print("rc:", rc)
     if rc != 0:
         sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
