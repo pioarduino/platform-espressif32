@@ -39,7 +39,6 @@ if (tl_flag and not bool(os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools"))))
     if rc != 0:
         sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
     else:
-        print("rc:", rc)
         shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
 
 class Espressif32Platform(PlatformBase):
@@ -50,7 +49,7 @@ class Espressif32Platform(PlatformBase):
         board_config = self.board_config(variables.get("board"))
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
         frameworks = variables.get("pioframework", [])
-        tl_flag = bool(os.path.exists(IDF_TOOLS))
+        #tl_flag = bool(os.path.exists(IDF_TOOLS))
 
         if tl_flag:
             # install tool is not needed anymore
