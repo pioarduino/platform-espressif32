@@ -24,9 +24,12 @@ from platformio.project.config import ProjectConfig
 python_exe = get_pythonexe_path()
 
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
-IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
-IDF_TOOLS_FLAG = ["install"]
-IDF_TOOLS_CMD = [python_exe, IDF_TOOLS] + IDF_TOOLS_FLAG
+IDF_TOOLS = str(os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py"))
+IDF_TOOLS_CMD = (
+    python_exe,
+    IDF_TOOLS,
+    "install",
+)
 
 class Espressif32Platform(PlatformBase):
     def configure_default_packages(self, variables, targets):
