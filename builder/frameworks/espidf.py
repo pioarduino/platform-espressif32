@@ -70,13 +70,13 @@ PLATFORM_CMD = (
     "pkg",
     "install",
     "--global",
-    "--platform",
-    PLATFORM_PATH,
+    "--tool",
+    "tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)),
 )
 
 # install platform again to install missing packages, needed since no registry install
 if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
-    print("Call Platform pkg install:", PLATFORM_CMD)
+    print("Call pkg install:", PLATFORM_CMD)
     rc = subprocess.call(PLATFORM_CMD)
     if rc != 0:
         sys.stderr.write("Error: Couldn't install Platform packages correctly\n")
