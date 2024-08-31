@@ -63,21 +63,25 @@ platform = env.PioPlatform()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 idf_variant = mcu.lower()
+IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
 
-PLATFORM_PATH = env.GetProjectOption("platform")
-PLATFORM_CMD = (
+tool = "tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu))
+tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", tool)
+
+#PLATFORM_PATH = env.GetProjectOption("platform")
+PKG_CMD = (
     pio_exe,
     "pkg",
     "install",
     "--global",
     "--tool",
-    "tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)),
+    tl_path,
 )
 
 # install platform again to install missing packages, needed since no registry install
 if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
-    print("Call pkg install:", PLATFORM_CMD)
-    rc = subprocess.call(PLATFORM_CMD)
+    print("Call pkg install:", PKG_CMD)
+    rc = subprocess.call(PKG_CMD)
     if rc != 0:
         sys.stderr.write("Error: Couldn't install Platform packages correctly\n")
         env.Exit(1)
