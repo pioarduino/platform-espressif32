@@ -79,12 +79,12 @@ PKG_CMD = (
 )
 
 # install platform again to install missing packages, needed since no registry install
-if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
-    print("Call pkg install:", PKG_CMD)
-    rc = subprocess.call(PKG_CMD)
-    if rc != 0:
-        sys.stderr.write("Error: Couldn't install Platform packages correctly\n")
-        env.Exit(1)
+#if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
+    #print("Call pkg install:", PKG_CMD)
+    #rc = subprocess.call(PKG_CMD)
+    #if rc != 0:
+        #sys.stderr.write("Error: Couldn't install Platform packages correctly\n")
+        #env.Exit(1)
 
 IDF5 = (
     platform.get_package_version("framework-espidf")
