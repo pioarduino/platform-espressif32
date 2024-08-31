@@ -41,7 +41,7 @@ if (tl_flag and not bool(os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools"))))
         sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
     else:
         shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
-        for p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "contrib-piohome", "contrib-pioremote", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
+        for p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "contrib-piohome", "contrib-pioremote", "tc-xt-esp32", "tc-xt-esp32s2", "tc-xt-esp32s3",  "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
             tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
             PKG_CMD = (
                 pio_exe,
