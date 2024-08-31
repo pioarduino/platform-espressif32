@@ -77,9 +77,9 @@ PLATFORM_CMD = (
 # install platform again to install missing packages, needed since no registry install
 if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
     print("Call Platform pkg install:", PLATFORM_CMD)
-    result = exec_command(PLATFORM_CMD)
-    if result["returncode"] != 0:
-        sys.stderr.write(result["err"] + "\n")
+    rc = subprocess.call(PLATFORM_CMD)
+    if rc != 0:
+        sys.stderr.write("Error: Couldn't install Platform packages correctly\n")
         env.Exit(1)
 
 IDF5 = (
