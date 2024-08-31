@@ -26,7 +26,7 @@ python_exe = get_pythonexe_path()
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
 IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
 print("idf tools path:", IDF_TOOLS)
-IDF_TOOLS_STRG = str(IDF_TOOLS) + "install"
+IDF_TOOLS_STRG = str(IDF_TOOLS) + " install"
 print("idf tools strg path:", IDF_TOOLS_STRG)
 IDF_TOOLS_CMD = (
     python_exe,
