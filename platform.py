@@ -13,13 +13,12 @@
 # limitations under the License.
 
 import os
-import subprocess
 import sys
 import shutil
 from os.path import isfile, join
 
 from platformio.public import PlatformBase, to_unix_path
-from platformio.proc import get_pythonexe_path
+from platformio.proc import get_pythonexe_path, exec_command
 from platformio.project.config import ProjectConfig
 
 python_exe = get_pythonexe_path()
@@ -41,7 +40,7 @@ class Espressif32Platform(PlatformBase):
 
         # IDF Install is needed only one time
         if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and tl_flag:
-            rc = subprocess.call(IDF_TOOLS_CMD)
+            rc = exec_command(IDF_TOOLS_CMD)
             if rc != 0:
                 sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
             else:
