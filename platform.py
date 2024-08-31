@@ -32,6 +32,7 @@ IDF_TOOLS_CMD = (
 )
 
 # IDF Install is needed only one time
+tl_flag = bool(os.path.exists(IDF_TOOLS))
 if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and tl_flag:
     print("exec cmd:", IDF_TOOLS_CMD)
     rc = exec_command(IDF_TOOLS_CMD)
