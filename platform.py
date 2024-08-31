@@ -24,12 +24,22 @@ from platformio.project.config import ProjectConfig
 python_exe = get_pythonexe_path()
 
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
-IDF_TOOLS = str(os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py"))
+IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
 IDF_TOOLS_CMD = (
     python_exe,
     IDF_TOOLS,
     "install",
 )
+
+# IDF Install is needed only one time
+if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and tl_flag:
+    print("exec cmd:", IDF_TOOLS_CMD)
+    rc = exec_command(IDF_TOOLS_CMD)
+    print("rc:", rc)
+    if rc != 0:
+        sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
+    else:
+        shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
 
 class Espressif32Platform(PlatformBase):
     def configure_default_packages(self, variables, targets):
@@ -40,14 +50,6 @@ class Espressif32Platform(PlatformBase):
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
         frameworks = variables.get("pioframework", [])
         tl_flag = bool(os.path.exists(IDF_TOOLS))
-
-        # IDF Install is needed only one time
-        if not os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools")) and tl_flag:
-            rc = exec_command(IDF_TOOLS_CMD)
-            if rc != 0:
-                sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
-            else:
-                shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
 
         if tl_flag:
             # install tool is not needed anymore
