@@ -42,7 +42,7 @@ if (tl_flag and not bool(os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools"))))
         sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
     else:
         shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
-        for p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "contrib-piohome", "contrib-pioremote", "tc-xt-esp32", "tc-xt-esp32s2", "tc-xt-esp32s3",  "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
+        for p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "tc-xt-esp32", "tc-xt-esp32s2", "tc-xt-esp32s3",  "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb", "contrib-piohome", "contrib-pioremote"):
             tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
             pm.install(tl_path)
 
@@ -58,7 +58,9 @@ class Espressif32Platform(PlatformBase):
         # Enable debug tool gdb only when build debug is enabled
         if variables.get("build_type") or  "debug" in "".join(targets):
             self.packages["riscv32-esp-elf-gdb"]["optional"] = False if mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
+            self.packages["riscv32-esp-elf-gdb"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tl-rv-gdb")
             self.packages["xtensa-esp-elf-gdb"]["optional"] = False if not mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
+            self.packages["xtensa-esp-elf-gdb"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tl-xt-gdb")
         else:
             self.packages["riscv32-esp-elf-gdb"]["optional"] = True
             self.packages["xtensa-esp-elf-gdb"]["optional"] = True
@@ -76,9 +78,8 @@ class Espressif32Platform(PlatformBase):
             filesystem = variables.get("board_build.filesystem", "littlefs")
             if filesystem == "littlefs":
                 # Use mklittlefs v3.2.0 to generate FS
-                tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mklittlefs")
                 self.packages["tool-mklittlefs"]["optional"] = False
-                self.packages["tool-mklittlefs"]["version"] = tl_path
+                self.packages["tool-mklittlefs"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mklittlefs")
                 del self.packages["tool-mkfatfs"]
                 del self.packages["tool-mkspiffs"]
             elif filesystem == "fatfs":
@@ -103,9 +104,8 @@ class Espressif32Platform(PlatformBase):
             filesystem = variables.get("board_build.filesystem", "littlefs")
             if filesystem == "littlefs":
                 # Use mklittlefs v4.0.0 to unpack, older version is incompatible
-                tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mklittlefs400")
                 self.packages["tool-mklittlefs"]["optional"] = False
-                self.packages["tool-mklittlefs"]["version"] = tl_path
+                self.packages["tool-mklittlefs"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mklittlefs400")
 
         # Currently only Arduino Nano ESP32 uses the dfuutil tool as uploader
         if variables.get("board") == "arduino_nano_esp32":
