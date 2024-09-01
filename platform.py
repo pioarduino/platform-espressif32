@@ -58,11 +58,11 @@ class Espressif32Platform(PlatformBase):
 
         # Enable debug tool gdb only when build debug is enabled
         if variables.get("build_type") or  "debug" in "".join(targets):
-            self.packages["tl-rv-gdb"]["optional"] = False if mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
-            self.packages["tl-xt-gdb"]["optional"] = False if not mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
+            self.packages["tool-riscv32-esp-elf-gdb"]["optional"] = False if mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
+            self.packages["tool-xtensa-esp-elf-gdb"]["optional"] = False if not mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
         else:
-            self.packages["tl-rv-gdb"]["optional"] = True
-            self.packages["tl-xt-gdb"]["optional"] = True
+            self.packages["tool-riscv32-esp-elf-gdb"]["optional"] = True
+            self.packages["tool-xtensa-esp-elf-gdb"]["optional"] = True
 
         # Enable check tools only when "check_tool" is enabled
         for p in self.packages:
@@ -118,17 +118,17 @@ class Espressif32Platform(PlatformBase):
         for available_mcu in ("esp32", "esp32s2", "esp32s3"):
             if available_mcu == mcu and tl_flag:
                 #tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-xt-%s" % mcu)
-                self.packages["tc-xt-%s" % mcu]["optional"] = False
+                self.packages["toolchain-xtensa-%s" % mcu]["optional"] = False
                 #self.packages["tc-xt-%s" % mcu]["version"] = tc_path
                 if available_mcu == "esp32":
-                    del self.packages["tc-rv32"]
+                    del self.packages["toolchain-riscv32-esp"]
         # Enable ULP toolchains
         if mcu in ("esp32s2", "esp32s3", "esp32c2", "esp32c3", "esp32c6", "esp32h2"):
             if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2"):
-                del self.packages["tc-ulp"]
+                del self.packages["toolchain-esp32ulp"]
             # RISC-V based toolchain for ESP32C3, ESP32C6 ESP32S2, ESP32S3 ULP
             if tl_flag:
-                self.packages["tc-rv32"]["optional"] = False
+                self.packages["toolchain-riscv32-esp"]["optional"] = False
 
         return super().configure_default_packages(variables, targets)
 
