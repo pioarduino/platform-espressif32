@@ -84,10 +84,12 @@ class Espressif32Platform(PlatformBase):
                 del self.packages["tool-mkspiffs"]
             elif filesystem == "fatfs":
                 self.packages["tool-mkfatfs"]["optional"] = False
+                self.packages["tool-mkfatfs"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mkfatfs")
                 del self.packages["tool-mklittlefs"]
                 del self.packages["tool-mkspiffs"]
             elif filesystem == "spiffs":
                 self.packages["tool-mkspiffs"]["optional"] = False
+                self.packages["tool-mkspiffs"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-mkspiffs")
                 del self.packages["tool-mkfatfs"]
                 del self.packages["tool-mklittlefs"]
         else:
@@ -97,6 +99,7 @@ class Espressif32Platform(PlatformBase):
 
         if variables.get("upload_protocol"):
             self.packages["tool-openocd"]["optional"] = False
+            self.packages["tool-openocd"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-openocd")
         else:
             del self.packages["tool-openocd"]
 
@@ -110,6 +113,7 @@ class Espressif32Platform(PlatformBase):
         # Currently only Arduino Nano ESP32 uses the dfuutil tool as uploader
         if variables.get("board") == "arduino_nano_esp32":
             self.packages["tool-dfuutil"]["optional"] = False
+            self.packages["tool-dfuutil"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-dfuutil")
         else:
             del self.packages["tool-dfuutil"]
 
