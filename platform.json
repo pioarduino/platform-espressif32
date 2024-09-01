@@ -113,7 +113,19 @@
       "owner": "",
       "version": ""
     },
+    "xtensa-esp-elf-gdb": {
+      "type": "debugger",
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
     "tl-rv-gdb": {
+      "type": "debugger",
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
+    "riscv32-esp-elf-gdb": {
       "type": "debugger",
       "optional": true,
       "owner": "",
