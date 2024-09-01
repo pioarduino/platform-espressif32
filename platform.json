@@ -77,6 +77,12 @@
       "owner": "",
       "version": ""
     },
+    "toolchain-esp32ulp": {
+      "type": "toolchain",
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
     "tl-xt-gdb": {
       "type": "debugger",
       "optional": true,
