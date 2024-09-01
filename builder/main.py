@@ -260,7 +260,7 @@ env.Replace(
         "bin",
         "%s-elf-gdb" % toolchain_arch,
     ),
-    OBJCOPY=join(platform.get_package_dir("tool-esptool") or "", "esptool.py"),
+    OBJCOPY=join(platform.get_package_dir("tool-esptoolpy") or "", "esptool.py"),
     RANLIB="%s-elf-gcc-ranlib" % toolchain_arch,
     SIZETOOL="%s-elf-size" % toolchain_arch,
 
@@ -435,7 +435,7 @@ if upload_protocol == "espota":
 elif upload_protocol == "esptool":
     env.Replace(
         UPLOADER=join(
-            platform.get_package_dir("tool-esptool") or "", "esptool.py"),
+            platform.get_package_dir("tool-esptoolpy") or "", "esptool.py"),
         UPLOADERFLAGS=[
             "--chip", mcu,
             "--port", '"$UPLOAD_PORT"',
