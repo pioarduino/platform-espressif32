@@ -56,7 +56,7 @@ class Espressif32Platform(PlatformBase):
         frameworks = variables.get("pioframework", [])
 
         # Enable debug tool gdb only when build debug is enabled
-        if variables.get("build_type") or  "debug" in "".join(targets):
+        if (variables.get("build_type") or "debug" in "".join(targets)) and tl_flag:
             self.packages["riscv32-esp-elf-gdb"]["optional"] = False if mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
             self.packages["riscv32-esp-elf-gdb"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tl-rv-gdb")
             self.packages["xtensa-esp-elf-gdb"]["optional"] = False if not mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
