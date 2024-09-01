@@ -47,19 +47,7 @@
       "owner": "pioarduino",
       "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.1.4.240805/esp-idf-v5.1.4.zip"
     },
-    "tc-xt-esp32": {
-      "type": "toolchain",
-      "optional": true,
-      "owner": "",
-      "version": ""
-    },
     "toolchain-xtensa-esp32": {
-      "type": "toolchain",
-      "optional": true,
-      "owner": "",
-      "version": ""
-    },
-    "tc-xt-esp32s2": {
       "type": "toolchain",
       "optional": true,
       "owner": "",
@@ -71,19 +59,7 @@
       "owner": "",
       "version": ""
     },
-    "tc-xt-esp32s3": {
-      "type": "toolchain",
-      "optional": true,
-      "owner": "",
-      "version": ""
-    },
     "toolchain-xtensa-esp32s3": {
-      "type": "toolchain",
-      "optional": true,
-      "owner": "",
-      "version": ""
-    },
-    "tc-rv32": {
       "type": "toolchain",
       "optional": true,
       "owner": "",
@@ -95,31 +71,13 @@
       "owner": "",
       "version": ""
     },
-    "tc-ulp": {
-      "type": "toolchain",
-      "optional": true,
-      "owner": "",
-      "version": ""
-    },
     "toolchain-esp32ulp": {
       "type": "toolchain",
       "optional": true,
       "owner": "",
       "version": ""
     },
-    "tl-xt-gdb": {
-      "type": "debugger",
-      "optional": true,
-      "owner": "",
-      "version": ""
-    },
     "xtensa-esp-elf-gdb": {
-      "type": "debugger",
-      "optional": true,
-      "owner": "",
-      "version": ""
-    },
-    "tl-rv-gdb": {
       "type": "debugger",
       "optional": true,
       "owner": "",

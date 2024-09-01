@@ -28,7 +28,6 @@ import shutil
 import os
 import re
 import platform as sys_platform
-from os.path import join
 
 import click
 import semantic_version
@@ -41,7 +40,7 @@ from SCons.Script import (
 
 from platformio import fs, __version__
 from platformio.compat import IS_WINDOWS
-from platformio.proc import exec_command, where_is_program
+from platformio.proc import exec_command
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
 
@@ -50,8 +49,6 @@ from platformio.package.version import get_original_version, pepver_to_semver
 # Note: This workaround can be safely deleted when PlatformIO 6.1.7 is released
 if os.environ.get("PYTHONPATH"):
     del os.environ["PYTHONPATH"]
-
-pio_exe = where_is_program("platformio")
 
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
@@ -63,28 +60,6 @@ platform = env.PioPlatform()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 idf_variant = mcu.lower()
-IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
-
-tool = "tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu))
-tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", tool)
-
-#PLATFORM_PATH = env.GetProjectOption("platform")
-PKG_CMD = (
-    pio_exe,
-    "pkg",
-    "install",
-    "--global",
-    "--tool",
-    tl_path,
-)
-
-# install platform again to install missing packages, needed since no registry install
-#if bool(platform.get_package_dir("tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu)))) == False:
-    #print("Call pkg install:", PKG_CMD)
-    #rc = subprocess.call(PKG_CMD)
-    #if rc != 0:
-        #sys.stderr.write("Error: Couldn't install Platform packages correctly\n")
-        #env.Exit(1)
 
 IDF5 = (
     platform.get_package_version("framework-espidf")
@@ -94,7 +69,7 @@ IDF5 = (
 IDF_ENV_VERSION = "1.0.0"
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
 TOOLCHAIN_DIR = platform.get_package_dir(
-    "tc-%s" % ("rv32" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xt-%s" % mcu))
+    "toolchain-%s" % ("riscv32-esp" if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2") else ("xtensa-%s" % mcu))
 )
 
 
@@ -277,8 +252,11 @@ def populate_idf_env_vars(idf_env):
 
     if mcu not in ("esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4"):
         additional_packages.append(
-            os.path.join(platform.get_package_dir("tc-ulp"), "bin"),
+            os.path.join(platform.get_package_dir("toolchain-esp32ulp"), "bin"),
         )
+
+#    if IS_WINDOWS:
+#        additional_packages.append(platform.get_package_dir("tool-mconf"))
 
     idf_env["PATH"] = os.pathsep.join(additional_packages + [idf_env["PATH"]])
 

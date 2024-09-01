@@ -36,13 +36,13 @@ def prepare_ulp_env_vars(env):
     ulp_env.PrependENVPath("IDF_PATH", FRAMEWORK_DIR)
 
     toolchain_path = platform.get_package_dir(
-        "tc-xt-%s" % idf_variant
+        "toolchain-xtensa-%s" % idf_variant
     )
 
     additional_packages = [
         toolchain_path,
         os.path.join(
-            platform.get_package_dir("tc-ulp"),
+            platform.get_package_dir("toolchain-esp32ulp"),
             "bin",
         ),
         platform.get_package_dir("tool-ninja"),
