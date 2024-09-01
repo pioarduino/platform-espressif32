@@ -46,7 +46,7 @@ if (tl_flag and not bool(os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools"))))
         for p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "contrib-piohome", "contrib-pioremote", "tc-xt-esp32", "tc-xt-esp32s2", "tc-xt-esp32s3",  "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
             tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
             print("Call pkg install:", tl_path)
-            rc = assert pm.install(tl_path)
+            rc = pm.install(tl_path)
             if rc != 0:
                 sys.stderr.write("Error: Couldn't install package ",p," correctly\n")
                 env.Exit(1)
