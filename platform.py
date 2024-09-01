@@ -19,12 +19,11 @@ import shutil
 from os.path import isfile, join
 
 from platformio.public import PlatformBase, to_unix_path
-from platformio.proc import get_pythonexe_path#, where_is_program
+from platformio.proc import get_pythonexe_path
 from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
 
 python_exe = get_pythonexe_path()
-#pio_exe = where_is_program("platformio")
 pm = ToolPackageManager()
 
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
@@ -58,11 +57,11 @@ class Espressif32Platform(PlatformBase):
 
         # Enable debug tool gdb only when build debug is enabled
         if variables.get("build_type") or  "debug" in "".join(targets):
-            self.packages["tool-riscv32-esp-elf-gdb"]["optional"] = False if mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
-            self.packages["tool-xtensa-esp-elf-gdb"]["optional"] = False if not mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
+            self.packages["riscv32-esp-elf-gdb"]["optional"] = False if mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
+            self.packages["xtensa-esp-elf-gdb"]["optional"] = False if not mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
         else:
-            self.packages["tool-riscv32-esp-elf-gdb"]["optional"] = True
-            self.packages["tool-xtensa-esp-elf-gdb"]["optional"] = True
+            self.packages["riscv32-esp-elf-gdb"]["optional"] = True
+            self.packages["xtensa-esp-elf-gdb"]["optional"] = True
 
         # Enable check tools only when "check_tool" is enabled
         for p in self.packages:
