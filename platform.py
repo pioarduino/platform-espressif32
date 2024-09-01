@@ -55,29 +55,6 @@ class Espressif32Platform(PlatformBase):
         board_config = self.board_config(variables.get("board"))
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
         frameworks = variables.get("pioframework", [])
-        #tl_flag = bool(os.path.exists(IDF_TOOLS))
-
-        if tl_flag:
-            # install tool is not needed anymore
-            self.packages["tl-install"]["optional"] = True
-            # Install all tools and toolchains
-            for p in self.packages:
-                if p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "contrib-piohome", "contrib-pioremote", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
-                    tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
-                    self.packages[p]["optional"] = False
-                    self.packages[p]["version"] = tl_path
-            # Enable common packages for IDF and mixed Arduino+IDF projects
-            for p in self.packages:
-                if p in ("tool-cmake", "tool-ninja", "tc-ulp"):
-                    self.packages[p]["optional"] = False if "espidf" in frameworks else True
-            # Enabling of following tools is not needed, installing is enough
-            for p in self.packages:
-                if p in ("contrib-pioremote", "contrib-piohome"):
-                    try:
-                        self.packages[p]["optional"] = False
-                    except:
-                        pass
-
 
         # Enable debug tool gdb only when build debug is enabled
         if variables.get("build_type") or  "debug" in "".join(targets):
@@ -140,9 +117,9 @@ class Espressif32Platform(PlatformBase):
         # Enable needed toolchains
         for available_mcu in ("esp32", "esp32s2", "esp32s3"):
             if available_mcu == mcu and tl_flag:
-                tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-xt-%s" % mcu)
+                #tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-xt-%s" % mcu)
                 self.packages["tc-xt-%s" % mcu]["optional"] = False
-                self.packages["tc-xt-%s" % mcu]["version"] = tc_path
+                #self.packages["tc-xt-%s" % mcu]["version"] = tc_path
                 if available_mcu == "esp32":
                     del self.packages["tc-rv32"]
         # Enable ULP toolchains
