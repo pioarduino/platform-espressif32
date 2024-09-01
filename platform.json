@@ -89,7 +89,7 @@
       "owner": "",
       "version": ""
     },
-    "tool-esptool": {
+    "tool-esptoolpy": {
       "type": "uploader",
       "optional": false,
       "owner": "pioarduino",
