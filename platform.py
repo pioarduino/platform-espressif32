@@ -21,9 +21,11 @@ from os.path import isfile, join
 from platformio.public import PlatformBase, to_unix_path
 from platformio.proc import get_pythonexe_path, where_is_program
 from platformio.project.config import ProjectConfig
+from platformio.package.manager.tool import ToolPackageManager
 
 python_exe = get_pythonexe_path()
 pio_exe = where_is_program("platformio")
+pm = ToolPackageManager()
 
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
 IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
@@ -43,18 +45,10 @@ if (tl_flag and not bool(os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools"))))
         shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
         for p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "contrib-piohome", "contrib-pioremote", "tc-xt-esp32", "tc-xt-esp32s2", "tc-xt-esp32s3",  "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb"):
             tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
-            PKG_CMD = (
-                pio_exe,
-                "pkg",
-                "install",
-                "--global",
-                "--tool",
-                tl_path,
-            )
-            print("Call pkg install:", PKG_CMD)
-            rc = subprocess.call(PKG_CMD)
+            print("Call pkg install:", tl_path)
+            rc = assert pm.install(tl_path)
             if rc != 0:
-                sys.stderr.write("Error: Couldn't install package correctly\n")
+                sys.stderr.write("Error: Couldn't install package ",p," correctly\n")
                 env.Exit(1)
 
 class Espressif32Platform(PlatformBase):
