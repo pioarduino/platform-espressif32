@@ -53,7 +53,19 @@
       "owner": "",
       "version": ""
     },
+    "toolchain-xtensa-esp32": {
+      "type": "toolchain",
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
     "tc-xt-esp32s2": {
+      "type": "toolchain",
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
+    "toolchain-xtensa-esp32s2": {
       "type": "toolchain",
       "optional": true,
       "owner": "",
@@ -65,7 +77,19 @@
       "owner": "",
       "version": ""
     },
+    "toolchain-xtensa-esp32s3": {
+      "type": "toolchain",
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
     "tc-rv32": {
+      "type": "toolchain",
+      "optional": true,
+      "owner": "",
+      "version": ""
+    },
+    "toolchain-riscv32-esp": {
       "type": "toolchain",
       "optional": true,
       "owner": "",
