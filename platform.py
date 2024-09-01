@@ -116,7 +116,9 @@ class Espressif32Platform(PlatformBase):
         # Enable needed toolchains
         for available_mcu in ("esp32", "esp32s2", "esp32s3"):
             if available_mcu == mcu and tl_flag:
+                tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-xt-%s" % mcu)
                 self.packages["toolchain-xtensa-%s" % mcu]["optional"] = False
+                self.packages["toolchain-xtensa-%s" % mcu]["version"] = tc_path
                 if available_mcu == "esp32":
                     del self.packages["toolchain-riscv32-esp"]
         # Enable ULP toolchains
