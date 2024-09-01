@@ -158,12 +158,12 @@
     "contrib-piohome": {
       "optional": true,
       "owner": "",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/contrib-piohome-3.4.4.tar.gz"
+      "version": ""
     },
     "contrib-pioremote": {
       "optional": true,
       "owner": "",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/contrib-pioremote-1.0.1.tar.gz"
+      "version": ""
     }
   }
 }
