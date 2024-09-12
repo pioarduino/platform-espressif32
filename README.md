@@ -47,11 +47,11 @@ board = ...
 ```
 
 ### Arduino 3.0.1 release candidate 1
-based on devel branch Arduino 3.1.0+rc1 and IDF 5.3.0
+based on devel branch Arduino 3.1.0rc1 and IDF 5.3.0
 
 ```ini
 [env:development]
-platform = https://github.com/pioarduino/platform-espressif32/releases/download/53.03.10+rc1/platform-espressif32.zip
+platform = https://github.com/pioarduino/platform-espressif32/releases/download/53.03.10-rc1/platform-espressif32.zip
 board = ...
 ...
 ```
