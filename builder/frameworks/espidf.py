@@ -235,6 +235,10 @@ def HandleArduinoIDFsettings(env):
             response = request.urlretrieve(sdkconfig_defconfig_url, defconfig_mcu)
             with open(defconfig_mcu, 'r') as f1, open(sdkconfig_src, 'w') as f2:
 	        f2.write(f1.read())
+	    with open(sdkconfig_src, 'r') as file:
+                file_lines = file.readlines()
+                for line in file_lines:
+                    print(line.strip())
 
         def get_flag(line):
             if line.startswith("#") and "is not set" in line:
