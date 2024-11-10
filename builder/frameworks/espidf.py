@@ -29,6 +29,7 @@ import os
 from os import listdir
 from os.path import join
 import re
+from urllib import request
 import platform as sys_platform
 
 import click
@@ -226,6 +227,13 @@ def HandleArduinoIDFsettings(env):
 
         idf_config_flags = idf_config_flags.splitlines()
         sdkconfig_src = join(ARDUINO_FRMWRK_LIB_DIR,mcu,"sdkconfig")
+        if not bool(os.path.isfile(sdkconfig_src)):
+            print("***** lib directory does not exists, fetching sdkonfig from Arduino lib builder ****")
+            os.makedirs(join(ARDUINO_FRMWRK_LIB_DIR,mcu))
+            sdkconfig_common_url= "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig.common"
+            response = request.urlretrieve(sdkconfig_common_url, "defconfig.common")
+            sdkconfig_common_url= "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig." + mcu
+            response = request.urlretrieve(sdkconfig_common_url, "defconfig." + mcu)
 
         def get_flag(line):
             if line.startswith("#") and "is not set" in line:
