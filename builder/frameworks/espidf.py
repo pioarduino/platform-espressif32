@@ -225,7 +225,7 @@ def HandleArduinoIDFsettings(env):
             idf_config_flags = idf_config_flags + "# CONFIG_SPIRAM is not set\n"
 
         idf_config_flags = idf_config_flags.splitlines()
-        sdkconfig_src = join(ARDUINO_FRMWRK_LIB_DIR,"esp32-arduino-libs",mcu,"sdkconfig")
+        sdkconfig_src = join(ARDUINO_FRMWRK_LIB_DIR,mcu,"sdkconfig")
 
         def get_flag(line):
             if line.startswith("#") and "is not set" in line:
@@ -2022,7 +2022,7 @@ if "arduino" in env.get("PIOFRAMEWORK") and "espidf" not in env.get("PIOFRAMEWOR
     def idf_lib_copy(source, target, env):
         env_build = join(env["PROJECT_BUILD_DIR"],env["PIOENV"])
         sdkconfig_h_path = join(env_build,"config","sdkconfig.h")
-        arduino_libs = join(ARDUINO_FRMWRK_LIB_DIR,"esp32-arduino-libs")
+        arduino_libs = ARDUINO_FRMWRK_LIB_DIR
         lib_src = join(env_build,"esp-idf")
         lib_dst = join(arduino_libs,mcu,"lib")
         ld_dst = join(arduino_libs,mcu,"ld")
