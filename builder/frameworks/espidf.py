@@ -234,7 +234,7 @@ def HandleArduinoIDFsettings(env):
             sdkconfig_defconfig_url = "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig." + mcu
             defconfig_mcu = join(ARDUINO_FRMWRK_LIB_DIR,mcu,"defconfig." + mcu)
             response = request.urlretrieve(sdkconfig_defconfig_url, defconfig_mcu)
-            with open(defconfig_mcu, 'r') as f1, open(sdkconfig_mcu, 'w') as f2:
+            with open(defconfig_mcu, 'r') as f1, open(sdkconfig_mcu, 'a') as f2:
                 f2.write(f1.read())
             with open(sdkconfig_src, 'r') as file:
                 file_lines = file.readlines()
