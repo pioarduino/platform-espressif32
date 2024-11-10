@@ -231,9 +231,14 @@ def HandleArduinoIDFsettings(env):
             print("***** lib directory does not exists, fetching sdkonfig from Arduino lib builder ****")
             os.makedirs(join(ARDUINO_FRMWRK_LIB_DIR,mcu))
             sdkconfig_common_url= "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig.common"
-            response = request.urlretrieve(sdkconfig_common_url, "defconfig.common")
+            response = request.urlretrieve(sdkconfig_common_url, sdkconfig_src)
             sdkconfig_common_url= "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig." + mcu
-            response = request.urlretrieve(sdkconfig_common_url, "defconfig." + mcu)
+            defconfig = join(ARDUINO_FRMWRK_LIB_DIR,mcu,"defconfig." + mcu)
+            response = request.urlretrieve(sdkconfig_common_url, defconfig)
+            # opening file1 in reading mode and file2 in writing mode
+            with open(defconfig, 'r') as f1, open(sdkconfig_src, 'w') as f2:
+	            f2.write(f1.read())
+
 
         def get_flag(line):
             if line.startswith("#") and "is not set" in line:
