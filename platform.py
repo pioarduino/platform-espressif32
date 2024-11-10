@@ -37,10 +37,11 @@ class Espressif32Platform(PlatformBase):
 
         board_config = self.board_config(variables.get("board"))
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
+        board_sdkconfig = variables.get("board_espidf.custom_sdkconfig", board_config.get("espidf.custom_sdkconfig", ""))
+        core_variant_board = ''.join(variables.get("board_build.extra_flags", board_config.get("build.extra_flags", "")))
+        core_variant_board = core_variant_board.replace("-D", " ")
+        core_variant_build = (''.join(variables.get("build_flags", []))).replace("-D", " ")
         frameworks = variables.get("pioframework", [])
-
-        if variables.get("custom_sdkconfig") is not None:
-            frameworks.append("espidf")
 
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
@@ -50,6 +51,10 @@ class Espressif32Platform(PlatformBase):
             packjdata = requests.get(URL).json()
             dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
             self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
+
+        if variables.get("custom_sdkconfig") is not None or len(str(board_sdkconfig)) > 3:
+            frameworks.append("espidf")
+            self.packages["framework-espidf"]["optional"] = False
 
         if "buildfs" in targets:
             filesystem = variables.get("board_build.filesystem", "littlefs")
@@ -90,10 +95,10 @@ class Espressif32Platform(PlatformBase):
         if "espidf" in frameworks:
             self.packages["toolchain-esp32ulp"]["optional"] = False
             for p in self.packages:
-                if p in ("tool-cmake", "tool-ninja"):
+                if p in ("tool-scons", "tool-cmake", "tool-ninja"):
                     self.packages[p]["optional"] = False
-#                elif p in ("tool-mconf", "tool-idf") and IS_WINDOWS:
-#                    self.packages[p]["optional"] = False
+                # elif p in ("tool-mconf", "tool-idf") and IS_WINDOWS:
+                    # self.packages[p]["optional"] = False
 
         if mcu in ("esp32", "esp32s2", "esp32s3"):
             self.packages["toolchain-xtensa-esp-elf"]["optional"] = False
