@@ -1,4 +1,3 @@
-
 # Copyright 2014-present PlatformIO <contact@platformio.org>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -189,4 +188,4 @@ if flag_custom_sdkconfig == True and flag_any_custom_sdkconfig == False:
     call_compile_libs()
 
 if "arduino" in env.subst("$PIOFRAMEWORK") and "espidf" not in env.subst("$PIOFRAMEWORK") and env.subst("$ARDUINO_LIB_COMPILE_FLAG") in ("Inactive", "True"):
-    SConscript(join(FRAMEWORK_DIR, "tools", "platformio-build.py"))
+    SConscript(join(platform.get_package_dir("framework-arduinoespressif32"), "tools", "platformio-build.py")))
