@@ -57,7 +57,7 @@ flag_any_custom_sdkconfig = False
 
 SConscript("_embed_files.py", exports="env")
 
-flag_any_custom_sdkconfig = os.path.exists(join(platform.get_package_dir("framework-arduinoespressif32-libs"),"tools","esp32-arduino-libs","sdkconfig"))
+flag_any_custom_sdkconfig = os.path.exists(join(platform.get_package_dir("framework-arduinoespressif32-libs"),"sdkconfig"))
 
 # Esp32-solo1 libs needs adopted settings
 if flag_custom_sdkconfig == True and "CORE32SOLO1" in extra_flags and ("CONFIG_FREERTOS_UNICORE=y" in entry_custom_sdkconfig or "CONFIG_FREERTOS_UNICORE=y" in board_sdkconfig):
