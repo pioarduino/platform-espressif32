@@ -26,6 +26,7 @@ import subprocess
 import sys
 import shutil
 import os
+from os import listdir
 from os.path import join
 import re
 import platform as sys_platform
@@ -156,6 +157,8 @@ if (
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     ARDUINO_FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
     ARDUINO_FRMWRK_LIB_DIR = platform.get_package_dir("framework-arduinoespressif32-libs")
+    print("****++ Arduino Libs dir:", ARDUINO_FRMWRK_LIB_DIR)
+    print("dir list:", os.listdir(ARDUINO_FRMWRK_LIB_DIR))
     # Possible package names in 'package@version' format is not compatible with CMake
     if "@" in os.path.basename(ARDUINO_FRAMEWORK_DIR):
         new_path = os.path.join(
