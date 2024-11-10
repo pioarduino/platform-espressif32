@@ -158,8 +158,6 @@ if (
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     ARDUINO_FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
     ARDUINO_FRMWRK_LIB_DIR = platform.get_package_dir("framework-arduinoespressif32-libs")
-    print("****++ Arduino Libs dir:", ARDUINO_FRMWRK_LIB_DIR)
-    print("dir list:", os.listdir(ARDUINO_FRMWRK_LIB_DIR))
     # Possible package names in 'package@version' format is not compatible with CMake
     if "@" in os.path.basename(ARDUINO_FRAMEWORK_DIR):
         new_path = os.path.join(
@@ -228,17 +226,15 @@ def HandleArduinoIDFsettings(env):
         idf_config_flags = idf_config_flags.splitlines()
         sdkconfig_src = join(ARDUINO_FRMWRK_LIB_DIR,mcu,"sdkconfig")
         if not bool(os.path.isfile(sdkconfig_src)):
-            print("***** lib directory does not exists, fetching sdkonfig from Arduino lib builder ****")
+            print("***** sdkconfig not existing, fetching from Arduino lib builder repo ****")
             os.makedirs(join(ARDUINO_FRMWRK_LIB_DIR,mcu))
-            sdkconfig_common_url= "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig.common"
+            sdkconfig_common_url = "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig.common"
             response = request.urlretrieve(sdkconfig_common_url, sdkconfig_src)
-            sdkconfig_common_url= "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig." + mcu
-            defconfig = join(ARDUINO_FRMWRK_LIB_DIR,mcu,"defconfig." + mcu)
-            response = request.urlretrieve(sdkconfig_common_url, defconfig)
-            # opening file1 in reading mode and file2 in writing mode
-            with open(defconfig, 'r') as f1, open(sdkconfig_src, 'w') as f2:
-	            f2.write(f1.read())
-
+            sdkconfig_defconfig_url = "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig." + mcu
+            defconfig_mcu = join(ARDUINO_FRMWRK_LIB_DIR,mcu,"defconfig." + mcu)
+            response = request.urlretrieve(sdkconfig_defconfig_url, defconfig_mcu)
+            with open(defconfig_mcu, 'r') as f1, open(sdkconfig_src, 'w') as f2:
+	        f2.write(f1.read())
 
         def get_flag(line):
             if line.startswith("#") and "is not set" in line:
