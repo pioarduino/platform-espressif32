@@ -2046,6 +2046,7 @@ if "arduino" in env.get("PIOFRAMEWORK") and "espidf" not in env.get("PIOFRAMEWOR
         for folder in src:
             files = [join(folder,x) for x in os.listdir(folder)]
             for file in files:
+                print("new lib file to copy:", file)
                 if file.strip().endswith(".a"):
                     shutil.copyfile(file,join(lib_dst,file.split(os.path.sep)[-1]))
 
