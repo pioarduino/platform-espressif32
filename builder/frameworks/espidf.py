@@ -155,7 +155,7 @@ if (
 # Arduino framework as a component is not compatible with ESP-IDF >5.3
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     ARDUINO_FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
-    ARDUINO_FRMWRK_LIB_DIR = platform.get_package_dir("framework-arduinoespressif32-libs"))
+    ARDUINO_FRMWRK_LIB_DIR = platform.get_package_dir("framework-arduinoespressif32-libs")
     # Possible package names in 'package@version' format is not compatible with CMake
     if "@" in os.path.basename(ARDUINO_FRAMEWORK_DIR):
         new_path = os.path.join(
