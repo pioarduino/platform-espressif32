@@ -41,6 +41,12 @@
       "owner": "espressif",
       "version": ""
     },
+    "framework-arduino-c2-skeleton-lib": {
+      "type": "framework",
+      "optional": true,
+      "owner": "espressif",
+      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/53.03.10-rc2/c2_arduino_compile_skeleton.zip"
+    },
     "framework-espidf": {
       "type": "framework",
       "optional": true,
