@@ -225,21 +225,7 @@ def HandleArduinoIDFsettings(env):
 
         idf_config_flags = idf_config_flags.splitlines()
         sdkconfig_src = join(ARDUINO_FRMWRK_LIB_DIR,mcu,"sdkconfig")
-        if not bool(os.path.isfile(sdkconfig_src)):
-            print("***** sdkconfig not existing, fetching from Arduino lib builder repo ****")
-            os.makedirs(join(ARDUINO_FRMWRK_LIB_DIR,mcu))
-            sdkconfig_common_url = "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig.common"
-            sdkconfig_mcu = join(ARDUINO_FRMWRK_LIB_DIR,mcu,"sdkconfig")
-            response = request.urlretrieve(sdkconfig_common_url, sdkconfig_mcu)
-            sdkconfig_defconfig_url = "https://github.com/pioarduino/esp32-arduino-lib-builder/raw/refs/heads/release/v5.3/configs/defconfig." + mcu
-            defconfig_mcu = join(ARDUINO_FRMWRK_LIB_DIR,mcu,"defconfig." + mcu)
-            response = request.urlretrieve(sdkconfig_defconfig_url, defconfig_mcu)
-            with open(defconfig_mcu, 'r') as f1, open(sdkconfig_mcu, 'a') as f2:
-                f2.write(f1.read())
-            if mcu == "esp32c2":
-                ARDUINO_C2_LIB_DIR = platform.get_package_dir("framework-arduino-c2-skeleton-lib")
-                shutil.copytree(ARDUINO_C2_LIB_DIR, ARDUINO_FRMWRK_LIB_DIR, dirs_exist_ok=True)
-                
+               
         def get_flag(line):
             if line.startswith("#") and "is not set" in line:
                 return line.split(" ")[1]
