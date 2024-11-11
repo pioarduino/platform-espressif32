@@ -70,13 +70,6 @@ if flag_custom_sdkconfig == True and "CORE32SOLO1" in extra_flags and ("CONFIG_F
       BUILD_UNFLAGS=new_build_unflags
     )
 
-if mcu == "esp32c2":
-    ARDUINO_FRMWRK_C2_LIB_DIR = join(platform.get_package_dir("framework-arduinoespressif32-libs"),mcu)
-    ARDUINO_C2_DIR = join(platform.get_package_dir("framework-arduino-c2-skeleton-lib"),mcu)
-    print("Arduino Framework C2 Lib Dir:", ARDUINO_FRMWRK_C2_LIB_DIR)
-    print("Arduino Skeleton C2 Lib Dir:", ARDUINO_C2_DIR)
-    shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
-
 def install_python_deps():
     def _get_installed_pip_packages():
         result = {}
@@ -179,6 +172,12 @@ def check_reinstall_frwrk():
     return framework_reinstall
 
 def call_compile_libs():
+    if mcu == "esp32c2":
+        ARDUINO_FRMWRK_C2_LIB_DIR = join(platform.get_package_dir("framework-arduinoespressif32-libs"),mcu)
+        ARDUINO_C2_DIR = join(platform.get_package_dir("framework-arduino-c2-skeleton-lib"),mcu)
+        print("Arduino Framework C2 Lib Dir:", ARDUINO_FRMWRK_C2_LIB_DIR)
+        print("Arduino Skeleton C2 Lib Dir:", ARDUINO_C2_DIR)
+        shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
     print("*** Compile Arduino IDF libs for %s ***" % env["PIOENV"])
     SConscript("espidf.py")
 
