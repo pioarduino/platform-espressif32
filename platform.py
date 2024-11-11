@@ -55,6 +55,8 @@ class Espressif32Platform(PlatformBase):
         if variables.get("custom_sdkconfig") is not None or len(str(board_sdkconfig)) > 3:
             frameworks.append("espidf")
             self.packages["framework-espidf"]["optional"] = False
+            if mcu == "esp32c2":
+                self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
 
         if "buildfs" in targets:
             filesystem = variables.get("board_build.filesystem", "littlefs")
