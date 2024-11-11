@@ -28,7 +28,6 @@ import shutil
 import os
 from os.path import join
 import re
-from urllib import request
 import platform as sys_platform
 
 import click
