@@ -71,11 +71,11 @@ if flag_custom_sdkconfig == True and "CORE32SOLO1" in extra_flags and ("CONFIG_F
     )
 
 if mcu == "esp32c2":
-    ARDUINO_FRMWRK_LIB_DIR = platform.get_package_dir("framework-arduinoespressif32-libs")
+    ARDUINO_FRMWRK_C2_LIB_DIR = join(platform.get_package_dir("framework-arduinoespressif32-libs"),mcu)
     ARDUINO_C2_DIR = join(platform.get_package_dir("framework-arduino-c2-skeleton-lib"),mcu)
-    print("Arduino Lib Dir:", ARDUINO_FRMWRK_LIB_DIR)
-    print("Arduino C2 Lib Dir:", ARDUINO_C2_DIR)
-    shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_LIB_DIR, dirs_exist_ok=True)
+    print("Arduino Framework C2 Lib Dir:", ARDUINO_FRMWRK_C2_LIB_DIR)
+    print("Arduino Skeleton C2 Lib Dir:", ARDUINO_C2_DIR)
+    shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
 
 def install_python_deps():
     def _get_installed_pip_packages():
