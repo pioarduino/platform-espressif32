@@ -236,7 +236,10 @@ def HandleArduinoIDFsettings(env):
             response = request.urlretrieve(sdkconfig_defconfig_url, defconfig_mcu)
             with open(defconfig_mcu, 'r') as f1, open(sdkconfig_mcu, 'a') as f2:
                 f2.write(f1.read())
-
+            if mcu = "esp32c2":
+                ARDUINO_C2_LIB_DIR = platform.get_package_dir("framework-arduino-c2-skeleton-lib")
+                shutil.copytree(ARDUINO_C2_LIB_DIR, ARDUINO_FRMWRK_LIB_DIR, dirs_exist_ok=True)
+                
         def get_flag(line):
             if line.startswith("#") and "is not set" in line:
                 return line.split(" ")[1]
