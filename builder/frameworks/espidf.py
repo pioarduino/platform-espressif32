@@ -333,7 +333,10 @@ if flag_custom_component_add == True or flag_custom_component_remove == True:
 
 if flag_custom_sdkonfig == True and "arduino" in env.subst("$PIOFRAMEWORK"):
     HandleArduinoIDFsettings(env)
+    print("***** $PROJECT_LIBDEPS_DIR:", env.subst("$PROJECT_LIBDEPS_DIR"))
+    print("***** $PROJECT_CORE_DIR:", env.subst("$PROJECT_CORE_DIR"))
     LIB_SOURCE = os.path.join(env.subst("$PROJECT_CORE_DIR"), "platforms", "espressif32", "builder", "build_lib")
+    print("***** Dummy Source path:", LIB_SOURCE)
     if not bool(os.path.exists(os.path.join(PROJECT_DIR, ".dummy"))):
         shutil.copytree(LIB_SOURCE, os.path.join(PROJECT_DIR, ".dummy"))
     PROJECT_SRC_DIR = os.path.join(PROJECT_DIR, ".dummy")
