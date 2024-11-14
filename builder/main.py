@@ -152,7 +152,7 @@ def _parse_partitions(env):
             next_offset = _parse_size(partition["offset"])
             if (partition["subtype"] == "ota_0"):
                 bound = next_offset
-            next_offset = (next_offset + bound - 1) & ~(bound - 1)
+            next_offset = next_offset + _parse_size(partition["size"])
     # Configure application partition offset
     env.Replace(ESP32_APP_OFFSET=str(hex(bound)))
     # Propagate application offset to debug configurations
