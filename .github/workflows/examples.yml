@@ -20,6 +20,7 @@ jobs:
           - "examples/arduino-wifiscan"
           - "examples/arduino-zigbee-light"
           - "examples/arduino-zigbee-switch"
+          - "examples/tasmota"
           - "examples/espidf-arduino-h2zero-BLE_scan"
           - "examples/espidf-arduino-matter-light"
           - "examples/espidf-arduino-blink"
@@ -57,7 +58,7 @@ jobs:
           PLATFORMIO_PLATFORMS_DIR: C:\plat\plat
       - name: Build Windows examples
         run: pio run -d ${{ matrix.example }}
-        if: "matrix.os == 'windows-2022'"
+        if: "matrix.example != 'examples/tasmota' && matrix.os == 'windows-2022'"
         env:
           PLATFORMIO_CORE_DIR: C:\plat
           PLATFORMIO_PACKAGES_DIR: C:\plat\pack
@@ -69,6 +70,11 @@ jobs:
           pip install -U https://github.com/platformio/platformio/archive/develop.zip
           pio pkg install --global --platform file://.
         if: "matrix.os != 'windows-2022'"
+      - name: git clone Tasmota and add to examples
+        run: |
+          git clone -b development --depth 1 https://github.com/arendst/Tasmota.git examples/tasmota
+          cp examples/tasmota_platformio_override.ini examples/tasmota/platformio_override.ini
+        if: "matrix.example == 'examples/tasmota' && matrix.os != 'windows-2022'"
       - name: Build Ubuntu Mac examples
         run: pio run -d ${{ matrix.example }}
         if: "matrix.os != 'windows-2022'"
