@@ -20,7 +20,7 @@ jobs:
           - "examples/arduino-wifiscan"
           - "examples/arduino-zigbee-light"
           - "examples/arduino-zigbee-switch"
-          #- "examples/tasmota"
+          - "examples/tasmota"
           - "examples/espidf-arduino-h2zero-BLE_scan"
           - "examples/espidf-arduino-matter-light"
           - "examples/espidf-arduino-blink"
