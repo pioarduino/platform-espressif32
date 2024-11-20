@@ -48,7 +48,7 @@ class Espressif32Platform(PlatformBase):
             # use latest stable release Arduino core
             ARDUINO_CORE_API_URL = "https://api.github.com/repos/espressif/Arduino-esp32/releases/latest"
             api_data = requests.get(ARDUINO_CORE_API_URL, timeout=10).json()
-            data = api_data["zipball_url"]
+            data = api_data.get("zipball_url")
             print("Latest release Arduino core URL:", data)
             self.packages["framework-arduinoespressif32"]["version"] = data
             # use latest stable release espressif Arduino libs
