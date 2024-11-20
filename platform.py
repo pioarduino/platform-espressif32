@@ -49,11 +49,12 @@ class Espressif32Platform(PlatformBase):
             ARDUINO_CORE_API_URL = "https://api.github.com/repos/espressif/Arduino-esp32/releases/latest"
             api_data = requests.get(ARDUINO_CORE_API_URL, timeout=10).json()
             print("Fetched API data", api_data)
-            data = api_data.get("zipball_url")
-            print("Latest release Arduino core URL:", data)
-            self.packages["framework-arduinoespressif32"]["version"] = data
-            # use latest stable release espressif Arduino libs
-            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
+            zipball = api_data.get("zipball_url")
+            tag = api_data.get("tag_name")
+            print("Latest release Arduino core URL:", zipball)
+            self.packages["framework-arduinoespressif32"]["version"] = zipball
+            # use corresponding espressif Arduino libs to release
+            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/" + tag + "/package/package_esp32_index.template.json"
             packjdata = requests.get(URL, timeout=10).json()
             dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
             self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
