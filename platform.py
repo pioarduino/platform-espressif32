@@ -45,6 +45,17 @@ class Espressif32Platform(PlatformBase):
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
+            # use latest stable release Arduino core
+            ARDUINO_CORE_API_URL = "https://api.github.com/repos/espressif/Arduino-esp32/releases/latest"
+            api_data = requests.get(ARDUINO_CORE_API_URL, timeout=10).json()
+            data = api_data["zipball_url"]
+            print("Latest release Arduino core URL:", data)
+            self.packages["framework-arduinoespressif32"]["version"] = data
+            # use latest stable release espressif Arduino libs
+            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
+            packjdata = requests.get(URL, timeout=10).json()
+            dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
+            self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
 
         if "buildfs" in targets:
             filesystem = variables.get("board_build.filesystem", "littlefs")
