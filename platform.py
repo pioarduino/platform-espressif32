@@ -45,19 +45,22 @@ class Espressif32Platform(PlatformBase):
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
-            # use latest stable release Arduino core
-            ARDUINO_CORE_API_URL = "https://api.github.com/repos/espressif/Arduino-esp32/releases/latest"
-            api_data = requests.get(ARDUINO_CORE_API_URL, timeout=10).json()
-            zipball = api_data.get("zipball_url")
-            tag = api_data.get("tag_name")
-            if tag is not None:
-                # print("Latest release Arduino core URL:", zipball)
-                self.packages["framework-arduinoespressif32"]["version"] = zipball
-                # use corresponding espressif Arduino libs to release
-                URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/" + tag + "/package/package_esp32_index.template.json"
-                packjdata = requests.get(URL, timeout=10).json()
-                dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
-                self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
+            try:
+                # use latest stable release Arduino core
+                ARDUINO_CORE_API_URL = "https://api.github.com/repos/espressif/Arduino-esp32/releases/latest"
+                api_data = requests.get(ARDUINO_CORE_API_URL, timeout=2).json()
+                zipball = api_data.get("zipball_url")
+                tag = api_data.get("tag_name")
+                if tag is not None:
+                    # print("Latest release Arduino core URL:", zipball)
+                    self.packages["framework-arduinoespressif32"]["version"] = zipball
+                    # use corresponding espressif Arduino libs to release
+                    URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/" + tag + "/package/package_esp32_index.template.json"
+                    packjdata = requests.get(URL, timeout=10).json()
+                    dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
+                    self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
+            except:
+                pass
 
         if "buildfs" in targets:
             filesystem = variables.get("board_build.filesystem", "littlefs")
