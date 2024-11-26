@@ -12,11 +12,19 @@
     "mcu": "esp32c6",
     "variant": "sparkfun_esp32c6_qwiic_pocket"
   },
-  "connectivity": ["wifi", "bluetooth", "zigbee", "thread"],
+  "connectivity": [
+    "wifi",
+    "bluetooth",
+    "zigbee",
+    "thread"
+  ],
   "debug": {
     "openocd_target": "esp32c6.cfg"
   },
-  "frameworks": ["arduino", "espidf"],
+  "frameworks": [
+    "arduino",
+    "espidf"
+  ],
   "name": "SparkFun ESP32-C6 Qwiic Pocket",
   "upload": {
     "flash_size": "4MB",
