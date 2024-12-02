@@ -250,13 +250,11 @@ def populate_idf_env_vars(idf_env):
         os.path.dirname(get_python_exe()),
     ]
 
-    if mcu not in ("esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4"):
-        additional_packages.append(
-            os.path.join(platform.get_package_dir("toolchain-esp32ulp"), "bin"),
-        )
+#    if mcu in ("esp32", "esp32s2", "esp32s3"):
+#        additional_packages.append(
+#            os.path.join(platform.get_package_dir("toolchain-esp32ulp"), "bin"),
+#        )
 
-#    if IS_WINDOWS:
-#        additional_packages.append(platform.get_package_dir("tool-mconf"))
 
     idf_env["PATH"] = os.pathsep.join(additional_packages + [idf_env["PATH"]])
 
@@ -324,8 +322,9 @@ def extract_defines(compile_group):
         define_string = define_string.strip()
         if "=" in define_string:
             define, value = define_string.split("=", maxsplit=1)
-            if '"' in value and not value.startswith("\\"):
-                # Escape only raw values
+            if any(char in value for char in (' ', '<', '>')):
+                value = f'"{value}"'
+            elif '"' in value and not value.startswith("\\"):
                 value = value.replace('"', '\\"')
             return (define, value)
         return define_string
@@ -336,8 +335,11 @@ def extract_defines(compile_group):
     ]
 
     for f in compile_group.get("compileCommandFragments", []):
-        if f.get("fragment", "").startswith("-D"):
-            result.append(_normalize_define(f["fragment"][2:]))
+        fragment = f.get("fragment", "").strip()
+        if fragment.startswith('"'):
+            fragment = fragment.strip('"')
+        if fragment.startswith("-D"):
+            result.append(_normalize_define(fragment[2:]))
 
     return result
 
@@ -423,8 +425,8 @@ def get_app_flags(app_config, default_config):
         for cg in config["compileGroups"]:
             flags[cg["language"]] = []
             for ccfragment in cg["compileCommandFragments"]:
-                fragment = ccfragment.get("fragment", "")
-                if not fragment.strip() or fragment.startswith("-D"):
+                fragment = ccfragment.get("fragment", "").strip("\" ")
+                if not fragment or fragment.startswith("-D"):
                     continue
                 flags[cg["language"]].extend(
                     click.parser.split_arg_string(fragment.strip())
@@ -709,7 +711,7 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
         build_env = default_env.Clone()
         build_env.SetOption("implicit_cache", 1)
         for cc in compile_commands:
-            build_flags = cc.get("fragment")
+            build_flags = cc.get("fragment", "").strip("\" ")
             if not build_flags.startswith("-D"):
                 if build_flags.startswith("-include") and ".." in build_flags:
                     source_index = cg.get("sourceIndexes")[0]
@@ -869,6 +871,7 @@ def build_bootloader(sdk_config):
             "-DPYTHON=" + get_python_exe(),
             "-DIDF_PATH=" + FRAMEWORK_DIR,
             "-DSDKCONFIG=" + SDKCONFIG_PATH,
+            "-DPROJECT_SOURCE_DIR=" + PROJECT_DIR,
             "-DLEGACY_INCLUDE_COMMON_HEADERS=",
             "-DEXTRA_COMPONENT_DIRS="
             + os.path.join(FRAMEWORK_DIR, "components", "bootloader"),
@@ -1295,17 +1298,6 @@ def install_python_deps():
             )
         )
 
-#        # A special "esp-windows-curses" python package is required on Windows
-#        # for Menuconfig on IDF <5
-#        if not IDF5 and "esp-windows-curses" not in installed_packages:
-#            env.Execute(
-#                env.VerboseAction(
-#                    '"%s" -m pip install "file://%s/tools/kconfig_new/esp-windows-curses"'
-#                    % (python_exe_path, FRAMEWORK_DIR),
-#                    "Installing windows-curses package",
-#                )
-#            )
-
 
 def get_idf_venv_dir():
     # The name of the IDF venv contains the IDF version to avoid possible conflicts and
@@ -1670,7 +1662,7 @@ env.Prepend(
         (
             board.get(
                 "upload.bootloader_offset",
-                "0x0" if mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32s3", "esp32h2"] else ("0x2000" if mcu in ["esp32p4"] else "0x1000"),
+                "0x1000" if mcu in ["esp32", "esp32s2"] else ("0x2000" if mcu in ["esp32p4"] else "0x0"),
             ),
             os.path.join("$BUILD_DIR", "bootloader.bin"),
         ),
@@ -1781,8 +1773,8 @@ env["BUILDERS"]["ElfToBin"].action = action
 #
 
 ulp_dir = os.path.join(PROJECT_DIR, "ulp")
-if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4"):
-    env.SConscript("ulp.py", exports="env sdk_config project_config idf_variant")
+if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "esp32c3", "esp32h2"):
+    env.SConscript("ulp.py", exports="env sdk_config project_config app_includes idf_variant")
 
 #
 # Process OTA partition and image

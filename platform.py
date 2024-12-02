@@ -23,6 +23,11 @@ from platformio.public import PlatformBase, to_unix_path
 
 
 IS_WINDOWS = sys.platform.startswith("win")
+# Set Platformio env var to use windows_amd64 for all windows architectures
+# only windows_amd64 native espressif toolchains are available
+# needs platformio core >= 6.1.16b2 or pioarduino core 6.1.16+test
+if IS_WINDOWS:
+    os.environ["PLATFORMIO_SYSTEM_TYPE"] = "windows_amd64"
 
 
 class Espressif32Platform(PlatformBase):
@@ -34,11 +39,14 @@ class Espressif32Platform(PlatformBase):
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
         frameworks = variables.get("pioframework", [])
 
+        if variables.get("custom_sdkconfig") is not None:
+            frameworks.append("espidf")
+
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
             # use latest espressif Arduino libs
-            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
+            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/release/v3.0.x/package/package_esp32_index.template.json"
             packjdata = requests.get(URL).json()
             dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
             self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
