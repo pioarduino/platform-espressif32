@@ -192,4 +192,9 @@ if flag_custom_sdkconfig == True and flag_any_custom_sdkconfig == False:
     call_compile_libs()
 
 if "arduino" in env.subst("$PIOFRAMEWORK") and "espidf" not in env.subst("$PIOFRAMEWORK") and env.subst("$ARDUINO_LIB_COMPILE_FLAG") in ("Inactive", "True"):
-    SConscript(join(platform.get_package_dir("framework-arduinoespressif32"), "tools", "platformio-build.py"))
+    if os.path.exists(join(platform.get_package_dir(
+            "framework-arduinoespressif32"), "tools", "platformio-build.py")):
+        PIO_BUILD = "platformio-build.py"
+    else:
+        PIO_BUILD = "pioarduino-build.py"
+    SConscript(join(platform.get_package_dir("framework-arduinoespressif32"), "tools", PIO_BUILD))
