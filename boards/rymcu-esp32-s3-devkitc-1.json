@@ -1,14 +1,15 @@
 {
   "build": {
-    "arduino": {
+    "arduino":{
       "partitions": "default_8MB.csv"
     },
     "core": "esp32",
     "extra_flags": [
-      "-DARDUINO_heltec_wifi_kit_32_V3",
+      "-DARDUINO_ESP32S3_DEV",
+      "-DARDUINO_USB_MODE=1",
       "-DARDUINO_RUNNING_CORE=1",
       "-DARDUINO_EVENT_RUNNING_CORE=1",
-      "-DARDUINO_USB_MODE=1"
+      "-DBOARD_HAS_PSRAM"
     ],
     "f_cpu": "240000000L",
     "f_flash": "80000000L",
@@ -20,20 +21,24 @@
       ]
     ],
     "mcu": "esp32s3",
-    "variant": "heltec_wifi_kit_32_V3"
+    "variant": "esp32s3"
   },
   "connectivity": [
-    "wifi",
-    "bluetooth"
+    "bluetooth",
+    "wifi"
   ],
   "debug": {
+    "default_tool": "esp-builtin",
+    "onboard_tools": [
+      "esp-builtin"
+    ],
     "openocd_target": "esp32s3.cfg"
   },
   "frameworks": [
     "arduino",
     "espidf"
   ],
-  "name": "Heltec WiFi Kit 32 (V3)",
+  "name": "RYMCU ESP32-S3-DevKitC-1-N8R2 (8 MB QD, 2 MB PSRAM)",
   "upload": {
     "flash_size": "8MB",
     "maximum_ram_size": 327680,
@@ -41,6 +46,6 @@
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://heltec.org/project/wifi-kit-32-v3/",
-  "vendor": "Heltec"
+  "url": "https://rymcu.com/products",
+  "vendor": "RYMCU"
 }

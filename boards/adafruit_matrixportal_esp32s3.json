@@ -1,7 +1,7 @@
 {
   "build": {
     "arduino":{
-      "partitions": "tinyuf2-partitions-8MB.csv",
+      "partitions": "partitions-8MB-tinyuf2.csv",
       "memory_type": "qio_qspi"
     },
     "core": "esp32",

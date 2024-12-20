@@ -1,28 +1,28 @@
 {
   "build": {
-    "arduino": {
-      "partitions": "app3M_fat9M_16MB.csv",
-      "memory_type": "qio_opi"
+    "arduino":{
+      "partitions": "tinyuf2-partitions-16MB.csv",
+      "memory_type": "qio_qspi"
     },
     "core": "esp32",
     "extra_flags": [
-      "-DARDUINO_DFROBOT_ROMEO_ESP32S3",
-      "-DARDUINO_USB_MODE=1",
+      "-DARDUINO_WT32_SC01_PLUS",
+      "-DBOARD_HAS_PSRAM",
+      "-DARDUINO_USB_CDC_ON_BOOT=1",
       "-DARDUINO_RUNNING_CORE=1",
-      "-DARDUINO_EVENT_RUNNING_CORE=1",
-      "-DARDUINO_USB_CDC_ON_BOOT=1"
+      "-DARDUINO_EVENT_RUNNING_CORE=1"
     ],
     "f_cpu": "240000000L",
     "f_flash": "80000000L",
     "flash_mode": "qio",
     "hwids": [
       [
-        "0x303A",
+        "0X303A",
         "0x1001"
       ]
     ],
     "mcu": "esp32s3",
-    "variant": "dfrobot_romeo_esp32s3"
+    "variant": "wt32-sc01-plus"
   },
   "connectivity": [
     "bluetooth",
@@ -35,14 +35,16 @@
     "arduino",
     "espidf"
   ],
-  "name": "DFRobot Romeo ESP32-S3",
+  "name": "wt32-sc01-plus",
   "upload": {
     "flash_size": "16MB",
     "maximum_ram_size": 327680,
     "maximum_size": 16777216,
+    "use_1200bps_touch": true,
+    "wait_for_upload_port": true,
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://wiki.dfrobot.com/",
-  "vendor": "DFRobot"
+  "url": "http://www.wireless-tag.com/portfolio/wt32-eth01",
+  "vendor": "Wireless-Tag"
 }
