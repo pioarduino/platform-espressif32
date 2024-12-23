@@ -3,7 +3,7 @@
     "core": "esp32",
     "f_cpu": "240000000L",
     "f_flash": "80000000L",
-    "memory_type": "qio_qspi"
+    "memory_type": "qio_qspi",
     "mcu": "esp32s3",
     "variant": "ws_esp32_s3_matrix"
   },
