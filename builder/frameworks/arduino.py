@@ -26,6 +26,7 @@ import subprocess
 import json
 import semantic_version
 import os
+import sys
 import shutil
 from os.path import join
 
@@ -44,6 +45,7 @@ mcu = board.get("build.mcu", "esp32")
 board_sdkconfig = board.get("espidf.custom_sdkconfig", "")
 entry_custom_sdkconfig = "\n"
 flag_custom_sdkconfig = False
+IS_WINDOWS = sys.platform.startswith("win")
 
 if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig"):
     entry_custom_sdkconfig = env.GetProjectOption("custom_sdkconfig")
@@ -248,7 +250,8 @@ if flag_custom_sdkconfig == True and flag_any_custom_sdkconfig == False:
     call_compile_libs()
 
 if "arduino" in env.subst("$PIOFRAMEWORK") and "espidf" not in env.subst("$PIOFRAMEWORK") and env.subst("$ARDUINO_LIB_COMPILE_FLAG") in ("Inactive", "True"):
-    env.AddBuildMiddleware(shorthen_includes)
+    if IS_WINDOWS:
+        env.AddBuildMiddleware(shorthen_includes)
     if os.path.exists(join(platform.get_package_dir(
             "framework-arduinoespressif32"), "tools", "platformio-build.py")):
         PIO_BUILD = "platformio-build.py"
