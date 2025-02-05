@@ -58,6 +58,11 @@ class Espressif32Platform(PlatformBase):
             if mcu == "esp32c2":
                 self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
 
+        # Enable check tools only when "check_tool" is active
+        for p in self.packages:
+            if p in ("tool-cppcheck", "tool-clangtidy", "tool-pvs-studio"):
+                self.packages[p]["optional"] = False if str(variables.get("check_tool")).strip("['']") in p else True
+
         if "buildfs" in targets:
             filesystem = variables.get("board_build.filesystem", "littlefs")
             if filesystem == "littlefs":
