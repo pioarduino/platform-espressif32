@@ -232,8 +232,9 @@ def shorthen_includes(env, node):
 def call_compile_libs():
     if mcu == "esp32c2":
         ARDUINO_FRMWRK_C2_LIB_DIR = join(platform.get_package_dir("framework-arduinoespressif32-libs"),mcu)
-        ARDUINO_C2_DIR = join(platform.get_package_dir("framework-arduino-c2-skeleton-lib"),mcu)
-        shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
+        if not os.path.exists(ARDUINO_FRMWRK_C2_LIB_DIR):
+            ARDUINO_C2_DIR = join(platform.get_package_dir("framework-arduino-c2-skeleton-lib"),mcu)
+            shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
     print("*** Compile Arduino IDF libs for %s ***" % env["PIOENV"])
     SConscript("espidf.py")
 

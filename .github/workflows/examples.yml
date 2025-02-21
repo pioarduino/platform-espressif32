@@ -1,4 +1,4 @@
-name: Examples
+name: CI Examples
 
 on:
   workflow_dispatch:      # Manually start a workflow
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-14]
+        os: [ubuntu-24.04, windows-2022, macos-15]
         example:
           - "examples/arduino-blink"
           - "examples/arduino-rmt-blink"
@@ -45,37 +45,16 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - name: Install Windows dependencies
+          python-version: "3.13"
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install wheel
-          pip install -U https://github.com/platformio/platformio/archive/develop.zip
+          pip install -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.17b2.zip
           pio pkg install --global --platform file://.
-        if: "matrix.os == 'windows-2022'"
-        env:
-          PLATFORMIO_CORE_DIR: C:\plat
-          PLATFORMIO_PACKAGES_DIR: C:\plat\pack
-          PLATFORMIO_PLATFORMS_DIR: C:\plat\plat
-      - name: Build Windows examples
-        run: pio run -d ${{ matrix.example }}
-        if: "matrix.example != 'examples/tasmota' && matrix.os == 'windows-2022'"
-        env:
-          PLATFORMIO_CORE_DIR: C:\plat
-          PLATFORMIO_PACKAGES_DIR: C:\plat\pack
-          PLATFORMIO_PLATFORMS_DIR: C:\plat\plat
-      - name: Install Ubuntu Mac dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install wheel
-          pip install -U https://github.com/platformio/platformio/archive/develop.zip
-          pio pkg install --global --platform file://.
-        if: "matrix.os != 'windows-2022'"
       - name: git clone Tasmota and add to examples
         run: |
           git clone -b development --depth 1 https://github.com/arendst/Tasmota.git examples/tasmota
           cp examples/tasmota_platformio_override.ini examples/tasmota/platformio_override.ini
-        if: "matrix.example == 'examples/tasmota' && matrix.os != 'windows-2022'"
-      - name: Build Ubuntu Mac examples
+      - name: Build examples
         run: pio run -d ${{ matrix.example }}
-        if: "matrix.os != 'windows-2022'"
