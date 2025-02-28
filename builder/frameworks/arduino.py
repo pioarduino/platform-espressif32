@@ -239,9 +239,12 @@ def call_compile_libs():
     SConscript("espidf.py")
 
 if check_reinstall_frwrk() == True:
-    print("*** Reinstall Arduino framework libs ***")
+    print("*** Reinstall Arduino framework ***")
+    shutil.rmtree(platform.get_package_dir("framework-arduinoespressif32"))
     shutil.rmtree(platform.get_package_dir("framework-arduinoespressif32-libs"))
+    ARDUINO_FRMWRK_URL = str(platform.get_package_spec("framework-arduinoespressif32")).split("uri=",1)[1][:-1]
     ARDUINO_FRMWRK_LIB_URL = str(platform.get_package_spec("framework-arduinoespressif32-libs")).split("uri=",1)[1][:-1]
+    pm.install(ARDUINO_FRMWRK_URL)
     pm.install(ARDUINO_FRMWRK_LIB_URL)
     if flag_custom_sdkconfig == True:
         call_compile_libs()
