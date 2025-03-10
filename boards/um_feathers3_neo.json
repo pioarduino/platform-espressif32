@@ -7,7 +7,7 @@
     },
     "core": "esp32",
     "extra_flags": [
-      "-DARDUINO_TINYS3",
+      "-DARDUINO_FEATHERS3NEO",
       "-DBOARD_HAS_PSRAM",
       "-DARDUINO_USB_CDC_ON_BOOT=1",
       "-DARDUINO_RUNNING_CORE=1",
@@ -19,11 +19,11 @@
     "hwids": [
       [
         "0X303A",
-        "0x80D0"
+        "0x81FB"
       ]
     ],
     "mcu": "esp32s3",
-    "variant": "um_tinys3"
+    "variant": "um_feathers3neo"
   },
   "connectivity": [
     "bluetooth",
@@ -36,7 +36,7 @@
     "arduino",
     "espidf"
   ],
-  "name": "Unexpected Maker TinyS3",
+  "name": "Unexpected Maker FeatherS3 Neo",
   "upload": {
     "flash_size": "8MB",
     "maximum_ram_size": 327680,
@@ -46,6 +46,6 @@
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://unexpectedmaker.com/shop/tinys3",
+  "url": "https://unexpectedmaker.com/shop/feathers3neo",
   "vendor": "Unexpected Maker"
 }
