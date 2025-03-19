@@ -50,7 +50,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install wheel
-          pip install -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.17.zip
+          pip install -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.18.zip
           pio pkg install --global --platform file://.
       - name: git clone Tasmota and add to examples
         run: |
