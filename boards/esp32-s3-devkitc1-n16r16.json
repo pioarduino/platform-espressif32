@@ -42,7 +42,7 @@
   "platforms": [
     "espressif32"
   ],
-  "name": "Espressif ESP32-S3-DevKitC-1-N16R8V (16 MB Flash Quad, 16 MB PSRAM Octal)",
+  "name": "Espressif ESP32-S3-DevKitC-1-N16R16V (16 MB Flash Quad, 16 MB PSRAM Octal)",
   "upload": {
     "flash_size": "16MB",
     "maximum_ram_size": 327680,
