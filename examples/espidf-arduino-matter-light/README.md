@@ -63,5 +63,5 @@ In case it is necessary to change the Button Pin or the REG LED Pin, please use 
 ## Using OpenThread with Matter
 
 This is possible with the ESP32-C6.
-It is neessasy to have a Thread Border Routed in the Matter Environment. Check you matter hardware provider.
+It is necessary to have a Thread Border Router in the Matter Environment. Check your Matter hardware provider.
 
