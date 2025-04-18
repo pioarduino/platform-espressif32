@@ -53,7 +53,7 @@ Holding the BOOT button pressed for more than 10 seconds and then releasing it w
 
 ## Building the Application using WiFi and Matter
 
-This example has been tested with Arduino Core 3.0.4. It should work with newer versions too.
+This example has been tested with Arduino Core 3.1.3 based on IDF 5.3.2.250210. It should work with newer versions too.
 
 There is a configuration file for these SoC: esp32s3, esp32c3, esp32c6.
 Those are the tested devices that have a WS2812 RGB LED and can run BLE, WiFi and Matter.
