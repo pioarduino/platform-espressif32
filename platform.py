@@ -53,6 +53,7 @@ if (tl_flag and not bool(os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools"))))
         for p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "tc-xt-esp32", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb", "contrib-piohome", "contrib-pioremote"):
             tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
             pm.install(tl_path)
+            pm.install("tool-scons")
 
 class Espressif32Platform(PlatformBase):
     def configure_default_packages(self, variables, targets):
