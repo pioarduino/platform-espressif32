@@ -1,7 +1,8 @@
 {
   "build": {
     "arduino": {
-      "ldscript": "esp32s2_out.ld"
+	"partitions": "default_4MB.csv",
+      "memory_type": "qio_qspi"
     },
     "core": "esp32",
     "extra_flags": [

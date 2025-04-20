@@ -3,7 +3,7 @@ name: Create zip file with recursive source clone for release
 on:
   push:
     tags:
-      - 53*
+      - 54*
 
 jobs:
   release_zips:

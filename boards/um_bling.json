@@ -1,12 +1,12 @@
 {
   "build": {
-    "arduino": {
-      "partitions": "default_16MB.csv",
+    "arduino":{
+      "partitions": "default_8MB.csv",
       "memory_type": "qio_qspi"
     },
     "core": "esp32",
     "extra_flags": [
-      "-DARDUINO_PROS3",
+      "-DARDUINO_BLING",
       "-DBOARD_HAS_PSRAM",
       "-DARDUINO_USB_CDC_ON_BOOT=1",
 	  "-DARDUINO_USB_MODE=1",
@@ -18,12 +18,12 @@
     "flash_mode": "qio",
     "hwids": [
       [
-        "0x303A",
-        "0x1001"
+        "0X303A",
+        "0x817F"
       ]
     ],
     "mcu": "esp32s3",
-    "variant": "um_pros3"
+    "variant": "um_bling"
   },
   "connectivity": [
     "bluetooth",
@@ -36,16 +36,16 @@
     "arduino",
     "espidf"
   ],
-  "name": "Unexpected Maker PROS3",
+  "name": "Unexpected Maker BLING!",
   "upload": {
-    "flash_size": "16MB",
+    "flash_size": "8MB",
     "maximum_ram_size": 327680,
-    "maximum_size": 16777216,
+    "maximum_size": 8388608,
     "use_1200bps_touch": true,
     "wait_for_upload_port": true,
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://unexpectedmaker.com/shop/pros3",
+  "url": "https://unexpectedmaker.com/shop/bling",
   "vendor": "Unexpected Maker"
 }

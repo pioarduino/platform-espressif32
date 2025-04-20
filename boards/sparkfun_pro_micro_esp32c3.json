@@ -1,0 +1,36 @@
+{
+  "build": {
+    "core": "esp32",
+    "f_cpu": "160000000L",
+    "f_flash": "80000000L",
+    "flash_mode": "qio",
+    "extra_flags": [
+      "-DSPARKFUN_PRO_MICRO_ESP32C3",
+      "-DARDUINO_USB_MODE=1",
+      "-DARDUINO_USB_CDC_ON_BOOT=1"
+    ],
+    "mcu": "esp32c3",
+    "variant": "sparkfun_pro_micro_esp32c3"
+  },
+  "connectivity": [
+    "wifi",
+    "bluetooth"
+  ],
+  "debug": {
+    "openocd_target": "esp32c3.cfg"
+  },
+  "frameworks": [
+    "arduino",
+    "espidf"
+  ],
+  "name": "SparkFun Pro Micro ESP32-C3",
+  "upload": {
+    "flash_size": "4MB",
+    "maximum_ram_size": 327680,
+    "maximum_size": 4194304,
+    "require_upload_port": true,
+    "speed": 460800
+  },
+  "url": "https://www.sparkfun.com/sparkfun-pro-micro-esp32-c3.html",
+  "vendor": "Sparkfun"
+}
