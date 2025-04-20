@@ -230,6 +230,24 @@ def shorthen_includes(env, node):
         + shortened_includes,
     )
 
+# Check if framework = arduino, espidf is set
+def get_frameworks_in_env():
+    if "framework" not in env:
+        print("Config Error: No Framework defined")
+        return []
+    frameworks = env["framework"]
+    found_frameworks = []
+    if "arduino" in frameworks:
+        found_frameworks.append("arduino")
+    if "espidf" in frameworks:
+        found_frameworks.append("espidf")
+    return found_frameworks
+
+found_frameworks = get_frameworks_in_env()
+print("Found Frameworks:", found_frameworks)
+if "arduino" in found_frameworks and "espidf" in found_frameworks:
+    flag_custom_sdkconfig = False
+
 def call_compile_libs():
     if mcu == "esp32c2":
         ARDUINO_FRMWRK_C2_LIB_DIR = join(platform.get_package_dir("framework-arduinoespressif32-libs"),mcu)
