@@ -234,9 +234,9 @@ def shorthen_includes(env, node):
 def get_frameworks_in_current_env():
     current_env_section = "env:" + env["PIOENV"]
     # Check if the "framework" option exists in the current environment
-    if "framework" in projectconfig.options(current_env_section):
+    if "framework" in config.options(current_env_section):
         # Get the value of the 'framework' option
-        frameworks = projectconfig.get(current_env_section, "framework", "")
+        frameworks = config.get(current_env_section, "framework", "")
         # Split comma-separated frameworks and return them as a list
         return frameworks.split(",")
     # If no frameworks are found, return an empty list
