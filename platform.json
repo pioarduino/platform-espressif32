@@ -18,7 +18,7 @@
     "type": "git",
     "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "53.03.13",
+  "version": "54.03.20+develop",
   "frameworks": {
     "arduino": {
       "script": "builder/frameworks/arduino.py"
@@ -33,7 +33,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/archive/refs/heads/release/v3.1.x.zip"
+      "version": "https://github.com/espressif/arduino-esp32/archive/master.zip"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
@@ -51,118 +51,101 @@
       "type": "framework",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.3.3.250415/esp-idf-v5.3.3.zip"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.4.1.250411/esp-idf-v5.4.1.zip"
     },
-    "xtensa-esp-elf": {
+    "toolchain-xtensa-esp-elf": {
       "type": "toolchain",
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "14.2.0+20241119"
     },
-    "riscv32-esp-elf": {
+    "toolchain-riscv32-esp": {
       "type": "toolchain",
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "14.2.0+20241119"
     },
-    "esp32ulp-elf": {
+    "toolchain-esp32ulp": {
       "type": "toolchain",
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "~1.23800.0"
     },
-    "xtensa-esp-elf-gdb": {
+      "tool-xtensa-esp-elf-gdb": {
       "type": "debugger",
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "14.2.0+20240403"
     },
-    "riscv32-esp-elf-gdb": {
+    "tool-riscv32-esp-elf-gdb": {
       "type": "debugger",
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "14.2.0+20240403"
     },
     "tool-esptoolpy": {
       "type": "uploader",
-      "optional": false,
       "owner": "pioarduino",
       "version": "https://github.com/pioarduino/esptool/releases/download/v4.8.9/esptool.zip"
     },
-    "tl-install": {
-      "optional": false,
-      "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp_install/releases/download/v2.0.0/esp_install-v2.0.0.zip"
-    },
-    "tool-scons": {
-      "optional": true,
-      "owner": "",
-      "version": "https://github.com/pioarduino/scons/releases/download/4.8.1/scons-local-4.8.1.tar.gz"
-    },
-    "tool-cmake": {
-      "optional": true,
-      "owner": "",
-      "version": ""
-    },
-    "tool-ninja": {
-      "optional": true,
-      "owner": "",
-      "version": ""
-    },
-    "tool-dfuutil": {
+    "tool-dfuutil-arduino": {
       "type": "uploader",
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "~1.11.0"
     },
-    "tool-openocd": {
+    "tool-openocd-esp32": {
       "type": "debugger",
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "~2.1100.0"
     },
     "tool-mklittlefs": {
       "type": "uploader",
-      "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "tasmota",
+      "version": "^3.2.0"
     },
     "tool-mkfatfs": {
       "type": "uploader",
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "~2.0.0"
     },
     "tool-mkspiffs": {
       "type": "uploader",
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "~2.230.0"
     },
     "tool-cppcheck": {
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "~1.21100"
     },
     "tool-clangtidy": {
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "^1.190100.0"
     },
     "tool-pvs-studio": {
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "^7.18.59866"
     },
-    "contrib-piohome": {
+    "tool-cmake": {
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "~3.30.2"
     },
-    "contrib-pioremote": {
+     "tool-esp-rom-elfs": {
+       "optional": true,
+       "owner": "platformio",
+       "version": "0.0.1+20241011"
+    },
+    "tool-ninja": {
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "platformio",
+      "version": "^1.7.0"
     }
   }
 }
