@@ -230,22 +230,22 @@ def shorthen_includes(env, node):
         + shortened_includes,
     )
 
-# Check if framework = arduino, espidf is set
-def get_frameworks_in_env():
-    if "framework" not in env:
-        print("Config Error: No Framework defined")
-        return []
-    frameworks = env["framework"]
-    found_frameworks = []
-    if "arduino" in frameworks:
-        found_frameworks.append("arduino")
-    if "espidf" in frameworks:
-        found_frameworks.append("espidf")
-    return found_frameworks
+# Check if framework = arduino, espidf is set "Arduino as an component of IDF"
+def get_frameworks_in_current_env():
+    current_env_section = "env:" + env["PIOENV"]
+    # Check if the "framework" option exists in the current environment
+    if "framework" in projectconfig.options(current_env_section):
+        # Get the value of the 'framework' option
+        frameworks = projectconfig.get(current_env_section, "framework", "")
+        # Split comma-separated frameworks and return them as a list
+        return frameworks.split(",")
+    # If no frameworks are found, return an empty list
+    return []
 
-found_frameworks = get_frameworks_in_env()
-print("Found Frameworks:", found_frameworks)
-if "arduino" in found_frameworks and "espidf" in found_frameworks:
+current_env_frameworks = get_frameworks_in_current_env()
+print("Frameworks in the current environment:", current_env_frameworks)
+if "arduino" in current_env_frameworks and "espidf" in current_env_frameworks:
+    # Arduino as component is set as config, switch off Hybrid compile
     flag_custom_sdkconfig = False
 
 def call_compile_libs():
