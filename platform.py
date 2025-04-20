@@ -53,6 +53,7 @@ if (tl_flag and not bool(os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools"))))
         for p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "tc-xt-esp32", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb", "contrib-piohome", "contrib-pioremote"):
             tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
             pm.install(tl_path)
+            pm.install("tool-scons")
 
 class Espressif32Platform(PlatformBase):
     def configure_default_packages(self, variables, targets):
@@ -69,9 +70,9 @@ class Espressif32Platform(PlatformBase):
 
         # Enable debug tool gdb only when build debug is enabled
         if (variables.get("build_type") or "debug" in "".join(targets)) and tl_flag:
-            self.packages["riscv32-esp-elf-gdb"]["optional"] = False if mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
+            self.packages["riscv32-esp-elf-gdb"]["optional"] = False if mcu in ["esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4"] else True
             self.packages["riscv32-esp-elf-gdb"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tl-rv-gdb")
-            self.packages["xtensa-esp-elf-gdb"]["optional"] = False if not mcu in ["esp32c2", "esp32c3", "esp32c6", "esp32h2"] else True
+            self.packages["xtensa-esp-elf-gdb"]["optional"] = False if not mcu in ["esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4"] else True
             self.packages["xtensa-esp-elf-gdb"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tl-xt-gdb")
         else:
             self.packages["riscv32-esp-elf-gdb"]["optional"] = True
@@ -88,10 +89,12 @@ class Espressif32Platform(PlatformBase):
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
-            # use latest espressif Arduino libs
-            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/release/v3.1.x/package/package_esp32_index.template.json"
-            packjdata = requests.get(URL).json()
-            dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
+            # use matching espressif Arduino libs
+            #URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/release/v3.3.x/package/package_esp32_index.template.json"
+            #packjdata = requests.get(URL).json()
+            #dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
+            # use newer libs as linked in package_esp32_index.template.json is too old
+            dyn_lib_url = "https://github.com/espressif/esp32-arduino-lib-builder/releases/download/idf-master/esp32-arduino-libs-idf-master-1c468f68-v1.zip"
             self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
 
         if variables.get("custom_sdkconfig") is not None or len(str(board_sdkconfig)) > 3:
@@ -103,7 +106,12 @@ class Espressif32Platform(PlatformBase):
         # packages for IDF and mixed Arduino+IDF projects
         if tl_flag and "espidf" in frameworks:
             for p in self.packages:
-                if p in ("tool-scons", "tool-cmake", "tool-ninja"):
+                if p in (
+                    "tool-scons",
+                    "tool-cmake",
+                    "tool-ninja",
+                    "tool-esp-rom-elfs",
+                 ):
                     self.packages[p]["optional"] = False
 
         if "".join(targets) in ("upload", "buildfs", "uploadfs"):
@@ -166,7 +174,7 @@ class Espressif32Platform(PlatformBase):
             self.packages["esp32ulp-elf"]["optional"] = False
             self.packages["esp32ulp-elf"]["version"] = tc_path
         # Enable RISC-V ULP toolchain for ESP32C6, ESP32S2, ESP32S3 when IDF is selected
-        if tl_flag and "espidf" in frameworks and mcu in ("esp32s2", "esp32s3", "esp32c6"):
+        if tl_flag and "espidf" in frameworks and mcu in ("esp32s2", "esp32s3", "esp32c5", "esp32c6", "esp32p4"):
             tc_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tc-rv32")
             self.packages["riscv32-esp-elf"]["optional"] = False
             self.packages["riscv32-esp-elf"]["version"] = tc_path
@@ -211,7 +219,7 @@ class Espressif32Platform(PlatformBase):
         # A special case for the Kaluga board that has a separate interface config
         if board.id == "esp32-s2-kaluga-1":
             supported_debug_tools.append("ftdi")
-        if board.get("build.mcu", "") in ("esp32c3", "esp32c6", "esp32s3", "esp32h2"):
+        if board.get("build.mcu", "") in ("esp32c3", "esp32c5", "esp32c6", "esp32s3", "esp32h2", "esp32p4"):
             supported_debug_tools.append("esp-builtin")
 
         upload_protocol = board.manifest.get("upload", {}).get("protocol")

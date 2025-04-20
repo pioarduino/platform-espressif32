@@ -6,19 +6,19 @@
   "license": "Apache-2.0",
   "keywords": [
     "dev-platform",
-    "Wi-Fi",
+    "WiFi",
     "Bluetooth",
     "Xtensa",
     "RISC-V"
   ],
   "engines": {
-    "platformio": ">=6.1.16"
+    "platformio": ">=6.1.18"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "53.03.13",
+  "version": "55.03.30",
   "frameworks": {
     "arduino": {
       "script": "builder/frameworks/arduino.py"
@@ -33,7 +33,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/archive/refs/heads/release/v3.1.x.zip"
+      "version": "https://github.com/espressif/arduino-esp32/archive/refs/heads/release/v3.3.x.zip"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
@@ -51,7 +51,7 @@
       "type": "framework",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.3.3.250415/esp-idf-v5.3.3.zip"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.5.0.250407/esp-idf-v5.5.0.zip"
     },
     "xtensa-esp-elf": {
       "type": "toolchain",
@@ -92,7 +92,7 @@
     "tl-install": {
       "optional": false,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp_install/releases/download/v2.0.0/esp_install-v2.0.0.zip"
+      "version": "https://github.com/pioarduino/esp_install/releases/download/v3.0.0/esp_install-v3.0.0.zip"
     },
     "tool-scons": {
       "optional": true,
@@ -120,6 +120,11 @@
       "optional": true,
       "owner": "",
       "version": ""
+    },
+    "tool-esp-rom-elfs": {
+       "optional": true,
+       "owner": "",
+       "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/esp-rom-elfs-20241011.zip"
     },
     "tool-mklittlefs": {
       "type": "uploader",
