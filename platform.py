@@ -90,18 +90,18 @@ class Espressif32Platform(PlatformBase):
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
             # use matching espressif Arduino libs
-            #URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/release/v3.3.x/package/package_esp32_index.template.json"
+            #URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
             #packjdata = requests.get(URL).json()
             #dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
             # use newer libs as linked in package_esp32_index.template.json is too old
-            dyn_lib_url = "https://github.com/espressif/esp32-arduino-lib-builder/releases/download/idf-master/esp32-arduino-libs-idf-master-1c468f68-v1.zip"
+            dyn_lib_url = "https://github.com/espressif/esp32-arduino-lib-builder/releases/download/idf-release_v5.4/esp32-arduino-libs-idf-release_v5.4-6897a7bf-v1.zip"
             self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
 
         if variables.get("custom_sdkconfig") is not None or len(str(board_sdkconfig)) > 3:
-            frameworks.append("espidf")
-            self.packages["framework-espidf"]["optional"] = False
             if mcu == "esp32c2":
                 self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
+            frameworks.append("espidf")
+            self.packages["framework-espidf"]["optional"] = False
 
         # packages for IDF and mixed Arduino+IDF projects
         if tl_flag and "espidf" in frameworks:
@@ -114,7 +114,7 @@ class Espressif32Platform(PlatformBase):
                  ):
                     self.packages[p]["optional"] = False
 
-        if "".join(targets) in ("upload", "buildfs", "uploadfs"):
+        if tl_flag and ("".join(targets) in ("upload", "buildfs", "uploadfs") or variables.get("custom_files_upload") is not None):
             filesystem = variables.get("board_build.filesystem", "littlefs")
             if filesystem == "littlefs":
                 # Use mklittlefs v3.2.0 to generate FS
