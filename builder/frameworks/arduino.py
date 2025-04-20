@@ -230,22 +230,18 @@ def shorthen_includes(env, node):
         + shortened_includes,
     )
 
-# Check if framework = arduino, espidf is set "Arduino as an component of IDF"
+# Check if framework = arduino, espidf is set -> compile Arduino as an component of IDF
+# using platformio.ini entry since we modify the framework env var for Hybrid Compile!
 def get_frameworks_in_current_env():
     current_env_section = "env:" + env["PIOENV"]
-    # Check if the "framework" option exists in the current environment
     if "framework" in config.options(current_env_section):
-        # Get the value of the 'framework' option
         frameworks = config.get(current_env_section, "framework", "")
-        # Split comma-separated frameworks and return them as a list
         return frameworks
-    # If no frameworks are found, return an empty list
     return []
 
 current_env_frameworks = get_frameworks_in_current_env()
-print("Frameworks in the current environment:", current_env_frameworks)
 if "arduino" in current_env_frameworks and "espidf" in current_env_frameworks:
-    # Arduino as component is set as config, switch off Hybrid compile
+    # Arduino as component is set, switch off Hybrid compile
     flag_custom_sdkconfig = False
 
 def call_compile_libs():
