@@ -138,9 +138,9 @@ IDF5 = (
 IDF_ENV_VERSION = "1.0.0"
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
 TOOLCHAIN_DIR = platform.get_package_dir(
-    "xtensa-esp-elf"
+    "toolchain-xtensa-esp-elf"
     if mcu in ("esp32", "esp32s2", "esp32s3")
-    else "riscv32-esp-elf"
+    else "toolchain-riscv32-esp"
 )
 
 
