@@ -238,7 +238,7 @@ def get_frameworks_in_current_env():
         # Get the value of the 'framework' option
         frameworks = config.get(current_env_section, "framework", "")
         # Split comma-separated frameworks and return them as a list
-        return frameworks.split(",")
+        return frameworks
     # If no frameworks are found, return an empty list
     return []
 
