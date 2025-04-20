@@ -300,7 +300,7 @@ def HandleCOMPONENTsettings(env):
     if flag_custom_component_add == True or flag_custom_component_remove == True: # todo remove duplicated
         import yaml
         from yaml import SafeLoader
-        print("*** \"custom_component\" is used to select managed idf components ***")
+        print("*** \"custom_component\" is used to (de)select managed idf components ***")
         if flag_custom_component_remove == True:
             idf_custom_component_remove = env.GetProjectOption("custom_component_remove").splitlines()
         else:
