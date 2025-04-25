@@ -76,8 +76,9 @@ class Espressif32Platform(PlatformBase):
         core_variant_build = (''.join(variables.get("build_flags", []))).replace("-D", " ")
         frameworks = variables.get("pioframework", [])
 
-        # Installer only needed for setup, deactivate
-        self.packages["tl-install"]["optional"] = True
+        # Installer only needed for setup, deactivate when installed
+        if bool(os.path.exists(os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py"))):
+            self.packages["tl-install"]["optional"] = True
         # Installed not from pio registry, deactivate until needed
         self.packages["tool-openocd-esp32"]["optional"] = True
 
