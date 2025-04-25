@@ -80,7 +80,7 @@ class Espressif32Platform(PlatformBase):
         # Installed not from pio registry, deactivate until needed
         self.packages["tool-openocd-esp32"]["optional"] = True
 
-        if "arduino" in frameworks and variables.get("custom_sdkconfig") is None and len(str(board_sdkconfig)) < 3:
+        if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
             # use matching espressif Arduino libs
