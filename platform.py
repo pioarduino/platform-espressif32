@@ -57,7 +57,7 @@ def install_tool(TOOL):
             sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
         else:
             tl_path = "file://" + join(TOOLS_PATH_DEFAULT, "tools", TOOL)
-            if not bool(os.path.exists(join(TOOLS_PATH_DEFAULT, "tools", TOOL, "package.json"))):
+            if not os.path.exists(join(TOOLS_PATH_DEFAULT, "tools", TOOL, "package.json")):
                 shutil.copyfile(TOOLS_PACK_PATH, join(TOOLS_PATH_DEFAULT, "tools", TOOL, "package.json"))
             pm.install(tl_path)
     return
