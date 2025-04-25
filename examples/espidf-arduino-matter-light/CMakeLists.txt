@@ -1,10 +1,15 @@
-cmake_minimum_required(VERSION 3.16.0)
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+# The following lines of boilerplate have to be in your project's
+# CMakeLists in this exact order for cmake to work correctly
+cmake_minimum_required(VERSION 3.5)
+
 set(PROJECT_VER "1.0")
 set(PROJECT_VER_NUMBER 1)
 
-project(matter-light)
+# This should be done before using the IDF_TARGET variable.
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
+idf_build_set_property(MINIMAL_BUILD ON)
+project(arduino_managed_component_light)
 
 # WARNING: This is just an example for using key for decrypting the encrypted OTA image
 # Please do not use it as is.
