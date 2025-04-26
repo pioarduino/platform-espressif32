@@ -42,15 +42,14 @@ class Espressif32Platform(PlatformBase):
         board_config = self.board_config(variables.get("board"))
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
         board_sdkconfig = variables.get("board_espidf.custom_sdkconfig", board_config.get("espidf.custom_sdkconfig", ""))
-        core_variant_board = ''.join(variables.get("board_build.extra_flags", board_config.get("build.extra_flags", "")))
-        core_variant_board = core_variant_board.replace("-D", " ")
-        core_variant_build = (''.join(variables.get("build_flags", []))).replace("-D", " ")
         frameworks = variables.get("pioframework", [])
 
         def install_tool(TOOL):
             INSTALL_TOOL = "install-" + TOOL.split('-', 1)[-1]
+            self.packages[INSTALL_TOOL]["optional"] = False
             INSTALL_TOOL_PATH = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), INSTALL_TOOL)
             TOOL_PATH = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), TOOL)
+            TOOL_PACKAGE_PATH = os.path.join(TOOL_PATH, "package.json")
             TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".platformio")
             IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
             TOOLS_JSON_PATH = os.path.join(INSTALL_TOOL_PATH, "tools.json")
@@ -67,20 +66,23 @@ class Espressif32Platform(PlatformBase):
 
             tl_flag = bool(os.path.exists(IDF_TOOLS))
             json_flag = bool(os.path.exists(TOOLS_JSON_PATH))
-            tool_flag = bool(os.path.exists(TOOL_PATH))
+            tool_flag = bool(os.path.exists(TOOL_PACKAGE_PATH))
             if tl_flag and json_flag and not tool_flag:
-                rc = subprocess.call(IDF_TOOLS_CMD)
+                rc = subprocess.run(IDF_TOOLS_CMD).returncode
                 if rc != 0:
                     sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
                 else:
                     tl_path = "file://" + join(TOOLS_PATH_DEFAULT, "tools", TOOL)
                     if not os.path.exists(join(TOOLS_PATH_DEFAULT, "tools", TOOL, "package.json")):
                         shutil.copyfile(TOOLS_PACK_PATH, join(TOOLS_PATH_DEFAULT, "tools", TOOL, "package.json"))
-                    pm.install(tl_path) 
+                    pm.install(tl_path)
+                    self.packages[INSTALL_TOOL]["optional"] = True
             # tool is already installed, just activate it
-            self.packages[TOOL]["version"] = TOOL_PATH
-            self.packages[TOOL]["optional"] = False
-            self.packages.pop(INSTALL_TOOL, None)
+            if tl_flag and json_flag and tool_flag:
+                self.packages[TOOL]["version"] = TOOL_PATH
+                self.packages[TOOL]["optional"] = False
+                self.packages[INSTALL_TOOL]["optional"] = True
+            
             return
 
         # Installer only needed for setup, deactivate when installed
@@ -117,8 +119,7 @@ class Espressif32Platform(PlatformBase):
                 self.packages["tool-mkfatfs"]["optional"] = False
             else:
                 self.packages["tool-mkspiffs"]["optional"] = False
-        if variables.get("upload_protocol"):
-            self.packages["tool-openocd-esp32"]["optional"] = False
+
         if os.path.isdir("ulp"):
             self.packages["toolchain-esp32ulp"]["optional"] = False
 
@@ -153,8 +154,6 @@ class Espressif32Platform(PlatformBase):
                     "tool-esp-rom-elfs",
                  ):
                     self.packages[p]["optional"] = False
-                # elif p in ("tool-mconf", "tool-idf") and IS_WINDOWS:
-                    # self.packages[p]["optional"] = False
 
         if mcu in ("esp32", "esp32s2", "esp32s3"):
             self.packages["toolchain-xtensa-esp-elf"]["optional"] = False
