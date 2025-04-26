@@ -1,14 +1,12 @@
-| Supported Targets | ESP32-S3 | ESP32-C3 | ESP32-C6 |
-| ----------------- | -------- | -------- | -------- |
+| Supported Targets | ESP32-C3 | ESP32-C6 |
+| ----------------- | -------- | -------- |
 
 
 # Managed Component Light
 
-This example is configured by default to work with the ESP32-S3, which has the RGB LED GPIO set as pin 48 and the BOOT button on GPIO 0.
+This example is configured by default to work with the ESP32-C6, which has the RGB LED GPIO set as pin 8 and the BOOT button on GPIO 9.
 
-This example creates a Color Temperature Light device using the esp_matter component downloaded from the [Espressif Component Registry](https://components.espressif.com/) instead of an extra component locally, so the example can work without setting up the esp-matter environment.
-
-See the [docs](https://docs.espressif.com/projects/esp-matter/en/latest/esp32/developing.html) for more information about building and flashing the firmware.
+This example creates a Color Temperature Light device using the esp_matter component automatically downloaded from the [Espressif Component Registry](https://components.espressif.com/). See the [docs](https://docs.espressif.com/projects/esp-matter/en/latest/esp32/developing.html) for more information about matter.
 
 The code is based on the Arduino API and uses Arduino as an IDF Component.
 
@@ -27,8 +25,8 @@ There is no QR Code to be used when the Smartphone APP wants to add the Matter D
 Please enter the code manually: `34970112332`
 
 The devboard has a built-in LED that will be used as the Matter Light.
-The default setting of the code uses pin 48 for the ESP32-S3.
-Please change it in `main/matter_accessory_driver.h` or in the `sdkconfig.defaults.<SOC>` file.
+The default setting of the code uses pin 8 for the ESP32-C6
+Please change it in `main/matter_accessory_driver.h` or in the `sdkconfig.defaults` file.
 
 ## LED Status and Factory Mode
 
@@ -53,9 +51,9 @@ Holding the BOOT button pressed for more than 10 seconds and then releasing it w
 
 ## Building the Application using WiFi and Matter
 
-This example has been tested with Arduino Core 3.0.4. It should work with newer versions too.
+This example has been tested with Arduino Core 3.2.0. It should work with newer versions too.
 
-There is a configuration file for these SoC: esp32s3, esp32c3, esp32c6.
+There is a configuration file for these SoC: esp32c3, esp32c6.
 Those are the tested devices that have a WS2812 RGB LED and can run BLE, WiFi and Matter.
 
 In case it is necessary to change the Button Pin or the REG LED Pin, please use the `menuconfig` and change the Menu Option `Light Matter Accessory`
