@@ -101,17 +101,11 @@
       "owner": "platformio",
       "version": "~1.11.0"
     },
-    "install-openocd-esp32": {
-      "type": "tool",
-      "optional": false,
-      "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20250226.zip"
-    },
     "tool-openocd-esp32": {
       "type": "debugger",
       "optional": true,
       "owner": "pioarduino",
-      "version": ""
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20250226.zip"
     },
     "tool-mklittlefs": {
       "type": "uploader",
