@@ -45,15 +45,13 @@ class Espressif32Platform(PlatformBase):
         frameworks = variables.get("pioframework", [])
 
         def install_tool(TOOL):
-            INSTALL_TOOL = "install-" + TOOL.split('-', 1)[-1]
-            self.packages[INSTALL_TOOL]["optional"] = False
-            INSTALL_TOOL_PATH = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), INSTALL_TOOL)
+            self.packages[TOOL]["optional"] = False
             TOOL_PATH = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), TOOL)
             TOOL_PACKAGE_PATH = os.path.join(TOOL_PATH, "package.json")
             TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".platformio")
             IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
-            TOOLS_JSON_PATH = os.path.join(INSTALL_TOOL_PATH, "tools.json")
-            TOOLS_PACK_PATH = os.path.join(INSTALL_TOOL_PATH, "package.json")
+            TOOLS_JSON_PATH = os.path.join(TOOL_PATH, "tools.json")
+            TOOLS_PIO_PATH = os.path.join(TOOL_PATH, ".piopm")
             IDF_TOOLS_CMD = (
                 python_exe,
                 IDF_TOOLS,
@@ -66,22 +64,26 @@ class Espressif32Platform(PlatformBase):
 
             tl_flag = bool(os.path.exists(IDF_TOOLS))
             json_flag = bool(os.path.exists(TOOLS_JSON_PATH))
-            tool_flag = bool(os.path.exists(TOOL_PACKAGE_PATH))
-            if tl_flag and json_flag and not tool_flag:
+            pio_flag = bool(os.path.exists(TOOLS_PIO_PATH))
+            if tl_flag and json_flag:
                 rc = subprocess.run(IDF_TOOLS_CMD).returncode
                 if rc != 0:
                     sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
                 else:
                     tl_path = "file://" + join(TOOLS_PATH_DEFAULT, "tools", TOOL)
                     if not os.path.exists(join(TOOLS_PATH_DEFAULT, "tools", TOOL, "package.json")):
-                        shutil.copyfile(TOOLS_PACK_PATH, join(TOOLS_PATH_DEFAULT, "tools", TOOL, "package.json"))
+                        shutil.copyfile(TOOL_PACKAGE_PATH, join(TOOLS_PATH_DEFAULT, "tools", TOOL, "package.json"))
+                    self.packages.pop(TOOL, None)
+                    if os.path.exists(TOOL_PATH,) and os.path.isdir(TOOL_PATH):
+                        try:
+                            shutil.rmtree(TOOL_PATH)
+                        except Exception as e:
+                            print(f"Error while removing the tool folder: {e}")                   
                     pm.install(tl_path)
-                    self.packages[INSTALL_TOOL]["optional"] = True
             # tool is already installed, just activate it
-            if tl_flag and json_flag and tool_flag:
+            if tl_flag and pio_flag and not json_flag:
                 self.packages[TOOL]["version"] = TOOL_PATH
                 self.packages[TOOL]["optional"] = False
-                self.packages[INSTALL_TOOL]["optional"] = True
             
             return
 
@@ -140,8 +142,6 @@ class Espressif32Platform(PlatformBase):
             for gdb_package in ("tool-xtensa-esp-elf-gdb", "tool-riscv32-esp-elf-gdb"):
                 self.packages[gdb_package]["optional"] = False
             install_tool("tool-openocd-esp32")
-        else:
-            self.packages["install-openocd-esp32"]["optional"] = True
 
         # Common packages for IDF and mixed Arduino+IDF projects
         if "espidf" in frameworks:
