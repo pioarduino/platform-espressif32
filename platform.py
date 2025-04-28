@@ -94,12 +94,16 @@ class Espressif32Platform(PlatformBase):
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
+            try:
+                self.packages["framework-arduinoespressif32"]["version"] = "https://github.com/espressif/arduino-esp32/archive/refs/heads/idf-master.zip"
+            except:
+                pass
             # use matching espressif Arduino libs
-            #URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
+            #URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/release/v3.3.x/package/package_esp32_index.template.json"
             #packjdata = requests.get(URL).json()
             #dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
             # use newer libs as linked in package_esp32_index.template.json is too old
-            dyn_lib_url = "https://github.com/espressif/esp32-arduino-lib-builder/releases/download/idf-release_v5.4/esp32-arduino-libs-idf-release_v5.4-3ad36321-v1.zip"
+            dyn_lib_url = "https://github.com/espressif/esp32-arduino-lib-builder/releases/download/idf-master/esp32-arduino-libs-idf-master-465b159c-v1.zip"
             self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
 
         if variables.get("custom_sdkconfig") is not None or len(str(board_sdkconfig)) > 3:
@@ -163,7 +167,7 @@ class Espressif32Platform(PlatformBase):
         if mcu in ("esp32s2", "esp32s3", "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4"):
             if mcu in ("esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4"):
                 self.packages.pop("toolchain-esp32ulp", None)
-            # RISC-V based toolchain for ESP32C3, ESP32C6 ESP32S2, ESP32S3 ULP
+            # RISC-V based toolchain for ESP32C2, ESP32C3, ESP32C5 ESP32C6 ESP32S2, ESP32S3 ESP32P4 and ULP
             self.packages["toolchain-riscv32-esp"]["optional"] = False
 
         return super().configure_default_packages(variables, targets)
@@ -206,7 +210,8 @@ class Espressif32Platform(PlatformBase):
         # A special case for the Kaluga board that has a separate interface config
         if board.id == "esp32-s2-kaluga-1":
             supported_debug_tools.append("ftdi")
-        if board.get("build.mcu", "") in ("esp32c3", "esp32c6", "esp32s3", "esp32h2"):
+
+        if board.get("build.mcu", "") in ("esp32c3", "esp32c5", "esp32c6", "esp32s3", "esp32h2", "esp32p4"):
             supported_debug_tools.append("esp-builtin")
 
         upload_protocol = board.manifest.get("upload", {}).get("protocol")
