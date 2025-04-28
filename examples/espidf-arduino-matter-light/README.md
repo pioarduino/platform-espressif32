@@ -25,7 +25,7 @@ There is no QR Code to be used when the Smartphone APP wants to add the Matter D
 Please enter the code manually: `34970112332`
 
 The devboard has a built-in LED that will be used as the Matter Light.
-The default setting of the code uses pin 8 for the ESP32-C6
+The default setting of the code uses pin 8 for the ESP32-C6,
 Please change it in `main/matter_accessory_driver.h` or in the `sdkconfig.defaults` file.
 
 ## LED Status and Factory Mode
@@ -53,7 +53,7 @@ Holding the BOOT button pressed for more than 10 seconds and then releasing it w
 
 This example has been tested with Arduino Core 3.2.0. It should work with newer versions too.
 
-There is a configuration file for these SoC: esp32c3, esp32c6.
+There is a configuration file for these SoCs: esp32c3, esp32c6.
 Those are the tested devices that have a WS2812 RGB LED and can run BLE, WiFi and Matter.
 
 In case it is necessary to change the Button Pin or the REG LED Pin, please use the `menuconfig` and change the Menu Option `Light Matter Accessory`
