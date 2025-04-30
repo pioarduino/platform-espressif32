@@ -140,7 +140,7 @@ class Espressif32Platform(PlatformBase):
                 # Install debug tools if conditions match
                 if (variables.get("build_type") or "debug" in "".join(targets)) or variables.get("upload_protocol"):
                     for debug_tool in toolchain_data["debug_tools"]:
-                        self.packages[debug_tool]["optional"] = False
+                        install_tool(debug_tool)
                     install_tool("tool-openocd-esp32")
                 break  # Exit loop once MCU is matched
 
