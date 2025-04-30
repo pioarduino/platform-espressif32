@@ -138,7 +138,7 @@ class Espressif32Platform(PlatformBase):
 
                 # Set ULP toolchain if applicable
                 ulp_toolchain = toolchain_data.get("ulp_toolchain")
-                if ulp_toolchain and os.path.isdir("ulp"):
+                if ulp_toolchain and os.path.join(ProjectConfig.get_instance().get("platformio", "project_dir"), "ulp"):
                     for toolchain in ulp_toolchain:
                         self.packages[toolchain]["optional"] = False
                 # Install debug tools if conditions match
