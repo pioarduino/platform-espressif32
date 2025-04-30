@@ -74,14 +74,14 @@
       "tool-xtensa-esp-elf-gdb": {
       "type": "debugger",
       "optional": true,
-      "owner": "platformio",
-      "version": "14.2.0+20240403"
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/xtensa-esp-gdb-v16.2_20250324.zip"
     },
     "tool-riscv32-esp-elf-gdb": {
       "type": "debugger",
       "optional": true,
-      "owner": "platformio",
-      "version": "14.2.0+20240403"
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/riscv32-esp-gdb-v16.2_20250324.zip"
     },
     "tool-esptoolpy": {
       "type": "uploader",
