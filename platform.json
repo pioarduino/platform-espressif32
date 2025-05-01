@@ -18,7 +18,7 @@
     "type": "git",
     "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "54.04.20",
+  "version": "53.03.10",
   "frameworks": {
     "arduino": {
       "script": "builder/frameworks/arduino.py"
@@ -51,7 +51,7 @@
       "type": "framework",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.4.1.250411/esp-idf-v5.4.1.zip"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.3.3.250415/esp-idf-v5.3.3.zip"
     },
     "xtensa-esp-elf": {
       "type": "toolchain",

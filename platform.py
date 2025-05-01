@@ -49,11 +49,6 @@ if not os.path.exists(os.path.join(ProjectConfig.get_instance().get("platformio"
     if scons_uri is not None:
         pm.install(scons_uri)
 
-if not os.path.exists(os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tool-esp-rom-elfs")):
-    rom_uri = get_tool_version_from_platform_json("tool-esp-rom-elfs")
-    if rom_uri is not None:
-        pm.install(rom_uri)
-
 IDF_TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
 IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
 IDF_TOOLS_CMD = (
@@ -180,8 +175,7 @@ class Espressif32Platform(PlatformBase):
                 if p in (
                     "tool-scons",
                     "tool-cmake",
-                    "tool-ninja",
-                    "tool-esp-rom-elfs",
+                    "tool-ninja"
                  ):
                     self.packages[p]["optional"] = False
 
