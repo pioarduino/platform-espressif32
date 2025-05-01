@@ -83,7 +83,7 @@ class Espressif32Platform(PlatformBase):
             self.packages[TOOL]["optional"] = False
             TOOL_PATH = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), TOOL)
             TOOL_PACKAGE_PATH = os.path.join(TOOL_PATH, "package.json")
-            TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".platformio")
+            TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".espressif")
             IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
             TOOLS_JSON_PATH = os.path.join(TOOL_PATH, "tools.json")
             TOOLS_PIO_PATH = os.path.join(TOOL_PATH, ".piopm")
