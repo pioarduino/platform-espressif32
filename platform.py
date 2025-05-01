@@ -339,7 +339,7 @@ class Espressif32Platform(PlatformBase):
 
             debug["tools"][link] = {
                 "server": {
-                    "package": "tool-openocd",
+                    "package": "tool-openocd-esp32",
                     "executable": "bin/openocd",
                     "arguments": server_args,
                 },
