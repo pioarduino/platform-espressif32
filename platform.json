@@ -45,7 +45,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/54.03.20/c2_arduino_compile_skeleton.zip"
+      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/53.03.10-rc3/c2_arduino_compile_skeleton.zip"
     },
     "framework-espidf": {
       "type": "framework",
@@ -92,7 +92,7 @@
     "tl-install": {
       "optional": false,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp_install/releases/download/v3.0.0/esp_install-v3.0.0.zip"
+      "version": "https://github.com/pioarduino/esp_install/releases/download/v2.0.0/esp_install-v2.0.0.zip"
     },
     "tool-scons": {
       "optional": true,
