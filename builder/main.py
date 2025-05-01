@@ -547,7 +547,7 @@ elif upload_protocol in debug_tools:
         f.replace(
             "$PACKAGE_DIR",
             _to_unix_slashes(
-                platform.get_package_dir("tool-openocd") or ""))
+                platform.get_package_dir("tool-openocd-esp32") or ""))
         for f in openocd_args
     ]
     env.Replace(
