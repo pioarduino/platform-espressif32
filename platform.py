@@ -70,7 +70,7 @@ if (tl_flag and not bool(os.path.exists(join(IDF_TOOLS_PATH_DEFAULT, "tools"))))
         sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
     else:
         shutil.copytree(join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-packages"), join(IDF_TOOLS_PATH_DEFAULT, "tools"), symlinks=False, ignore=None, ignore_dangling_symlinks=False, dirs_exist_ok=True)
-        for p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-openocd", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "tc-xt-esp32", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb", "contrib-piohome", "contrib-pioremote"):
+        for p in ("tool-mklittlefs", "tool-mkfatfs", "tool-mkspiffs", "tool-dfuutil", "tool-cmake", "tool-ninja", "tool-cppcheck", "tool-clangtidy", "tool-pvs-studio", "tc-xt-esp32", "tc-ulp", "tc-rv32", "tl-xt-gdb", "tl-rv-gdb", "contrib-piohome", "contrib-pioremote"):
             tl_path = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", p)
             pm.install(tl_path)
 
@@ -78,6 +78,51 @@ class Espressif32Platform(PlatformBase):
     def configure_default_packages(self, variables, targets):
         if not variables.get("board"):
             return super().configure_default_packages(variables, targets)
+
+        def install_tool(TOOL):
+            self.packages[TOOL]["optional"] = False
+            TOOL_PATH = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), TOOL)
+            TOOL_PACKAGE_PATH = os.path.join(TOOL_PATH, "package.json")
+            TOOLS_PATH_DEFAULT = os.path.join(os.path.expanduser("~"), ".platformio")
+            IDF_TOOLS = os.path.join(ProjectConfig.get_instance().get("platformio", "packages_dir"), "tl-install", "tools", "idf_tools.py")
+            TOOLS_JSON_PATH = os.path.join(TOOL_PATH, "tools.json")
+            TOOLS_PIO_PATH = os.path.join(TOOL_PATH, ".piopm")
+            IDF_TOOLS_CMD = (
+                python_exe,
+                IDF_TOOLS,
+                "--quiet",
+                "--non-interactive",
+                "--tools-json",
+                TOOLS_JSON_PATH,
+                "install"
+            )
+
+            tl_flag = bool(os.path.exists(IDF_TOOLS))
+            json_flag = bool(os.path.exists(TOOLS_JSON_PATH))
+            pio_flag = bool(os.path.exists(TOOLS_PIO_PATH))
+            if tl_flag and json_flag:
+                rc = subprocess.run(IDF_TOOLS_CMD).returncode
+                if rc != 0:
+                    sys.stderr.write("Error: Couldn't execute 'idf_tools.py install'\n")
+                else:
+                    tl_path = "file://" + join(TOOLS_PATH_DEFAULT, "tools", TOOL)
+                    try:
+                        shutil.copyfile(TOOL_PACKAGE_PATH, join(TOOLS_PATH_DEFAULT, "tools", TOOL, "package.json"))
+                    except FileNotFoundError as e:
+                        sys.stderr.write(f"Error copying tool package file: {e}\n")
+                    self.packages.pop(TOOL, None)
+                    if os.path.exists(TOOL_PATH) and os.path.isdir(TOOL_PATH):
+                        try:
+                            shutil.rmtree(TOOL_PATH)
+                        except Exception as e:
+                            print(f"Error while removing the tool folder: {e}")                   
+                    pm.install(tl_path)
+            # tool is already installed, just activate it
+            if tl_flag and pio_flag and not json_flag:
+                self.packages[TOOL]["version"] = TOOL_PATH
+                self.packages[TOOL]["optional"] = False
+            
+            return
 
         board_config = self.board_config(variables.get("board"))
         mcu = variables.get("board_build.mcu", board_config.get("build.mcu", "esp32"))
@@ -168,10 +213,7 @@ class Espressif32Platform(PlatformBase):
             del self.packages["tool-mkspiffs"]
 
         if variables.get("upload_protocol"):
-            self.packages["tool-openocd"]["optional"] = False
-            self.packages["tool-openocd"]["version"] = "file://" + join(IDF_TOOLS_PATH_DEFAULT, "tools", "tool-openocd")
-        else:
-            del self.packages["tool-openocd"]
+            install_tool("tool-openocd-esp32")
 
         if "downloadfs" in targets:
             filesystem = variables.get("board_build.filesystem", "littlefs")
