@@ -115,11 +115,11 @@
       "owner": "",
       "version": ""
     },
-    "tool-openocd": {
+    "tool-openocd-esp32": {
       "type": "debugger",
       "optional": true,
-      "owner": "",
-      "version": ""
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20250226.zip"
     },
     "tool-esp-rom-elfs": {
        "optional": true,
