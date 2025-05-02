@@ -99,7 +99,7 @@
       "type": "uploader",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/dfuutil-1.11.0.zip"
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/dfuutil-arduino-v1.11.0.zip"
     },
     "tool-openocd-esp32": {
       "type": "debugger",
