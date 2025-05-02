@@ -12,9 +12,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15]
+        os: [ubuntu-24.04, windows-latest, macos-15]
         example:
+          - "examples/arduino-blink"
+          - "examples/arduino-rmt-blink"
+          - "examples/arduino-usb-keyboard"
           - "examples/arduino-wifiscan"
+          - "examples/arduino-zigbee-light"
+          - "examples/arduino-zigbee-switch"
+          - "examples/tasmota"
+          - "examples/espidf-arduino-h2zero-BLE_scan"
+          - "examples/espidf-arduino-matter-light"
+          - "examples/arduino-matter-light"
+          - "examples/espidf-arduino-blink"
+          - "examples/espidf-arduino-littlefs"
+          - "examples/espidf-blink"
+          - "examples/espidf-coap-server"
+          - "examples/espidf-exceptions"
+          - "examples/espidf-hello-world"
+          - "examples/espidf-http-request"
+          - "examples/espidf-peripherals-uart"
+          - "examples/espidf-peripherals-usb"
+          - "examples/espidf-storage-sdcard"
           - "examples/espidf-ulp"
           - "examples/espidf-ulp-riscv"
           - "examples/espidf-ulp-lp"
