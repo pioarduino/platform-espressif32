@@ -164,8 +164,8 @@
     "tool-scons": {
       "type": "tool",
       "optional": true,
-      "owner": "platformio",
-      "version": "~4.40801.0"
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/scons/releases/download/4.8.1/scons-local-4.8.1.tar.gz"
     }
   }
 }
