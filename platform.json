@@ -68,8 +68,8 @@
     "toolchain-esp32ulp": {
       "type": "toolchain",
       "optional": true,
-      "owner": "platformio",
-      "version": "~1.23800.0"
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/esp32ulp-elf-2.38_20240113.zip"
     },
       "tool-xtensa-esp-elf-gdb": {
       "type": "debugger",
