@@ -164,28 +164,28 @@ class Espressif32Platform(PlatformBase):
             for package in CHECK_PACKAGES:
                 for check_tool in variables.get("check_tool", ""):
                     if check_tool in package:
-                        self.packages[package]["optional"] = False
+                        install_tool(package)
 
         if "buildfs" in targets:
             filesystem = variables.get("board_build.filesystem", "littlefs")
             if filesystem == "littlefs":
-                self.packages["tool-mklittlefs"]["optional"] = False
+                install_tool("tool-mklittlefs")
             elif filesystem == "fatfs":
-                self.packages["tool-mkfatfs"]["optional"] = False
+                install_tool("tool-mkfatfs")
             else:
-                self.packages["tool-mkspiffs"]["optional"] = False
+                install_tool("tool-mkspiffs")
 
         if "downloadfs" in targets:
             filesystem = variables.get("board_build.filesystem", "littlefs")
             if filesystem == "littlefs":
                 # Use Tasmota mklittlefs v4.0.0 to unpack, older version is incompatible
-                self.packages["tool-mklittlefs"]["version"] = "~4.0.0"
+                self.packages["tool-mklittlefs"]["version"] = "https://github.com/pioarduino/registry/releases/download/0.0.1/mklittlefs-4.0.0.zip"
+                self.packages["tool-mklittlefs"]["optional"] = False
+                install_tool("tool-mklittlefs")
 
         # Currently only Arduino Nano ESP32 uses the dfuutil tool as uploader
         if variables.get("board") == "arduino_nano_esp32":
-            self.packages["tool-dfuutil-arduino"]["optional"] = False
-        else:
-            del self.packages["tool-dfuutil-arduino"]
+            install_tool("tool-dfuutil-arduino")
 
         return super().configure_default_packages(variables, targets)
 
