@@ -146,14 +146,14 @@
     "tool-cmake": {
       "type": "tool",
       "optional": true,
-      "owner": "platformio",
-      "version": "~3.30.2"
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/cmake-3.30.2.zip"
     },
     "tool-esp-rom-elfs": {
       "type": "tool",
       "optional": true,
-      "owner": "platformio",
-      "version": "0.0.1+20241011"
+      "owner": "pioarduino",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/esp-rom-elfs-20241011.zip"
     },
     "tool-ninja": {
       "type": "tool",
