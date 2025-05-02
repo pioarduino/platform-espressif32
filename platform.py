@@ -152,7 +152,7 @@ class Espressif32Platform(PlatformBase):
         ]
         if "espidf" in frameworks:
             for package in COMMON_IDF_PACKAGES:
-                self.packages[package]["optional"] = False
+                install_tool(package)
 
         CHECK_PACKAGES = [
             "tool-cppcheck",
