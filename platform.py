@@ -129,7 +129,7 @@ class Espressif32Platform(PlatformBase):
             if mcu in supported_mcus:
                 # Set mandatory toolchains
                 for toolchain in toolchain_data["toolchains"]:
-                    self.packages[toolchain]["optional"] = False
+                    install_tool(toolchain)
 
                 # Set ULP toolchain if applicable
                 ulp_toolchain = toolchain_data.get("ulp_toolchain")
