@@ -15,6 +15,9 @@ jobs:
         os: [ubuntu-24.04, macos-15]
         example:
           - "examples/arduino-wifiscan"
+          - "examples/espidf-ulp"
+          - "examples/espidf-ulp-riscv"
+          - "examples/espidf-ulp-lp"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
