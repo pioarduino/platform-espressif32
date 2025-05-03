@@ -18,7 +18,7 @@
     "type": "git",
     "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "54.03.20+develop",
+  "version": "53.03.13+develop",
   "frameworks": {
     "arduino": {
       "script": "builder/frameworks/arduino.py"
@@ -33,7 +33,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/archive/master.zip"
+      "version": "https://github.com/espressif/arduino-esp32/archive/release/v3.1.x.zip"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
