@@ -1,0 +1,2681 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD_Schema_1_1.xsd">
+  <vendor>ESPRESSIF SYSTEMS (SHANGHAI) CO., LTD.</vendor>
+  <vendorID>ESPRESSIF</vendorID>
+  <name>ESP32-S2-ULP</name>
+  <series>RISC-V ULP</series>
+  <version>1</version>
+  <description>32-bit RISC-V MCU</description>
+  <licenseText>
+    Copyright 2023 Espressif Systems (Shanghai) PTE LTD
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+</licenseText>
+  <cpu>
+    <name>RV32IMC</name>
+    <revision>r0p0</revision>
+    <endian>little</endian>
+    <mpuPresent>false</mpuPresent>
+    <fpuPresent>false</fpuPresent>
+    <nvicPrioBits>4</nvicPrioBits>
+    <vendorSystickConfig>false</vendorSystickConfig>
+  </cpu>
+  <addressUnitBits>32</addressUnitBits>
+  <width>32</width>
+  <resetValue>0x00000000</resetValue>
+  <resetMask>0xFFFFFFFF</resetMask>
+  <peripherals>
+    <peripheral>
+      <name>RTC_IO</name>
+      <description>Low-power Input/Output</description>
+      <groupName>RTCIO</groupName>
+      <baseAddress>0x0000A400</baseAddress>
+      <addressBlock>
+        <offset>0x0</offset>
+        <size>0xF0</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <register>
+          <name>RTC_GPIO_OUT</name>
+          <description>RTC GPIO output register</description>
+          <addressOffset>0x0</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>GPIO_OUT_DATA</name>
+              <description>GPIO0 ~ 21 output register. Bit10 corresponds to GPIO0, bit11 corresponds to GPIO1, etc.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_OUT_W1TS</name>
+          <description>RTC GPIO output bit set register</description>
+          <addressOffset>0x4</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>GPIO_OUT_DATA_W1TS</name>
+              <description>GPIO0 ~ 21 output set register. If the value 1 is written to a bit here, the corresponding bit in RTCIO_RTC_GPIO_OUT_REG will be set to 1. Recommended operation: use this register to set RTCIO_RTC_GPIO_OUT_REG.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_OUT_W1TC</name>
+          <description>RTC GPIO output bit clear register</description>
+          <addressOffset>0x8</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>GPIO_OUT_DATA_W1TC</name>
+              <description>GPIO0 ~ 21 output clear register. If the value 1 is written to a bit here, the corresponding bit in RTCIO_RTC_GPIO_OUT_REG will be cleared. Recommended operation: use this register to clear RTCIO_RTC_GPIO_OUT_REG.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_ENABLE</name>
+          <description>RTC GPIO output enable register</description>
+          <addressOffset>0xC</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>REG_RTCIO_REG_GPIO_ENABLE</name>
+              <description>GPIO0 ~ 21 output enable. Bit10 corresponds to GPIO0, bit11 corresponds to GPIO1, etc. If the bit is set to 1, it means this GPIO pad is output.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_ENABLE_W1TS</name>
+          <description>RTC GPIO output enable bit set register</description>
+          <addressOffset>0x10</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>REG_RTCIO_REG_GPIO_ENABLE_W1TS</name>
+              <description>GPIO0 ~ 21 output enable set register. If the value 1 is written to a bit here, the corresponding bit in RTCIO_RTC_GPIO_ENABLE_REG will be set to 1. Recommended operation: use this register to set RTCIO_RTC_GPIO_ENABLE_REG.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_ENABLE_W1TC</name>
+          <description>RTC GPIO output enable bit clear register</description>
+          <addressOffset>0x14</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>REG_RTCIO_REG_GPIO_ENABLE_W1TC</name>
+              <description>GPIO0 ~ 21 output enable clear register. If the value 1 is written to a bit here, the corresponding bit in RTCIO_RTC_GPIO_ENABLE_REG will be cleared. Recommended operation: use this register to clear RTCIO_RTC_GPIO_ENABLE_REG.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_STATUS</name>
+          <description>RTC GPIO interrupt status register</description>
+          <addressOffset>0x18</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>GPIO_STATUS_INT</name>
+              <description>GPIO0 ~ 21 interrupt status register. Bit10 corresponds to GPIO0, bit11 corresponds to GPIO1, etc. This register should be used together with RTCIO_RTC_GPIO_PINn_INT_TYPE in RTCIO_RTC_GPIO_PINn_REG. 0: no interrupt; 1: corresponding interrupt.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_STATUS_W1TS</name>
+          <description>RTC GPIO interrupt status bit set register</description>
+          <addressOffset>0x1C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>GPIO_STATUS_INT_W1TS</name>
+              <description>GPIO0 ~ 21 interrupt set register. If the value 1 is written to a bit here, the corresponding bit in RTCIO_GPIO_STATUS_INT will be set to 1. Recommended operation: use this register to set RTCIO_GPIO_STATUS_INT.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_STATUS_W1TC</name>
+          <description>RTC GPIO interrupt status bit clear register</description>
+          <addressOffset>0x20</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>GPIO_STATUS_INT_W1TC</name>
+              <description>GPIO0 ~ 21 interrupt clear register. If the value 1 is written to a bit here, the corresponding bit in RTCIO_GPIO_STATUS_INT will be cleared. Recommended operation: use this register to clear RTCIO_GPIO_STATUS_INT.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_IN</name>
+          <description>RTC GPIO input register</description>
+          <addressOffset>0x24</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>GPIO_IN_NEXT</name>
+              <description>GPIO0 ~ 21 input value. Bit10 corresponds to GPIO0, bit11 corresponds to GPIO1, etc. Each bit represents a pad input value, 1 for high level, and 0 for low level.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <dim>22</dim>
+          <dimIncrement>0x4</dimIncrement>
+          <name>RTC_GPIO_PIN%s</name>
+          <description>RTC configuration for pin %s</description>
+          <addressOffset>0x28</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>GPIO_PIN_PAD_DRIVER</name>
+              <description>Pad driver selection. 0: normal output. 1: open drain.</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>GPIO_PIN_INT_TYPE</name>
+              <description>GPIO interrupt type selection. 0: GPIO interrupt disabled. 1: rising edge trigger. 2: falling edge trigger. 3: any edge trigger. 4: low level trigger. 5: high level trigger.</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>GPIO_PIN_WAKEUP_ENABLE</name>
+              <description>GPIO wake-up enable. This will only wake up ESP32-S2 from Light-sleep.</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_DEBUG_SEL</name>
+          <description>RTC debug select register</description>
+          <addressOffset>0x80</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>RTC_DEBUG_SEL0</name>
+              <bitOffset>0</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RTC_DEBUG_SEL1</name>
+              <bitOffset>5</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RTC_DEBUG_SEL2</name>
+              <bitOffset>10</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RTC_DEBUG_SEL3</name>
+              <bitOffset>15</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RTC_DEBUG_SEL4</name>
+              <bitOffset>20</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RTC_DEBUG_12M_NO_GATING</name>
+              <bitOffset>25</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <dim>15</dim>
+          <dimIncrement>0x4</dimIncrement>
+          <name>TOUCH_PAD%s</name>
+          <description>Touch pad %s configuration register</description>
+          <addressOffset>0x84</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x52000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>Input enable in normal execution.</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>Output enable in sleep mode.</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>Input enable in sleep mode.</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>0: no sleep mode. 1: enable sleep mode.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>Function selection.</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>Connect the RTC pad input to digital pad input.  0 is available.</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>Touch sensor power on.</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>The tie option of touch sensor. 0: tie low. 1: tie high.</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>Start touch sensor.</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DAC</name>
+              <description>Touch sensor slope control. 3-bit for each touch pad, defaults to 0x4.</description>
+              <bitOffset>23</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>Pull-down enable of the pad. 1: internal pull-down enabled. 0: internal pull-down disabled.</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>Pull-up enable of the pad. 1: internal pull-up enabled. 0: internal pull-up disabled.</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>Select the drive strength of the pad. 0: ~5 mA. 1: ~10 mA. 2: ~20 mA. 3: ~40 mA.</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>XTAL_32P_PAD</name>
+          <description>32KHz crystal P-pad configuration register</description>
+          <addressOffset>0xC0</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>X32P_FUN_IE</name>
+              <description>Input enable in normal execution.</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_SLP_OE</name>
+              <description>output enable in sleep mode.</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_SLP_IE</name>
+              <description>input enable in sleep mode.</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_SLP_SEL</name>
+              <description>1: enable sleep mode. 0: no sleep mode.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_FUN_SEL</name>
+              <description>Function selection.</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_MUX_SEL</name>
+              <description>1: use RTC GPIO. 0: use digital GPIO.</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_RUE</name>
+              <description>Pull-down enable of the pad. 1: internal pull-down enabled. 0: internal pull-down disabled.</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_RDE</name>
+              <description>Pull-up enable of the pad. 1: internal pull-up enabled. 0: internal pull-up disabled.</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_DRV</name>
+              <description>Select the drive strength of the pad. 0: ~5 mA. 1: ~10 mA. 2: ~20 mA. 3: ~40 mA.</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>XTAL_32N_PAD</name>
+          <description>32KHz crystal N-pad configuration register</description>
+          <addressOffset>0xC4</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>X32N_FUN_IE</name>
+              <description>Input enable in normal execution.</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_SLP_OE</name>
+              <description>Output enable in sleep mode.</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_SLP_IE</name>
+              <description>Input enable in sleep mode.</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_SLP_SEL</name>
+              <description>1: enable sleep mode. 0: no sleep mode.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_FUN_SEL</name>
+              <description>Function selection.</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_MUX_SEL</name>
+              <description>1: use RTC GPIO. 0: use digital GPIO.</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_RUE</name>
+              <description>Pull-down enable of the pad. 1: internal pull-down enabled. 0: internal pull-down disabled.</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_RDE</name>
+              <description>Pull-up enable of the pad. 1: internal pull-up enabled. 0: internal pull-up disabled.</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_DRV</name>
+              <description>Select the drive strength of the pad. 0: ~5 mA. 1: ~10 mA. 2: ~20 mA. 3: ~40 mA.</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>PAD_DAC1</name>
+          <description>DAC1 configuration register</description>
+          <addressOffset>0xC8</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>PDAC1_DAC</name>
+              <description>Configure DAC_1 output when RTCIO_PDAC1_DAC_XPD_FORCE is set to 1.</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_XPD_DAC</name>
+              <description>When RTCIO_PDAC1_DAC_XPD_FORCE is set to 1, 1: enable DAC_1 output. 0: disable DAC_1 output.</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_DAC_XPD_FORCE</name>
+              <description>1: use RTCIO_PDAC1_XPD_DAC to control DAC_1 output. 0: use SAR ADC FSM to control DAC_1 output.</description>
+              <bitOffset>12</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_FUN_IE</name>
+              <description>Input enable in normal execution.</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_SLP_OE</name>
+              <description>Output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_SLP_IE</name>
+              <description>Input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_SLP_SEL</name>
+              <description>1: enable sleep mode. 0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_FUN_SEL</name>
+              <description>DAC_1 function selection.</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_MUX_SEL</name>
+              <description>1: use RTC GPIO. 0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_RUE</name>
+              <description>Pull-down enable of the pad. 1: internal pull-down enabled. 0: internal pull-down disabled.</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_RDE</name>
+              <description>Pull-up enable of the pad. 1: internal pull-up enabled. 0: internal pull-up disabled.</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_DRV</name>
+              <description>Select the drive strength of the pad. 0: ~5 mA. 1: ~10 mA. 2: ~20 mA. 3: ~40 mA.</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>PAD_DAC2</name>
+          <description>DAC2 configuration register</description>
+          <addressOffset>0xCC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>PDAC2_DAC</name>
+              <description>Configure DAC_2 output when RTCIO_PDAC2_DAC_XPD_FORCE is set to 1.</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_XPD_DAC</name>
+              <description>When RTCIO_PDAC2_DAC_XPD_FORCE is set to 1, 1: enable DAC_2 output. 0: disable DAC_2 output.</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_DAC_XPD_FORCE</name>
+              <description>1: use RTCIO_PDAC2_XPD_DAC to control DAC_2 output. 0: use SAR ADC FSM to control DAC_2 output.</description>
+              <bitOffset>12</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_FUN_IE</name>
+              <description>Input enable in normal execution.</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_SLP_OE</name>
+              <description>Output enable in sleep mode.</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_SLP_IE</name>
+              <description>Input enable in sleep mode.</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_SLP_SEL</name>
+              <description>1: enable sleep mode. 0: no sleep mode.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_FUN_SEL</name>
+              <description>DAC_2 function selection.</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_MUX_SEL</name>
+              <description>1: use RTC GPIO. 0: use digital GPIO.</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_RUE</name>
+              <description>Pull-down enable of the pad. 1: internal pull-down enabled. 0: internal pull-down disabled.</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_RDE</name>
+              <description>Pull-up enable of the pad. 1: internal pull-up enabled. 0: internal pull-up disabled.</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_DRV</name>
+              <description>Select the drive strength of the pad. 0: ~5 mA: 1: ~10 mA. 2: ~20 mA. 3: ~40 mA.</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_PAD19</name>
+          <description>Touch pad 19 configuration register</description>
+          <addressOffset>0xD0</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x50000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>Input enable in normal execution.</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>Output enable in sleep mode.</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>Input enable in sleep mode.</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode. 0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>Function selection.</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO. 0: use digital GPIO.</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>Pull-down enable of the pad. 1: internal pull-down enabled. 0: internal pull-down disabled.</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>Pull-up enable of the pad. 1: internal pull-up enabled. 0: internal pull-up disabled.</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>Select the drive strength of the pad. 0: ~5 mA. 1: ~10 mA. 2: ~20 mA. 3: ~40 mA.</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_PAD20</name>
+          <description>Touch pad 20 configuration register</description>
+          <addressOffset>0xD4</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x50000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>Input enable in normal execution.</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>Output enable in sleep mode.</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>Input enable in sleep mode.</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode. 0: no sleep mode.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>Function selection.</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO. 0: use digital GPIO.</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>Pull-down enable of the pad. 1: internal pull-down enabled. 0: internal pull-down disabled.</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>Pull-up enable of the pad. 1: internal pull-up enabled. 0: internal pull-up disabled.</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>Select the drive strength of the pad. 0: ~5 mA. 1: ~10 mA. 2: ~20 mA. 3: ~40 mA.</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_PAD21</name>
+          <description>Touch pad 21 configuration register</description>
+          <addressOffset>0xD8</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x50000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>Input enable in normal execution.</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>Output enable in sleep mode.</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>Input enable in sleep mode.</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode. 0: no sleep mode.</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>Function selection.</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO. 0: use digital GPIO.</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>Pull-down enable of the pad. 1: internal pull-down enabled. 0: internal pull-down disabled.</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>Pull-up enable of the pad. 1: internal pull-up enabled. 0: internal pull-up disabled.</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>Select the drive strength of the pad. 0: ~5 mA. 1: ~10 mA. 2: ~20 mA. 3: ~40 mA.</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>EXT_WAKEUP0</name>
+          <description>External wake up configuration register</description>
+          <addressOffset>0xDC</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SEL</name>
+              <description>GPIO[0-17] can be used to wake up the chip when the chip is in the sleep mode. This register prompts the pad source to wake up the chip when the latter is indeep/light sleep mode. 
+0: select GPIO0; 1: select GPIO2, etc</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>XTL_EXT_CTR</name>
+          <description>Crystal power down enable GPIO source</description>
+          <addressOffset>0xE0</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SEL</name>
+              <description>Select the external crystal power down enable source to get into sleep mode. 0: select GPIO0. 1: select GPIO1, etc. The input value on this pin XOR RTC_CNTL_EXT_XTL_CONF_REG[30] is the crystal power down enable signal.</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_I2C_IO</name>
+          <description>RTC I2C pad selection</description>
+          <addressOffset>0xE4</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_DEBUG_BIT_SEL</name>
+              <bitOffset>23</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_SCL_SEL</name>
+              <description>Selects a pad the RTC I2C SCL signal connects to. 0: use TOUCH PAD0. 1: use TOUCH PAD2.</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_SDA_SEL</name>
+              <description>Selects a pad the RTC I2C SDA signal connects to. 0: use TOUCH PAD1. 1: use TOUCH PAD3.</description>
+              <bitOffset>30</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_IO_TOUCH_CTRL</name>
+          <description>Touch control register</description>
+          <addressOffset>0xE8</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>IO_TOUCH_BUFSEL</name>
+              <bitOffset>0</bitOffset>
+              <bitWidth>4</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>IO_TOUCH_BUFMODE</name>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_IO_DATE</name>
+          <description>Version control register</description>
+          <addressOffset>0x1FC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x01903170</resetValue>
+          <fields>
+            <field>
+              <name>IO_DATE</name>
+              <description>Version control register</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>28</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+    <peripheral>
+      <name>RTC_CNTL</name>
+      <description>Real-Time Clock Control</description>
+      <groupName>RTC_CNTL</groupName>
+      <baseAddress>0x00008000</baseAddress>
+      <addressBlock>
+        <offset>0x0</offset>
+        <size>0x138</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <interrupt>
+        <name>RISCV_START_INT</name>
+        <value>6</value>
+      </interrupt>
+      <interrupt>
+        <name>SW_INT</name>
+        <value>7</value>
+      </interrupt>
+      <interrupt>
+        <name>SWD_INT</name>
+        <value>8</value>
+      </interrupt>
+      <registers>
+        <register>
+          <name>ULP_CP_TIMER</name>
+          <description>Configure coprocessor timer</description>
+          <addressOffset>0xF8</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>ULP_CP_PC_INIT</name>
+              <description>ULP coprocessor PC initial address</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_GPIO_WAKEUP_ENA</name>
+              <description>Enable the option of ULP coprocessor woken up by
+RTC GPIO</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_GPIO_WAKEUP_CLR</name>
+              <description>Disable the option of ULP coprocessor woken up by
+RTC GPIO</description>
+              <bitOffset>30</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>ULP_CP_SLP_TIMER_EN</name>
+              <description>ULP coprocessor timer enable bit. 0: Disable hardware
+Timer. 1: Enable hardware timer</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>ULP_CP_CTRL</name>
+          <description>ULP-FSM configuration register</description>
+          <addressOffset>0xFC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00100200</resetValue>
+          <fields>
+            <field>
+              <name>ULP_CP_MEM_ADDR_INIT</name>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_MEM_ADDR_SIZE</name>
+              <bitOffset>11</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_MEM_OFFSET_CLR</name>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>ULP_CP_CLK_FO</name>
+              <description>ULP-FSM clock force on</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_RESET</name>
+              <description>ULP-FSM clock software reset</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_FORCE_START_TOP</name>
+              <description>Write 1 to start ULP-FSM by software</description>
+              <bitOffset>30</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_START_TOP</name>
+              <description>Write 1 to start ULP-FSM</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>COCPU_CTRL</name>
+          <description>ULP-RISCV configuration register</description>
+          <addressOffset>0x100</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x008A0810</resetValue>
+          <fields>
+            <field>
+              <name>COCPU_CLK_FO</name>
+              <description>ULP-RISCV clock force on</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_START_2_RESET_DIS</name>
+              <description>Time from ULP-RISCV startup to pull down reset</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>6</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_START_2_INTR_EN</name>
+              <description>Time from ULP-RISCV startup to send out
+RISCV_START_INT interrupt</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>6</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SHUT</name>
+              <description>Shut down ULP-RISCV</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SHUT_2_CLK_DIS</name>
+              <description>Time from shut down ULP-RISCV to disable clock</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SHUT_RESET_EN</name>
+              <description>This bit is used to reset ULP-RISCV</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SEL</name>
+              <description>0: select ULP-RISCV. 1: select ULP-FSM</description>
+              <bitOffset>23</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_DONE_FORCE</name>
+              <description>0: select ULP-FSM DONE signal. 1: select ULP-RISCV DONE
+signal</description>
+              <bitOffset>24</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_DONE</name>
+              <description>DONE signal. Write 1 to this bit, ULP-RISCV will go to HALT and the
+timer starts counting</description>
+              <bitOffset>25</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SW_INT_TRIGGER</name>
+              <description>Trigger ULP-RISCV register interrupt</description>
+              <bitOffset>26</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>ULP_CP_TIMER_1</name>
+          <description>Configure sleep cycle of the timer</description>
+          <addressOffset>0x130</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x0000C800</resetValue>
+          <fields>
+            <field>
+              <name>ULP_CP_TIMER_SLP_CYCLE</name>
+              <description>Set sleep cycles for ULP coprocessor timer</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>24</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+    <peripheral>
+      <name>RTC_I2C</name>
+      <description>Low-power I2C (Inter-Integrated Circuit) Controller</description>
+      <groupName>RTC_I2C</groupName>
+      <baseAddress>0x0000EC00</baseAddress>
+      <addressBlock>
+        <offset>0x0</offset>
+        <size>0x7C</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <register>
+          <name>SCL_LOW</name>
+          <description>Configure the low level width of SCL</description>
+          <addressOffset>0x0</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000100</resetValue>
+          <fields>
+            <field>
+              <name>PERIOD</name>
+              <description>This register is used to configure how many clock cycles SCL
+remains low.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CTRL</name>
+          <description>Transmission setting</description>
+          <addressOffset>0x4</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SDA_FORCE_OUT</name>
+              <description>SDA output mode. 0: open drain. 1: push pull.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SCL_FORCE_OUT</name>
+              <description>SCL output mode. 0: open drain. 1: push pull.</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MS_MODE</name>
+              <description>Set this bit to configure RTC I²C as a master.</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TRANS_START</name>
+              <description>Set this bit to 1, RTC I2C starts sending data.</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TX_LSB_FIRST</name>
+              <description>This bit is used to control the sending mode. 0: send data from the most
+significant bit. 1: send data from the least significant bit.</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RX_LSB_FIRST</name>
+              <description>This bit is used to control the storage mode for received data. 0: receive
+data from the most significant bit. 1: receive data from the least significant bit.</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>CLK_GATE_EN</name>
+              <description>RTC I²C controller clock gate.</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RESET</name>
+              <description>RTC I²C software reset.</description>
+              <bitOffset>30</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>CLK_EN</name>
+              <description>rtc i2c reg clk gating</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>STATUS</name>
+          <description>RTC I2C status</description>
+          <addressOffset>0x8</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>ACK_REC</name>
+              <description>The received ACK value. 0: ACK. 1: NACK.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SLAVE_RW</name>
+              <description>0: master writes to slave. 1: master reads from slave.</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>ARB_LOST</name>
+              <description>When the RTC I2C loses control of SCL line, the register changes to 1.</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>BUS_BUSY</name>
+              <description>0: RTC I2C bus is in idle state. 1: RTC I2C bus is busy transferring data.</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SLAVE_ADDRESSED</name>
+              <description>When the address sent by the master matches the address of the
+slave, then this bit will be set.</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>BYTE_TRANS</name>
+              <description>This field changes to 1 when one byte is transferred.</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>OP_CNT</name>
+              <description>Indicate which operation is working.</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SHIFT</name>
+              <description>shifter content</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SCL_MAIN_STATE_LAST</name>
+              <description>i2c last main status</description>
+              <bitOffset>24</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SCL_STATE_LAST</name>
+              <description>scl last status</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TO</name>
+          <description>Configure RTC I2C timeout</description>
+          <addressOffset>0xC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00010000</resetValue>
+          <fields>
+            <field>
+              <name>TIME_OUT</name>
+              <description>Timeout threshold</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SLAVE_ADDR</name>
+          <description>Configure slave address</description>
+          <addressOffset>0x10</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SLAVE_ADDR</name>
+              <description>slave address</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>15</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ADDR_10BIT_EN</name>
+              <description>This field is used to enable the slave 10-bit addressing mode.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SCL_HIGH</name>
+          <description>Configure the high level width of SCL</description>
+          <addressOffset>0x14</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000100</resetValue>
+          <fields>
+            <field>
+              <name>PERIOD</name>
+              <description>This register is used to configure how many cycles SCL remains high.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SDA_DUTY</name>
+          <description>Configure the SDA hold time after a negative
+SCL edge</description>
+          <addressOffset>0x18</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000010</resetValue>
+          <fields>
+            <field>
+              <name>NUM</name>
+              <description>The number of clock cycles between the SDA switch and the falling
+edge of SCL.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SCL_START_PERIOD</name>
+          <description>Configure the delay between the SDA and SCL
+negative edge for a start condition</description>
+          <addressOffset>0x1C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000008</resetValue>
+          <fields>
+            <field>
+              <name>SCL_START_PERIOD</name>
+              <description>Number of clock cycles to wait after generating a start condition.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SCL_STOP_PERIOD</name>
+          <description>Configure the delay between SDA and SCL positive edge for a stop condition</description>
+          <addressOffset>0x20</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000008</resetValue>
+          <fields>
+            <field>
+              <name>SCL_STOP_PERIOD</name>
+              <description>Number of clock cycles to wait before generating a stop condition.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>INT_CLR</name>
+          <description>Clear RTC I2C interrupt</description>
+          <addressOffset>0x24</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SLAVE_TRAN_COMP_INT_CLR</name>
+              <description>RTC_I2C_SLAVE_TRAN_COMP_INT interrupt clear bit</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>ARBITRATION_LOST_INT_CLR</name>
+              <description>RTC_I2C_ARBITRATION_LOST_INT interrupt clear bit</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>MASTER_TRAN_COMP_INT_CLR</name>
+              <description>RTC_I2C_MASTER_TRAN_COMP_INT interrupt
+clear bit</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>TRANS_COMPLETE_INT_CLR</name>
+              <description>RTC_I2C_TRANS_COMPLETE_INT interrupt clear bit</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>TIME_OUT_INT_CLR</name>
+              <description>RTC_I2C_TIME_OUT_INT interrupt clear bit</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>ACK_ERR_INT_CLR</name>
+              <description>RTC_I2C_ACK_ERR_INT interrupt clear bit</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>RX_DATA_INT_CLR</name>
+              <description>RTC_I2C_RX_DATA_INT interrupt clear bit</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>TX_DATA_INT_CLR</name>
+              <description>RTC_I2C_TX_DATA_INT interrupt clear bit</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>DETECT_START_INT_CLR</name>
+              <description>RTC_I2C_DETECT_START_INT interrupt clear bit</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>INT_RAW</name>
+          <description>RTC I2C raw interrupt</description>
+          <addressOffset>0x28</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SLAVE_TRAN_COMP_INT_RAW</name>
+              <description>RTC_I2C_SLAVE_TRAN_COMP_INT interrupt raw bit</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>ARBITRATION_LOST_INT_RAW</name>
+              <description>RTC_I2C_ARBITRATION_LOST_INT interrupt raw bit</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>MASTER_TRAN_COMP_INT_RAW</name>
+              <description>RTC_I2C_MASTER_TRAN_COMP_INT interrupt raw bit</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TRANS_COMPLETE_INT_RAW</name>
+              <description>RTC_I2C_TRANS_COMPLETE_INT interrupt raw bit</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TIME_OUT_INT_RAW</name>
+              <description>RTC_I2C_TIME_OUT_INT interrupt raw bit</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>ACK_ERR_INT_RAW</name>
+              <description>RTC_I2C_ACK_ERR_INT interrupt raw bit</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>RX_DATA_INT_RAW</name>
+              <description>RTC_I2C_RX_DATA_INT interrupt raw bit</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TX_DATA_INT_RAW</name>
+              <description>RTC_I2C_TX_DATA_INT interrupt raw bit</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>DETECT_START_INT_RAW</name>
+              <description>RTC_I2C_DETECT_START_INT interrupt raw bit</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>INT_ST</name>
+          <description>RTC I2C interrupt status</description>
+          <addressOffset>0x2C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SLAVE_TRAN_COMP_INT_ST</name>
+              <description>RTC_I2C_SLAVE_TRAN_COMP_INT interrupt status bit</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>ARBITRATION_LOST_INT_ST</name>
+              <description>RTC_I2C_ARBITRATION_LOST_INT interrupt status bit</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>MASTER_TRAN_COMP_INT_ST</name>
+              <description>RTC_I2C_MASTER_TRAN_COMP_INT interrupt status bit</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TRANS_COMPLETE_INT_ST</name>
+              <description>RTC_I2C_TRANS_COMPLETE_INT interrupt status bit</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TIME_OUT_INT_ST</name>
+              <description>RTC_I2C_TIME_OUT_INT interrupt status bit</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>ACK_ERR_INT_ST</name>
+              <description>RTC_I2C_ACK_ERR_INT interrupt status bit</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>RX_DATA_INT_ST</name>
+              <description>RTC_I2C_RX_DATA_INT interrupt status bit</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TX_DATA_INT_ST</name>
+              <description>RTC_I2C_TX_DATA_INT interrupt status bit</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>DETECT_START_INT_ST</name>
+              <description>RTC_I2C_DETECT_START_INT interrupt status bit</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>INT_ENA</name>
+          <description>Enable RTC I2C interrupt</description>
+          <addressOffset>0x30</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SLAVE_TRAN_COMP_INT_ENA</name>
+              <description>RTC_I2C_SLAVE_TRAN_COMP_INT interrupt enable bit</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ARBITRATION_LOST_INT_ENA</name>
+              <description>RTC_I2C_ARBITRATION_LOST_INT interrupt enable bit</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MASTER_TRAN_COMP_INT_ENA</name>
+              <description>RTC_I2C_MASTER_TRAN_COMP_INT interrupt enable bit</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TRANS_COMPLETE_INT_ENA</name>
+              <description>RTC_I2C_TRANS_COMPLETE_INT interrupt enable bit</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIME_OUT_INT_ENA</name>
+              <description>RTC_I2C_TIME_OUT_INT interrupt enable bit</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ACK_ERR_INT_ENA</name>
+              <description>RTC_I2C_ACK_ERR_INT interrupt enable bit</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RX_DATA_INT_ENA</name>
+              <description>RTC_I2C_RX_DATA_INT interrupt enable bit</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TX_DATA_INT_ENA</name>
+              <description>RTC_I2C_TX_DATA_INT interrupt enable bit</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DETECT_START_INT_ENA</name>
+              <description>RTC_I2C_DETECT_START_INT interrupt enable bit</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>DATA</name>
+          <description>RTC I2C read data</description>
+          <addressOffset>0x34</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>RDATA</name>
+              <description>Data received</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SLAVE_TX_DATA</name>
+              <description>The data sent by slave</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DONE</name>
+              <description>RTC I2C transmission is done.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD0</name>
+          <description>RTC I2C Command 0</description>
+          <addressOffset>0x38</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000903</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND0</name>
+              <description>Content of command 0. For more information, please refer to the register
+I2C_COMD0_REG in Chapter I²C Controller</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND0_DONE</name>
+              <description>When command 0 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD1</name>
+          <description>RTC I2C Command 1</description>
+          <addressOffset>0x3C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND1</name>
+              <description>Content of command 1. For more information, please refer to the register
+I2C_COMD1_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND1_DONE</name>
+              <description>When command 1 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD2</name>
+          <description>RTC I2C Command 2</description>
+          <addressOffset>0x40</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000902</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND2</name>
+              <description>Content of command 2. For more information, please refer to the register
+I2C_COMD2_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND2_DONE</name>
+              <description>When command 2 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD3</name>
+          <description>RTC I2C Command 3</description>
+          <addressOffset>0x44</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000101</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND3</name>
+              <description>Content of command 3. For more information, please refer to the register
+I2C_COMD3_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND3_DONE</name>
+              <description>When command 3 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD4</name>
+          <description>RTC I2C Command 4</description>
+          <addressOffset>0x48</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND4</name>
+              <description>Content of command 4. For more information, please refer to the register
+I2C_COMD4_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND4_DONE</name>
+              <description>When command 4 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD5</name>
+          <description>RTC I2C Command 5</description>
+          <addressOffset>0x4C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001701</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND5</name>
+              <description>Content of command 5. For more information, please refer to the register
+I2C_COMD5_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND5_DONE</name>
+              <description>When command 5 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD6</name>
+          <description>RTC I2C Command 6</description>
+          <addressOffset>0x50</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND6</name>
+              <description>Content of command 6. For more information, please refer to the register
+I2C_COMD6_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND6_DONE</name>
+              <description>When command 6 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD7</name>
+          <description>RTC I2C Command 7</description>
+          <addressOffset>0x54</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000904</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND7</name>
+              <description>Content of command 7. For more information, please refer to the register
+I2C_COMD7_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND7_DONE</name>
+              <description>When command 7 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD8</name>
+          <description>RTC I2C Command 8</description>
+          <addressOffset>0x58</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND8</name>
+              <description>Content of command 8. For more information, please refer to the register
+I2C_COMD8_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND8_DONE</name>
+              <description>When command 8 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD9</name>
+          <description>RTC I2C Command 9</description>
+          <addressOffset>0x5C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000903</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND9</name>
+              <description>Content of command 9. For more information, please refer to the register
+I2C_COMD9_REG in Chapter I²C Controller</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND9_DONE</name>
+              <description>When command 9 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD10</name>
+          <description>RTC I2C Command 10</description>
+          <addressOffset>0x60</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000101</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND10</name>
+              <description>Content of command 10. For more information, please refer to the register
+I2C_COMD10_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND10_DONE</name>
+              <description>When command 10 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD11</name>
+          <description>RTC I2C Command 11</description>
+          <addressOffset>0x64</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND11</name>
+              <description>Content of command 11. For more information, please refer to the register
+I2C_COMD11_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND11_DONE</name>
+              <description>When command 11 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD12</name>
+          <description>RTC I2C Command 12</description>
+          <addressOffset>0x68</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001701</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND12</name>
+              <description>Content of command 12. For more information, please refer to the register
+I2C_COMD12_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND12_DONE</name>
+              <description>When command 12 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD13</name>
+          <description>RTC I2C Command 13</description>
+          <addressOffset>0x6C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND13</name>
+              <description>Content of command 13. For more information, please refer to the register
+I2C_COMD13_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND13_DONE</name>
+              <description>When command 13 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD14</name>
+          <description>RTC I2C Command 14</description>
+          <addressOffset>0x70</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>COMMAND14</name>
+              <description>Content of command 14. For more information, please refer to the register
+I2C_COMD14_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND14_DONE</name>
+              <description>When command 14 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD15</name>
+          <description>RTC I2C Command 15</description>
+          <addressOffset>0x74</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>COMMAND15</name>
+              <description>Content of command 15. For more information, please refer to the register
+I2C_COMD15_REG in Chapter I²C Controller.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND15_DONE</name>
+              <description>When command 15 is done, this bit changes to 1.</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>DATE</name>
+          <description>Version control register</description>
+          <addressOffset>0xFC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x01905310</resetValue>
+          <fields>
+            <field>
+              <name>DATE</name>
+              <description>Version control register</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>28</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+    <peripheral>
+      <name>SENS</name>
+      <description>SENS Peripheral</description>
+      <groupName>SENS</groupName>
+      <baseAddress>0x0000C800</baseAddress>
+      <addressBlock>
+        <offset>0x0</offset>
+        <size>0x110</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <interrupt>
+        <name>TOUCH_DONE_INT</name>
+        <value>0</value>
+      </interrupt>
+      <interrupt>
+        <name>TOUCH_INACTIVE_INT</name>
+        <value>1</value>
+      </interrupt>
+      <interrupt>
+        <name>TOUCH_ACTIVE_INT</name>
+        <value>2</value>
+      </interrupt>
+      <interrupt>
+        <name>SARADC1_DONE_INT</name>
+        <value>3</value>
+      </interrupt>
+      <interrupt>
+        <name>SARADC2_DONE_INT</name>
+        <value>4</value>
+      </interrupt>
+      <interrupt>
+        <name>TSENS_DONE_INT</name>
+        <value>5</value>
+      </interrupt>
+      <registers>
+        <register>
+          <name>SAR_SLAVE_ADDR1</name>
+          <description>Configure slave addresses 0-1 of RTC I2C</description>
+          <addressOffset>0x40</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>I2C_SLAVE_ADDR1</name>
+              <description>RTC I2C slave address 1</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>I2C_SLAVE_ADDR0</name>
+              <description>RTC I2C slave address 0</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MEAS_STATUS</name>
+              <bitOffset>22</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_SLAVE_ADDR2</name>
+          <description>Configure slave addresses 2-3 of RTC I2C</description>
+          <addressOffset>0x44</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>I2C_SLAVE_ADDR3</name>
+              <description>RTC I2C slave address 3</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>I2C_SLAVE_ADDR2</name>
+              <description>RTC I2C slave address 2</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_SLAVE_ADDR3</name>
+          <description>Configure slave addresses 4-5 of RTC I2C</description>
+          <addressOffset>0x48</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>I2C_SLAVE_ADDR5</name>
+              <description>RTC I2C slave address 5</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>I2C_SLAVE_ADDR4</name>
+              <description>RTC I2C slave address 4</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_SLAVE_ADDR4</name>
+          <description>Configure slave addresses 6-7 of RTC I2C</description>
+          <addressOffset>0x4C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>I2C_SLAVE_ADDR7</name>
+              <description>RTC I2C slave address 7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>I2C_SLAVE_ADDR6</name>
+              <description>RTC I2C slave address 6</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_I2C_CTRL</name>
+          <description>Configure RTC I2C transmission</description>
+          <addressOffset>0x58</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_I2C_CTRL</name>
+              <description>RTC I2C control data. Active only when SENS_SAR_I2C_START_FORCE =
+1.</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>28</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_START</name>
+              <description>Start RTC I2C. Active only when SENS_SAR_I2C_START_FORCE = 1</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_START_FORCE</name>
+              <description>0: RTC I2C started by FSM. 1: RTC I2C started by software.</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_COCPU_INT_RAW</name>
+          <description>Interrupt raw bit of ULP-RISCV</description>
+          <addressOffset>0x128</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>COCPU_TOUCH_DONE_INT_RAW</name>
+              <description>TOUCH_DONE_INT interrupt raw bit</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_TOUCH_INACTIVE_INT_RAW</name>
+              <description>TOUCH_INACTIVE_INT interrupt raw bit</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_TOUCH_ACTIVE_INT_RAW</name>
+              <description>TOUCH_ACTIVE_INT interrupt raw bit</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_SARADC1_INT_RAW</name>
+              <description>SARADC1_DONE_INT interrupt raw bit</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_SARADC2_INT_RAW</name>
+              <description>SARADC2_DONE_INT interrupt raw bit</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_TSENS_INT_RAW</name>
+              <description>TSENS_DONE_INT interrupt raw bit</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_START_INT_RAW</name>
+              <description>RISCV_START_INT interrupt raw bit</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_SW_INT_RAW</name>
+              <description>SW_INT interrupt raw bit</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_SWD_INT_RAW</name>
+              <description>SWD_INT interrupt raw bit</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_COCPU_INT_ENA</name>
+          <description>Interrupt enable bit of ULP-RISCV</description>
+          <addressOffset>0x12C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>COCPU_TOUCH_DONE_INT_ENA</name>
+              <description>TOUCH_DONE_INT interrupt enable bit</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_TOUCH_INACTIVE_INT_ENA</name>
+              <description>TOUCH_INACTIVE_INT interrupt enable bit</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_TOUCH_ACTIVE_INT_ENA</name>
+              <description>TOUCH_ACTIVE_INT interrupt enable bit</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SARADC1_INT_ENA</name>
+              <description>SARADC1_DONE_INT interrupt enable bit</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SARADC2_INT_ENA</name>
+              <description>SARADC2_DONE_INT interrupt enable bit</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_TSENS_INT_ENA</name>
+              <description>TSENS_DONE_INT interrupt enable bit</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_START_INT_ENA</name>
+              <description>RISCV_START_INT interrupt enable bit</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SW_INT_ENA</name>
+              <description>SW_INT interrupt enable bit</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SWD_INT_ENA</name>
+              <description>SWD_INT interrupt enable bit</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_COCPU_INT_ST</name>
+          <description>Interrupt status bit of ULP-RISCV</description>
+          <addressOffset>0x130</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>COCPU_TOUCH_DONE_INT_ST</name>
+              <description>TOUCH_DONE_INT interrupt status bit</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_TOUCH_INACTIVE_INT_ST</name>
+              <description>TOUCH_INACTIVE_INT interrupt status bit</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_TOUCH_ACTIVE_INT_ST</name>
+              <description>TOUCH_ACTIVE_INT interrupt status bit</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_SARADC1_INT_ST</name>
+              <description>SARADC1_DONE_INT interrupt status bit</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_SARADC2_INT_ST</name>
+              <description>SARADC2_DONE_INT interrupt status bit</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_TSENS_INT_ST</name>
+              <description>TSENS_DONE_INT interrupt status bit</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_START_INT_ST</name>
+              <description>RISCV_START_INT interrupt status bit</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_SW_INT_ST</name>
+              <description>SW_INT interrupt status bit</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>COCPU_SWD_INT_ST</name>
+              <description>SWD_INT interrupt status bit</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_COCPU_INT_CLR</name>
+          <description>Interrupt clear bit of ULP-RISCV</description>
+          <addressOffset>0x134</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>COCPU_TOUCH_DONE_INT_CLR</name>
+              <description>TOUCH_DONE_INT interrupt clear bit</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>COCPU_TOUCH_INACTIVE_INT_CLR</name>
+              <description>TOUCH_INACTIVE_INT interrupt clear bit</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>COCPU_TOUCH_ACTIVE_INT_CLR</name>
+              <description>TOUCH_ACTIVE_INT interrupt clear bit</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>COCPU_SARADC1_INT_CLR</name>
+              <description>SARADC1_DONE_INT interrupt clear bit</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>COCPU_SARADC2_INT_CLR</name>
+              <description>SARADC2_DONE_INT interrupt clear bit</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>COCPU_TSENS_INT_CLR</name>
+              <description>TSENS_DONE_INT interrupt clear bit</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>COCPU_START_INT_CLR</name>
+              <description>RISCV_START_INT interrupt clear bit</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>COCPU_SW_INT_CLR</name>
+              <description>SW_INT interrupt clear bit</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>COCPU_SWD_INT_CLR</name>
+              <description>SWD_INT interrupt clear bit</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+  </peripherals>
+</device>
