@@ -1,0 +1,4665 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<device schemaVersion="1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:noNamespaceSchemaLocation="CMSIS-SVD_Schema_1_1.xsd">
+  <vendor>ESPRESSIF SYSTEMS (SHANGHAI) CO., LTD.</vendor>
+  <vendorID>ESPRESSIF</vendorID>
+  <name>ESP32-S3-ULP</name>
+  <series>RISC-V ULP</series>
+  <version>1</version>
+  <description>32-bit RISC-V MCU</description>
+  <licenseText>
+    Copyright 2023 Espressif Systems (Shanghai) PTE LTD
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+</licenseText>
+  <cpu>
+    <name>RV32IMC</name>
+    <revision>r0p0</revision>
+    <endian>little</endian>
+    <mpuPresent>false</mpuPresent>
+    <fpuPresent>false</fpuPresent>
+    <nvicPrioBits>4</nvicPrioBits>
+    <vendorSystickConfig>false</vendorSystickConfig>
+  </cpu>
+  <addressUnitBits>32</addressUnitBits>
+  <width>32</width>
+  <resetValue>0x00000000</resetValue>
+  <resetMask>0xFFFFFFFF</resetMask>
+  <peripherals>
+    <peripheral>
+      <name>RTC_CNTL</name>
+      <description>Real-Time Clock Control</description>
+      <groupName>RTC_CNTL</groupName>
+      <baseAddress>0x00008000</baseAddress>
+      <addressBlock>
+        <offset>0x0</offset>
+        <size>0x15C</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <interrupt>
+        <name>RISCV_START_INT</name>
+        <value>6</value>
+      </interrupt>
+      <interrupt>
+        <name>SW_INT</name>
+        <value>7</value>
+      </interrupt>
+      <interrupt>
+        <name>SWD_INT</name>
+        <value>8</value>
+      </interrupt>
+      <registers>
+        <register>
+          <name>RTC_ULP_CP_TIMER</name>
+          <description>configure ulp</description>
+          <addressOffset>0xFC</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>ULP_CP_PC_INIT</name>
+              <description>ULP-coprocessor PC initial address</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_GPIO_WAKEUP_ENA</name>
+              <description>ULP-coprocessor wakeup by GPIO enable</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_GPIO_WAKEUP_CLR</name>
+              <description>ULP-coprocessor wakeup by GPIO state clear</description>
+              <bitOffset>30</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>ULP_CP_SLP_TIMER_EN</name>
+              <description>ULP-coprocessor timer enable bit</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_ULP_CP_CTRL</name>
+          <description>configure ulp</description>
+          <addressOffset>0x100</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00100200</resetValue>
+          <fields>
+            <field>
+              <name>ULP_CP_MEM_ADDR_INIT</name>
+              <description>No public</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_MEM_ADDR_SIZE</name>
+              <description>No public</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_MEM_OFFST_CLR</name>
+              <description>No public</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>ULP_CP_CLK_FO</name>
+              <description>ulp coprocessor clk force on</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_RESET</name>
+              <description>ulp coprocessor clk software reset</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_FORCE_START_TOP</name>
+              <description>1: ULP-coprocessor is started by SW</description>
+              <bitOffset>30</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ULP_CP_START_TOP</name>
+              <description>Write 1 to start ULP-coprocessor</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_COCPU_CTRL</name>
+          <description>configure ulp-riscv</description>
+          <addressOffset>0x104</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x008A0810</resetValue>
+          <fields>
+            <field>
+              <name>COCPU_CLK_FO</name>
+              <description>cocpu clk force on</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_START_2_RESET_DIS</name>
+              <description>time from start cocpu to pull down reset</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>6</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_START_2_INTR_EN</name>
+              <description>time from start cocpu to give start interrupt</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>6</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SHUT</name>
+              <description>to shut cocpu</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SHUT_2_CLK_DIS</name>
+              <description>time from shut cocpu to disable clk</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SHUT_RESET_EN</name>
+              <description>to reset cocpu</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SEL</name>
+              <description>1: old ULP 0: new riscV</description>
+              <bitOffset>23</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_DONE_FORCE</name>
+              <description>1: select riscv done 0: select ulp done</description>
+              <bitOffset>24</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_DONE</name>
+              <description>done signal used by riscv to control timer.</description>
+              <bitOffset>25</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COCPU_SW_INT_TRIGGER</name>
+              <description>trigger cocpu register interrupt</description>
+              <bitOffset>26</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>COCPU_CLKGATE_EN</name>
+              <description>open ulp-riscv clk gate</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_ULP_CP_TIMER_1</name>
+          <description>configure ulp sleep time</description>
+          <addressOffset>0x134</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x0000C800</resetValue>
+          <fields>
+            <field>
+              <name>ULP_CP_TIMER_SLP_CYCLE</name>
+              <description>sleep cycles for ULP-coprocessor timer</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>24</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+    <peripheral>
+      <name>RTC_I2C</name>
+      <description>Low-power I2C (Inter-Integrated Circuit) Controller</description>
+      <groupName>RTC_I2C</groupName>
+      <baseAddress>0x0000EC00</baseAddress>
+      <addressBlock>
+        <offset>0x0</offset>
+        <size>0x7C</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <register>
+          <name>SCL_LOW</name>
+          <description>configure low scl period</description>
+          <addressOffset>0x0</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000100</resetValue>
+          <fields>
+            <field>
+              <name>PERIOD</name>
+              <description>time period that scl =0</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CTRL</name>
+          <description>configure i2c ctrl</description>
+          <addressOffset>0x4</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SDA_FORCE_OUT</name>
+              <description>1=push pull,0=open drain</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SCL_FORCE_OUT</name>
+              <description>1=push pull,0=open drain</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MS_MODE</name>
+              <description>1=master,0=slave</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TRANS_START</name>
+              <description>force start</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TX_LSB_FIRST</name>
+              <description>transit lsb first</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RX_LSB_FIRST</name>
+              <description>receive lsb first</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>I2C_CTRL_CLK_GATE_EN</name>
+              <description>configure i2c ctrl clk enable</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>I2C_RESET</name>
+              <description>rtc i2c sw reset</description>
+              <bitOffset>30</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>I2CCLK_EN</name>
+              <description>rtc i2c reg clk gating</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>STATUS</name>
+          <description>get i2c status</description>
+          <addressOffset>0x8</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>ACK_REC</name>
+              <description>ack response</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SLAVE_RW</name>
+              <description>slave read or write</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>ARB_LOST</name>
+              <description>arbitration is lost</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>BUS_BUSY</name>
+              <description>bus is busy</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SLAVE_ADDRESSED</name>
+              <description>slave reg sub address</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>BYTE_TRANS</name>
+              <description>One byte transit done</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>OP_CNT</name>
+              <description>which operation is working</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SHIFT</name>
+              <description>shifter content</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SCL_MAIN_STATE_LAST</name>
+              <description>i2c last main status</description>
+              <bitOffset>24</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SCL_STATE_LAST</name>
+              <description>scl last status</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TO</name>
+          <description>configure time out</description>
+          <addressOffset>0xC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00010000</resetValue>
+          <fields>
+            <field>
+              <name>TIME_OUT</name>
+              <description>time out threshold</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SLAVE_ADDR</name>
+          <description>configure slave id</description>
+          <addressOffset>0x10</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SLAVE_ADDR</name>
+              <description>slave address</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>15</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ADDR_10BIT_EN</name>
+              <description>i2c 10bit mode enable</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SCL_HIGH</name>
+          <description>configure high scl period</description>
+          <addressOffset>0x14</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000100</resetValue>
+          <fields>
+            <field>
+              <name>PERIOD</name>
+              <description>time period that scl = 1</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SDA_DUTY</name>
+          <description>configure sda duty</description>
+          <addressOffset>0x18</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000010</resetValue>
+          <fields>
+            <field>
+              <name>NUM</name>
+              <description>time period for SDA to toggle after SCL goes low</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SCL_START_PERIOD</name>
+          <description>configure scl start period</description>
+          <addressOffset>0x1C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000008</resetValue>
+          <fields>
+            <field>
+              <name>SCL_START_PERIOD</name>
+              <description>time period for SCL to toggle after I2C start is triggered</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SCL_STOP_PERIOD</name>
+          <description>configure scl stop period</description>
+          <addressOffset>0x20</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000008</resetValue>
+          <fields>
+            <field>
+              <name>SCL_STOP_PERIOD</name>
+              <description>time period for SCL to stop after I2C end is triggered</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>20</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>INT_CLR</name>
+          <description>interrupt clear register</description>
+          <addressOffset>0x24</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SLAVE_TRAN_COMP_INT_CLR</name>
+              <description>clear slave transit complete interrupt</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>ARBITRATION_LOST_INT_CLR</name>
+              <description>clear arbitration lost interrupt</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>MASTER_TRAN_COMP_INT_CLR</name>
+              <description>clear master transit complete interrupt</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>TRANS_COMPLETE_INT_CLR</name>
+              <description>clear transit complete interrupt</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>TIME_OUT_INT_CLR</name>
+              <description>clear time out interrupt</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>ACK_ERR_INT_CLR</name>
+              <description>clear ack error interrupt</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>RX_DATA_INT_CLR</name>
+              <description>clear receive data interrupt</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>TX_DATA_INT_CLR</name>
+              <description>clear transit load data complete interrupt</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>DETECT_START_INT_CLR</name>
+              <description>clear detect start interrupt</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>INT_RAW</name>
+          <description>interrupt raw register</description>
+          <addressOffset>0x28</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SLAVE_TRAN_COMP_INT_RAW</name>
+              <description>slave transit complete interrupt raw</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>ARBITRATION_LOST_INT_RAW</name>
+              <description>arbitration lost interrupt raw</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>MASTER_TRAN_COMP_INT_RAW</name>
+              <description>master transit complete interrupt raw</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TRANS_COMPLETE_INT_RAW</name>
+              <description>transit complete interrupt raw</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TIME_OUT_INT_RAW</name>
+              <description>time out interrupt raw</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>ACK_ERR_INT_RAW</name>
+              <description>ack error interrupt raw</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>RX_DATA_INT_RAW</name>
+              <description>receive data interrupt raw</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TX_DATA_INT_RAW</name>
+              <description>transit data interrupt raw</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>DETECT_START_INT_RAW</name>
+              <description>detect start interrupt raw</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>INT_ST</name>
+          <description>interrupt state register</description>
+          <addressOffset>0x2C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SLAVE_TRAN_COMP_INT_ST</name>
+              <description>slave transit complete interrupt state</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>ARBITRATION_LOST_INT_ST</name>
+              <description>arbitration lost interrupt state</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>MASTER_TRAN_COMP_INT_ST</name>
+              <description>master transit complete interrupt state</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TRANS_COMPLETE_INT_ST</name>
+              <description>transit complete interrupt state</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TIME_OUT_INT_ST</name>
+              <description>time out interrupt state</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>ACK_ERR_INT_ST</name>
+              <description>ack error interrupt state</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>RX_DATA_INT_ST</name>
+              <description>receive data interrupt state</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>TX_DATA_INT_ST</name>
+              <description>transit data interrupt state</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>DETECT_START_INT_ST</name>
+              <description>detect start interrupt state</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>INT_ENA</name>
+          <description>interrupt enable register</description>
+          <addressOffset>0x30</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SLAVE_TRAN_COMP_INT_ENA</name>
+              <description>enable slave transit complete interrupt</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ARBITRATION_LOST_INT_ENA</name>
+              <description>enable arbitration lost interrupt</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MASTER_TRAN_COMP_INT_ENA</name>
+              <description>enable master transit complete interrupt</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TRANS_COMPLETE_INT_ENA</name>
+              <description>enable transit complete interrupt</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIME_OUT_INT_ENA</name>
+              <description>enable time out interrupt</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>ACK_ERR_INT_ENA</name>
+              <description>enable eack error interrupt</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RX_DATA_INT_ENA</name>
+              <description>enable receive data interrupt</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TX_DATA_INT_ENA</name>
+              <description>enable transit data interrupt</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DETECT_START_INT_ENA</name>
+              <description>enable detect start interrupt</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>DATA</name>
+          <description>get i2c data status</description>
+          <addressOffset>0x34</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>I2C_RDATA</name>
+              <description>data received</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SLAVE_TX_DATA</name>
+              <description>data sent by slave</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>I2C_DONE</name>
+              <description>i2c done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD0</name>
+          <description>i2c commond0 register</description>
+          <addressOffset>0x38</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000903</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND0</name>
+              <description>command0</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND0_DONE</name>
+              <description>command0_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD1</name>
+          <description>i2c commond1 register</description>
+          <addressOffset>0x3C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND1</name>
+              <description>command1</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND1_DONE</name>
+              <description>command1_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD2</name>
+          <description>i2c commond2 register</description>
+          <addressOffset>0x40</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000902</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND2</name>
+              <description>command2</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND2_DONE</name>
+              <description>command2_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD3</name>
+          <description>i2c commond3 register</description>
+          <addressOffset>0x44</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000101</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND3</name>
+              <description>command3</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND3_DONE</name>
+              <description>command3_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD4</name>
+          <description>i2c commond4 register</description>
+          <addressOffset>0x48</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND4</name>
+              <description>command4</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND4_DONE</name>
+              <description>command4_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD5</name>
+          <description>i2c commond5_register</description>
+          <addressOffset>0x4C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001701</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND5</name>
+              <description>command5</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND5_DONE</name>
+              <description>command5_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD6</name>
+          <description>i2c commond6 register</description>
+          <addressOffset>0x50</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND6</name>
+              <description>command6</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND6_DONE</name>
+              <description>command6_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD7</name>
+          <description>i2c commond7 register</description>
+          <addressOffset>0x54</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000904</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND7</name>
+              <description>command7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND7_DONE</name>
+              <description>command7_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD8</name>
+          <description>i2c commond8 register</description>
+          <addressOffset>0x58</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND8</name>
+              <description>command8</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND8_DONE</name>
+              <description>command8_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD9</name>
+          <description>i2c commond9 register</description>
+          <addressOffset>0x5C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000903</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND9</name>
+              <description>command9</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND9_DONE</name>
+              <description>command9_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD10</name>
+          <description>i2c commond10 register</description>
+          <addressOffset>0x60</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000101</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND10</name>
+              <description>command10</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND10_DONE</name>
+              <description>command10_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD11</name>
+          <description>i2c commond11 register</description>
+          <addressOffset>0x64</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00000901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND11</name>
+              <description>command11</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND11_DONE</name>
+              <description>command11_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD12</name>
+          <description>i2c commond12 register</description>
+          <addressOffset>0x68</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001701</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND12</name>
+              <description>command12</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND12_DONE</name>
+              <description>command12_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD13</name>
+          <description>i2c commond13 register</description>
+          <addressOffset>0x6C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x00001901</resetValue>
+          <fields>
+            <field>
+              <name>COMMAND13</name>
+              <description>command13</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND13_DONE</name>
+              <description>command13_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD14</name>
+          <description>i2c commond14 register</description>
+          <addressOffset>0x70</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>COMMAND14</name>
+              <description>command14</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND14_DONE</name>
+              <description>command14_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>CMD15</name>
+          <description>i2c commond15 register</description>
+          <addressOffset>0x74</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>COMMAND15</name>
+              <description>command15</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>14</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>COMMAND15_DONE</name>
+              <description>command15_done</description>
+              <bitOffset>31</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>DATE</name>
+          <description>version register</description>
+          <addressOffset>0xFC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x01905310</resetValue>
+          <fields>
+            <field>
+              <name>I2C_DATE</name>
+              <description>version</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>28</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+    <peripheral>
+      <name>RTC_IO</name>
+      <description>Low-power Input/Output</description>
+      <groupName>RTC_IO</groupName>
+      <baseAddress>0x0000A400</baseAddress>
+      <addressBlock>
+        <offset>0x0</offset>
+        <size>0xF0</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <registers>
+        <register>
+          <name>RTC_GPIO_OUT</name>
+          <description>RTC GPIO 0 ~ 21 output data register</description>
+          <addressOffset>0x0</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>DATA</name>
+              <description>RTC GPIO 0 ~ 21 output data</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_OUT_W1TS</name>
+          <description>one set RTC GPIO output data</description>
+          <addressOffset>0x4</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>RTC_GPIO_OUT_DATA_W1TS</name>
+              <description>RTC GPIO 0 ~ 21 output data write 1 to set</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_OUT_W1TC</name>
+          <description>one clear RTC GPIO output data</description>
+          <addressOffset>0x8</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>RTC_GPIO_OUT_DATA_W1TC</name>
+              <description>RTC GPIO 0 ~ 21 output data write 1 to clear</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_ENABLE</name>
+          <description>Configure RTC GPIO output enable</description>
+          <addressOffset>0xC</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>RTC_GPIO_ENABLE</name>
+              <description>RTC GPIO 0 ~ 21 enable</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_ENABLE_W1TS</name>
+          <description>one set RTC GPIO output enable</description>
+          <addressOffset>0x10</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>RTC_GPIO_ENABLE_W1TS</name>
+              <description>RTC GPIO 0 ~ 21 enable write 1 to set</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_ENABLE_W1TC</name>
+          <description>one clear RTC GPIO output enable</description>
+          <addressOffset>0x14</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>RTC_GPIO_ENABLE_W1TC</name>
+              <description>RTC GPIO 0 ~ 21 enable write 1 to clear</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_STATUS</name>
+          <description>RTC GPIO 0 ~ 21 interrupt status</description>
+          <addressOffset>0x18</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>INT</name>
+              <description>RTC GPIO 0 ~ 21 interrupt status</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_STATUS_W1TS</name>
+          <description>One set RTC GPIO 0 ~ 21 interrupt status</description>
+          <addressOffset>0x1C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>RTC_GPIO_STATUS_INT_W1TS</name>
+              <description>RTC GPIO 0 ~ 21 interrupt status write 1 to set</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_STATUS_W1TC</name>
+          <description>One clear RTC GPIO 0 ~ 21 interrupt status</description>
+          <addressOffset>0x20</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>RTC_GPIO_STATUS_INT_W1TC</name>
+              <description>RTC GPIO 0 ~ 21 interrupt status write 1 to clear</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_IN</name>
+          <description>RTC GPIO input data</description>
+          <addressOffset>0x24</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>NEXT</name>
+              <description>RTC GPIO input data</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>22</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN0</name>
+          <description>configure RTC GPIO0</description>
+          <addressOffset>0x28</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN1</name>
+          <description>configure RTC GPIO1</description>
+          <addressOffset>0x2C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN2</name>
+          <description>configure RTC GPIO2</description>
+          <addressOffset>0x30</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN3</name>
+          <description>configure RTC GPIO3</description>
+          <addressOffset>0x34</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN4</name>
+          <description>configure RTC GPIO4</description>
+          <addressOffset>0x38</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN5</name>
+          <description>configure RTC GPIO5</description>
+          <addressOffset>0x3C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN6</name>
+          <description>configure RTC GPIO6</description>
+          <addressOffset>0x40</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN7</name>
+          <description>configure RTC GPIO7</description>
+          <addressOffset>0x44</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN8</name>
+          <description>configure RTC GPIO8</description>
+          <addressOffset>0x48</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN9</name>
+          <description>configure RTC GPIO9</description>
+          <addressOffset>0x4C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN10</name>
+          <description>configure RTC GPIO10</description>
+          <addressOffset>0x50</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN11</name>
+          <description>configure RTC GPIO11</description>
+          <addressOffset>0x54</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN12</name>
+          <description>configure RTC GPIO12</description>
+          <addressOffset>0x58</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN13</name>
+          <description>configure RTC GPIO13</description>
+          <addressOffset>0x5C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN14</name>
+          <description>configure RTC GPIO14</description>
+          <addressOffset>0x60</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN15</name>
+          <description>configure RTC GPIO15</description>
+          <addressOffset>0x64</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN16</name>
+          <description>configure RTC GPIO16</description>
+          <addressOffset>0x68</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN17</name>
+          <description>configure RTC GPIO17</description>
+          <addressOffset>0x6C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN18</name>
+          <description>configure RTC GPIO18</description>
+          <addressOffset>0x70</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN19</name>
+          <description>configure RTC GPIO19</description>
+          <addressOffset>0x74</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN20</name>
+          <description>configure RTC GPIO20</description>
+          <addressOffset>0x78</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_GPIO_PIN21</name>
+          <description>configure RTC GPIO21</description>
+          <addressOffset>0x7C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>PAD_DRIVER</name>
+              <description>if set to 0: normal output, if set to 1: open drain</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>INT_TYPE</name>
+              <description>if set to 0: GPIO interrupt disable,  if set to 1: rising edge trigger,  if set to 2: falling edge trigger, if set to 3: any edge trigger, if set to 4: low level trigger,  if set to 5: high level trigger</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>3</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>WAKEUP_ENABLE</name>
+              <description>RTC GPIO wakeup enable bit</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_DEBUG_SEL</name>
+          <description>configure rtc debug</description>
+          <addressOffset>0x80</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>RTC_DEBUG_SEL0</name>
+              <description>configure rtc debug</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RTC_DEBUG_SEL1</name>
+              <description>configure rtc debug</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RTC_DEBUG_SEL2</name>
+              <description>configure rtc debug</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RTC_DEBUG_SEL3</name>
+              <description>configure rtc debug</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RTC_DEBUG_SEL4</name>
+              <description>configure rtc debug</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RTC_DEBUG_12M_NO_GATING</name>
+              <description>configure rtc debug</description>
+              <bitOffset>25</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD0</name>
+          <description>configure RTC  PAD0</description>
+          <addressOffset>0x84</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x50000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD1</name>
+          <description>configure RTC  PAD1</description>
+          <addressOffset>0x88</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x48000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD2</name>
+          <description>configure RTC  PAD2</description>
+          <addressOffset>0x8C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x50000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD3</name>
+          <description>configure RTC  PAD3</description>
+          <addressOffset>0x90</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x48000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD4</name>
+          <description>configure RTC  PAD4</description>
+          <addressOffset>0x94</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x50000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD5</name>
+          <description>configure RTC  PAD5</description>
+          <addressOffset>0x98</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x50000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD6</name>
+          <description>configure RTC  PAD6</description>
+          <addressOffset>0x9C</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x48000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD7</name>
+          <description>configure RTC  PAD7</description>
+          <addressOffset>0xA0</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD8</name>
+          <description>configure RTC  PAD8</description>
+          <addressOffset>0xA4</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD9</name>
+          <description>configure RTC  PAD9</description>
+          <addressOffset>0xA8</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD10</name>
+          <description>configure RTC  PAD10</description>
+          <addressOffset>0xAC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD11</name>
+          <description>configure RTC  PAD11</description>
+          <addressOffset>0xB0</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD12</name>
+          <description>configure RTC  PAD12</description>
+          <addressOffset>0xB4</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD13</name>
+          <description>configure RTC  PAD13</description>
+          <addressOffset>0xB8</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_PAD14</name>
+          <description>configure RTC  PAD14</description>
+          <addressOffset>0xBC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>XPD</name>
+              <description>TOUCH_XPD</description>
+              <bitOffset>20</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>TIE_OPT</name>
+              <description>TOUCH_TIE_OPT</description>
+              <bitOffset>21</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>START</name>
+              <description>TOUCH_START</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>XTAL_32P_PAD</name>
+          <description>configure RTC  PAD15</description>
+          <addressOffset>0xC0</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>X32P_FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32P_DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>XTAL_32N_PAD</name>
+          <description>configure RTC  PAD16</description>
+          <addressOffset>0xC4</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>X32N_FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>X32N_DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>PAD_DAC1</name>
+          <description>configure RTC  PAD17</description>
+          <addressOffset>0xC8</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>PDAC1_DAC</name>
+              <description>PDAC1_DAC</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_XPD_DAC</name>
+              <description>PDAC1_XPD_DAC</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_DAC_XPD_FORCE</name>
+              <description>1: use reg_pdac1_xpd_dac to control PDAC1_XPD_DAC,0: use SAR ADC FSM to control PDAC1_XPD_DAC</description>
+              <bitOffset>12</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_FUN_SEL</name>
+              <description>PDAC1 function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_RUE</name>
+              <description>PDAC1_RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_RDE</name>
+              <description>PDAC1_RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC1_DRV</name>
+              <description>PDAC1_DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>PAD_DAC2</name>
+          <description>configure RTC  PAD18</description>
+          <addressOffset>0xCC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x40000000</resetValue>
+          <fields>
+            <field>
+              <name>PDAC2_DAC</name>
+              <description>PDAC2_DAC</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_XPD_DAC</name>
+              <description>PDAC2_XPD_DAC</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_DAC_XPD_FORCE</name>
+              <description>1: use reg_pdac2_xpd_dac to control PDAC2_XPD_DAC,0: use SAR ADC FSM to control PDAC2_XPD_DAC</description>
+              <bitOffset>12</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_FUN_SEL</name>
+              <description>PDAC1 function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_RUE</name>
+              <description>PDAC2_RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_RDE</name>
+              <description>PDAC2_RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>PDAC2_DRV</name>
+              <description>PDAC2_DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_PAD19</name>
+          <description>configure RTC  PAD19</description>
+          <addressOffset>0xD0</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x50000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_PAD20</name>
+          <description>configure RTC  PAD20</description>
+          <addressOffset>0xD4</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x50000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>RTC_PAD21</name>
+          <description>configure RTC  PAD21</description>
+          <addressOffset>0xD8</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x50000000</resetValue>
+          <fields>
+            <field>
+              <name>FUN_IE</name>
+              <description>input enable in work mode</description>
+              <bitOffset>13</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_OE</name>
+              <description>output enable in sleep mode</description>
+              <bitOffset>14</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_IE</name>
+              <description>input enable in sleep mode</description>
+              <bitOffset>15</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SLP_SEL</name>
+              <description>1: enable sleep mode during sleep,0: no sleep mode</description>
+              <bitOffset>16</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>FUN_SEL</name>
+              <description>function sel</description>
+              <bitOffset>17</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>MUX_SEL</name>
+              <description>1: use RTC GPIO,0: use digital GPIO</description>
+              <bitOffset>19</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RUE</name>
+              <description>RUE</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>RDE</name>
+              <description>RDE</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>DRV</name>
+              <description>DRV</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>EXT_WAKEUP0</name>
+          <description>configure EXT0 wakeup</description>
+          <addressOffset>0xDC</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SEL</name>
+              <description>******* Description configure***</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>XTL_EXT_CTR</name>
+          <description>configure gpio pd XTAL</description>
+          <addressOffset>0xE0</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SEL</name>
+              <description>select RTC GPIO 0 ~ 17 to control XTAL</description>
+              <bitOffset>27</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_I2C_IO</name>
+          <description>configure rtc i2c mux</description>
+          <addressOffset>0xE4</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_DEBUG_BIT_SEL</name>
+              <description>******* Description configure***</description>
+              <bitOffset>23</bitOffset>
+              <bitWidth>5</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_SCL_SEL</name>
+              <description>******* Description configure***</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_SDA_SEL</name>
+              <description>******* Description configure***</description>
+              <bitOffset>30</bitOffset>
+              <bitWidth>2</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>TOUCH_CTRL</name>
+          <description>configure touch pad bufmode</description>
+          <addressOffset>0xE8</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>IO_TOUCH_BUFSEL</name>
+              <description>BUF_SEL when touch work without fsm</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>4</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>IO_TOUCH_BUFMODE</name>
+              <description>BUF_MODE when touch work without fsm</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>DATE</name>
+          <description>version</description>
+          <addressOffset>0x1FC</addressOffset>
+          <size>0x20</size>
+          <resetValue>0x02101180</resetValue>
+          <fields>
+            <field>
+              <name>DATE</name>
+              <description>version</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>28</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+    <peripheral>
+      <name>SENS</name>
+      <description>SENS Peripheral</description>
+      <groupName>SENS</groupName>
+      <baseAddress>0x0000C800</baseAddress>
+      <addressBlock>
+        <offset>0x0</offset>
+        <size>0x11C</size>
+        <usage>registers</usage>
+      </addressBlock>
+      <interrupt>
+        <name>TOUCH_DONE_INT</name>
+        <value>0</value>
+      </interrupt>
+      <interrupt>
+        <name>TOUCH_INACTIVE_INT</name>
+        <value>1</value>
+      </interrupt>
+      <interrupt>
+        <name>TOUCH_ACTIVE_INT</name>
+        <value>2</value>
+      </interrupt>
+      <interrupt>
+        <name>SARADC1_DONE_INT</name>
+        <value>3</value>
+      </interrupt>
+      <interrupt>
+        <name>SARADC2_DONE_INT</name>
+        <value>4</value>
+      </interrupt>
+      <interrupt>
+        <name>TSENS_DONE_INT</name>
+        <value>5</value>
+      </interrupt>
+      <interrupt>
+        <name>TOUCH_TIME_OUT_INT</name>
+        <value>9</value>
+      </interrupt>
+      <interrupt>
+        <name>TOUCH_APPROACH_LOOP_DONE_INT</name>
+        <value>10</value>
+      </interrupt>
+      <interrupt>
+        <name>TOUCH_SCAN_DONE_INT</name>
+        <value>11</value>
+      </interrupt>
+      <registers>
+        <register>
+          <name>SAR_SLAVE_ADDR1</name>
+          <description>configure i2c slave address</description>
+          <addressOffset>0x40</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_I2C_SLAVE_ADDR1</name>
+              <description>configure i2c slave address1</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_SLAVE_ADDR0</name>
+              <description>configure i2c slave address0</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_SARADC_MEAS_STATUS</name>
+              <description>no public</description>
+              <bitOffset>22</bitOffset>
+              <bitWidth>8</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_SLAVE_ADDR2</name>
+          <description>configure i2c slave address</description>
+          <addressOffset>0x44</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_I2C_SLAVE_ADDR3</name>
+              <description>configure i2c slave address3</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_SLAVE_ADDR2</name>
+              <description>configure i2c slave address2</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_SLAVE_ADDR3</name>
+          <description>configure i2c slave address</description>
+          <addressOffset>0x48</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_I2C_SLAVE_ADDR5</name>
+              <description>configure i2c slave address5</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_SLAVE_ADDR4</name>
+              <description>configure i2c slave address4</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_SLAVE_ADDR4</name>
+          <description>configure i2c slave address</description>
+          <addressOffset>0x4C</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_I2C_SLAVE_ADDR7</name>
+              <description>configure i2c slave address7</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_SLAVE_ADDR6</name>
+              <description>configure i2c slave address6</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>11</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_I2C_CTRL</name>
+          <description>configure rtc i2c controller by sw</description>
+          <addressOffset>0x58</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_I2C_CTRL</name>
+              <description>I2C control data  only active when reg_sar_i2c_start_force = 1</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>28</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_START</name>
+              <description>start I2C  only active when reg_sar_i2c_start_force = 1</description>
+              <bitOffset>28</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_I2C_START_FORCE</name>
+              <description>1: I2C started by SW  0: I2C started by FSM</description>
+              <bitOffset>29</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_COCPU_INT_RAW</name>
+          <description>the interrupt raw of ulp</description>
+          <addressOffset>0xE8</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_COCPU_TOUCH_DONE_INT_RAW</name>
+              <description>int from touch done</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_INACTIVE_INT_RAW</name>
+              <description>int from touch inactive</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_ACTIVE_INT_RAW</name>
+              <description>int from touch active</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SARADC1_INT_RAW</name>
+              <description>int from saradc1</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SARADC2_INT_RAW</name>
+              <description>int from saradc2</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TSENS_INT_RAW</name>
+              <description>int from tsens</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_START_INT_RAW</name>
+              <description>int from start</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SW_INT_RAW</name>
+              <description>int from software</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SWD_INT_RAW</name>
+              <description>int from super watch dog</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_TIMEOUT_INT_RAW</name>
+              <description>int from timeout done</description>
+              <bitOffset>9</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_APPROACH_LOOP_DONE_INT_RAW</name>
+              <description>int from approach loop done</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_SCAN_DONE_INT_RAW</name>
+              <description>int from touch scan done</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_COCPU_INT_ENA</name>
+          <description>the interrupt enable of ulp</description>
+          <addressOffset>0xEC</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_COCPU_TOUCH_DONE_INT_ENA</name>
+              <description>int enable of touch done</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_INACTIVE_INT_ENA</name>
+              <description>int enable of from touch inactive</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_ACTIVE_INT_ENA</name>
+              <description>int enable of touch active</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SARADC1_INT_ENA</name>
+              <description>int enable of from saradc1</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SARADC2_INT_ENA</name>
+              <description>int enable of from saradc2</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TSENS_INT_ENA</name>
+              <description>int enable of tsens</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_START_INT_ENA</name>
+              <description>int enable of start</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SW_INT_ENA</name>
+              <description>int enable of  software</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SWD_INT_ENA</name>
+              <description>int enable of super watch dog</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_TIMEOUT_INT_ENA</name>
+              <description>int enable of timeout done</description>
+              <bitOffset>9</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_APPROACH_LOOP_DONE_INT_ENA</name>
+              <description>int enable of approach loop done</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_SCAN_DONE_INT_ENA</name>
+              <description>int enable of touch scan done</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-write</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_COCPU_INT_ST</name>
+          <description>the interrupt state of ulp</description>
+          <addressOffset>0xF0</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_COCPU_TOUCH_DONE_INT_ST</name>
+              <description>int state of touch done</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_INACTIVE_INT_ST</name>
+              <description>int state of from touch inactive</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_ACTIVE_INT_ST</name>
+              <description>int state of touch active</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SARADC1_INT_ST</name>
+              <description>int state of from saradc1</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SARADC2_INT_ST</name>
+              <description>int state of from saradc2</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TSENS_INT_ST</name>
+              <description>int state of tsens</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_START_INT_ST</name>
+              <description>int state of start</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SW_INT_ST</name>
+              <description>int state of  software</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SWD_INT_ST</name>
+              <description>int state of super watch dog</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_TIMEOUT_INT_ST</name>
+              <description>int state of timeout done</description>
+              <bitOffset>9</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_APPROACH_LOOP_DONE_INT_ST</name>
+              <description>int state of approach loop done</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_SCAN_DONE_INT_ST</name>
+              <description>int state of touch scan done</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>read-only</access>
+            </field>
+          </fields>
+        </register>
+        <register>
+          <name>SAR_COCPU_INT_CLR</name>
+          <description>the interrupt clear of ulp</description>
+          <addressOffset>0xF4</addressOffset>
+          <size>0x20</size>
+          <fields>
+            <field>
+              <name>SAR_COCPU_TOUCH_DONE_INT_CLR</name>
+              <description>int clear of touch done</description>
+              <bitOffset>0</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_INACTIVE_INT_CLR</name>
+              <description>int clear of from touch inactive</description>
+              <bitOffset>1</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_ACTIVE_INT_CLR</name>
+              <description>int clear of touch active</description>
+              <bitOffset>2</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SARADC1_INT_CLR</name>
+              <description>int clear of from saradc1</description>
+              <bitOffset>3</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SARADC2_INT_CLR</name>
+              <description>int clear of from saradc2</description>
+              <bitOffset>4</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TSENS_INT_CLR</name>
+              <description>int clear of tsens</description>
+              <bitOffset>5</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_START_INT_CLR</name>
+              <description>int clear of start</description>
+              <bitOffset>6</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SW_INT_CLR</name>
+              <description>int clear of  software</description>
+              <bitOffset>7</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_SWD_INT_CLR</name>
+              <description>int clear of super watch dog</description>
+              <bitOffset>8</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_TIMEOUT_INT_CLR</name>
+              <description>int clear of timeout done</description>
+              <bitOffset>9</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_APPROACH_LOOP_DONE_INT_CLR</name>
+              <description>int clear of approach loop done</description>
+              <bitOffset>10</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+            <field>
+              <name>SAR_COCPU_TOUCH_SCAN_DONE_INT_CLR</name>
+              <description>int clear of touch scan done</description>
+              <bitOffset>11</bitOffset>
+              <bitWidth>1</bitWidth>
+              <access>write-only</access>
+            </field>
+          </fields>
+        </register>
+      </registers>
+    </peripheral>
+  </peripherals>
+</device>
