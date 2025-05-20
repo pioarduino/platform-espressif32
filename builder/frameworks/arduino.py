@@ -274,6 +274,21 @@ if check_reinstall_frwrk() == True:
 if flag_custom_sdkconfig == True and flag_any_custom_sdkconfig == False:
     call_compile_libs()
 
+#
+# Custom target: firmware-metrics using esp-idf-size
+#
+def print_firmware_metrics(target, source, env):
+    map_file = os.path.join(env.subst("$BUILD_DIR"), "firmware.map")
+    if os.path.isfile(map_file):
+        try:
+            import esp-idf-size
+            print("[INFO] Running esp-idf-size on %s" % map_file)
+            env.Execute("$PYTHONEXE -m esp-idf-size \" \"{map_file}\"")
+        except:
+            pass
+
+env.AlwaysBuild(env.Alias("firmware-metrics", None, print_firmware_metrics))
+
 if "arduino" in env.subst("$PIOFRAMEWORK") and "espidf" not in env.subst("$PIOFRAMEWORK") and env.subst("$ARDUINO_LIB_COMPILE_FLAG") in ("Inactive", "True"):
     if IS_WINDOWS:
         env.AddBuildMiddleware(shorthen_includes)
@@ -283,3 +298,17 @@ if "arduino" in env.subst("$PIOFRAMEWORK") and "espidf" not in env.subst("$PIOFR
     else:
         PIO_BUILD = "pioarduino-build.py"
     SConscript(join(platform.get_package_dir("framework-arduinoespressif32"), "tools", PIO_BUILD))
+    #
+    # Custom target: firmware-metrics using esp-idf-size
+    #
+    def print_firmware_metrics(target, source, env):
+        map_file = os.path.join(env.subst("$BUILD_DIR"), "firmware.map")
+        if os.path.isfile(map_file):
+            try:
+                import esp-idf-size
+                print("[INFO] Running esp-idf-size on %s" % map_file)
+                env.Execute("$PYTHONEXE -m esp-idf-size \" \"{map_file}\"")
+            except:
+                pass
+
+    env.AlwaysBuild(env.Alias("firmware-metrics", None, print_firmware_metrics))
