@@ -362,6 +362,19 @@ env.Append(
 if not env.get("PIOFRAMEWORK"):
     env.SConscript("frameworks/_bare.py", exports="env")
 
+
+def print_firmware_metrics(target, source, env):
+    map_file = os.path.join(env.subst("$BUILD_DIR"), "firmware.map")
+    if os.path.isfile(map_file):
+        try:
+            import esp_idf_size
+            print("[INFO] Running esp-idf-size on %s" % map_file)
+            env.Execute("$PYTHONEXE -m esp-idf-size \" \"{map_file}\"")
+        except:
+            pass
+
+#env.AlwaysBuild(env.Alias("firmware-metrics", None, print_firmware_metrics))
+
 #
 # Target: Build executable and linkable firmware or FS image
 #
@@ -560,19 +573,6 @@ elif upload_protocol == "custom":
 
 else:
     sys.stderr.write("Warning! Unknown upload protocol %s\n" % upload_protocol)
-
-
-def print_firmware_metrics(target, source, env):
-    map_file = os.path.join(env.subst("$BUILD_DIR"), "firmware.map")
-    if os.path.isfile(map_file):
-        try:
-            import esp_idf_size
-            print("[INFO] Running esp-idf-size on %s" % map_file)
-            env.Execute("$PYTHONEXE -m esp-idf-size \" \"{map_file}\"")
-        except:
-            pass
-
-env.AlwaysBuild(env.Alias("firmware-metrics", None, print_firmware_metrics))
 
 
 env.AddPlatformTarget("upload", target_firm, upload_actions, "Upload")
