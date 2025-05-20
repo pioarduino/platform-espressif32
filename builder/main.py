@@ -369,7 +369,7 @@ def print_firmware_metrics(target, source, env):
         try:
             import esp_idf_size
             #print("[INFO] Running esp-idf-size on %s" % map_file)
-            env.Execute("$PYTHONEXE -m esp_idf_size \"${MAP_FILE}\"")
+            env.Execute(f"$PYTHONEXE -m esp_idf_size \"{map_file}\"")
         except:
             pass
 
