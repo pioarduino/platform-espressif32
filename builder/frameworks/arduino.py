@@ -290,7 +290,7 @@ if "arduino" in env.subst("$PIOFRAMEWORK") and "espidf" not in env.subst("$PIOFR
         map_file = os.path.join(env.subst("$BUILD_DIR"), "firmware.map")
         if os.path.isfile(map_file):
             try:
-                import esp-idf-size
+                import esp_idf_size
                 print("[INFO] Running esp-idf-size on %s" % map_file)
                 env.Execute("$PYTHONEXE -m esp-idf-size \" \"{map_file}\"")
             except:
