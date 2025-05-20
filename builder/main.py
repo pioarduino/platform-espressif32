@@ -22,6 +22,8 @@ from SCons.Script import (
 
 from platformio.util import get_serial_ports
 
+import os
+
 env = DefaultEnvironment()
 platform = env.PioPlatform()
 projectconfig = env.GetProjectConfig()
@@ -68,11 +70,9 @@ def _normalize_frequency(frequency):
     frequency = str(frequency).replace("L", "")
     return str(int(int(frequency) / 1000000)) + "m"
 
-
 def _get_board_f_flash(env):
     frequency = env.subst("$BOARD_F_FLASH")
     return _normalize_frequency(frequency)
-
 
 def _get_board_f_image(env):
     board_config = env.BoardConfig()
@@ -88,7 +88,6 @@ def _get_board_f_boot(env):
 
     return _get_board_f_flash(env)
 
-
 def _get_board_flash_mode(env):
     if _get_board_memory_type(env) in (
         "opi_opi",
@@ -101,14 +100,12 @@ def _get_board_flash_mode(env):
         return "dio"
     return mode
 
-
 def _get_board_boot_mode(env):
     memory_type = env.BoardConfig().get("build.arduino.memory_type", "")
     build_boot = env.BoardConfig().get("build.boot", "$BOARD_FLASH_MODE")
     if memory_type in ("opi_opi", "opi_qspi"):
         build_boot = "opi"
     return build_boot
-
 
 def _parse_size(value):
     if isinstance(value, int):
@@ -121,7 +118,6 @@ def _parse_size(value):
         base = 1024 if value[-1].upper() == "K" else 1024 * 1024
         return int(value[:-1]) * base
     return value
-
 
 def _parse_partitions(env):
     partitions_csv = env.subst("$PARTITIONS_TABLE_CSV")
@@ -163,7 +159,6 @@ def _parse_partitions(env):
     env["INTEGRATION_EXTRA_DATA"].update({"application_offset": str(hex(app_offset))})
     return result
 
-
 def _update_max_upload_size(env):
     if not env.get("PARTITIONS_TABLE_CSV"):
         return
@@ -192,16 +187,12 @@ def _update_max_upload_size(env):
             board.update("upload.maximum_size", _parse_size(p["size"]))
             break
 
-
-
 def _to_unix_slashes(path):
     return path.replace("\\", "/")
-
 
 #
 # Filesystem helpers
 #
-
 
 def fetch_fs_size(env):
     fs = None
@@ -226,11 +217,9 @@ def fetch_fs_size(env):
         env["FS_START"] += 4096
         env["FS_SIZE"] -= 4096
 
-
 def __fetch_fs_size(target, source, env):
     fetch_fs_size(env)
     return (target, source)
-
 
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
@@ -305,6 +294,12 @@ env.Replace(
     ARDUINO_LIB_COMPILE_FLAG="Inactive",
 
     PROGSUFFIX=".elf"
+)
+
+# Ensure firmware.map is generated during linking
+# needed for idf-size
+env.Append(
+    LINKFLAGS=["-Wl,-Map=${BUILD_DIR}/firmware.map"]
 )
 
 # Check if lib_archive is set in platformio.ini and set it to False
@@ -564,6 +559,24 @@ elif upload_protocol == "custom":
 
 else:
     sys.stderr.write("Warning! Unknown upload protocol %s\n" % upload_protocol)
+
+#
+# Custom target: firmware-metrics using esp-idf-size
+#
+def print_firmware_metrics(target, source, env):
+    map_file = os.path.join(env.subst("$BUILD_DIR"), "firmware.map")
+    espidf_path = env.subst("$IDF_PATH")
+    size_tool = os.path.join(espidf_path, "tools", "idf_size.py")
+    if not os.path.isfile(map_file):
+        print("[ERROR] Map file not found: %s" % map_file)
+        return 1
+    if not os.path.isfile(size_tool):
+        print("[ERROR] esp-idf-size tool not found: %s" % size_tool)
+        return 1
+    print("[INFO] Running esp-idf-size on %s" % map_file)
+    os.system(f"python \"{size_tool}\" \"{map_file}\"")
+
+env.AlwaysBuild(env.Alias("firmware-metrics", None, print_firmware_metrics))
 
 env.AddPlatformTarget("upload", target_firm, upload_actions, "Upload")
 env.AddPlatformTarget("uploadfs", target_firm, upload_actions, "Upload Filesystem Image")
