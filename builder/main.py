@@ -17,7 +17,7 @@ import sys
 from os.path import isfile, join
 
 from SCons.Script import (
-    Action, ARGUMENTS, COMMAND_LINE_TARGETS, AlwaysBuild, Builder, Default,
+    ARGUMENTS, COMMAND_LINE_TARGETS, AlwaysBuild, Builder, Default,
     DefaultEnvironment)
 
 from platformio.util import get_serial_ports
@@ -225,7 +225,7 @@ board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 toolchain_arch = "xtensa-%s" % mcu
 filesystem = board.get("build.filesystem", "spiffs")
-if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4"):
+if mcu in ("esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4"):
     toolchain_arch = "riscv32-esp"
 
 if "INTEGRATION_EXTRA_DATA" not in env:
@@ -246,7 +246,7 @@ env.Replace(
     GDB=join(
         platform.get_package_dir(
             "tool-riscv32-esp-elf-gdb"
-            if mcu in ("esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4")
+            if mcu in ("esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4")
             else "tool-xtensa-esp-elf-gdb"
         )
         or "",
@@ -295,6 +295,15 @@ env.Replace(
 
     PROGSUFFIX=".elf"
 )
+
+# Generate firmware.map during linking when flag SHOW_METRICS is set
+# only needed for IDF projects since map file is default build with Arduino projects
+if "CPPDEFINES" in env:
+    flatten_cppdefines = env.Flatten(env['CPPDEFINES'])
+    if "SHOW_METRICS" in flatten_cppdefines:
+        env.Append(
+            LINKFLAGS=['-Wl,-Map="%s"' % join("${BUILD_DIR}", "${PROGNAME}.map")]
+        )
 
 # Check if lib_archive is set in platformio.ini and set it to False
 # if not found. This makes weak defs in framework and libs possible.
