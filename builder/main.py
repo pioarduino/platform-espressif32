@@ -368,10 +368,10 @@ def firmware_metrics(target, source, env):
     if os.path.isfile(map_file):
         try:
             import subprocess
-            with open(os.devnull, 'w') as devnull:
-                subprocess.call([
-                    env.subst("$PYTHONEXE"), "-m", "esp_idf_size", map_file
-                ], stdout=devnull, stderr=devnull)
+            # This will print the output of esp_idf_size, but suppresses the command echo
+            subprocess.run([
+                env.subst("$PYTHONEXE"), "-m", "esp_idf_size", map_file
+            ], check=False)
         except Exception:
             pass
 
