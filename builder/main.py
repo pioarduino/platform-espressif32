@@ -300,6 +300,7 @@ env.Replace(
 if "CPPDEFINES" in env:
     flatten_cppdefines = env.Flatten(env['CPPDEFINES'])
     if "SHOW_METRICS" in flatten_cppdefines:
+        print("Flatten CPPDEFINES: ", flatten_cppdefines)
         env.Append(
             LINKFLAGS=["-Wl,-Map=${BUILD_DIR}/firmware.map"]
         )
