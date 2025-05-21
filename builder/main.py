@@ -389,9 +389,14 @@ if "nobuild" in COMMAND_LINE_TARGETS:
         target_firm = join("$BUILD_DIR", "${PROGNAME}.bin")
 else:
     target_elf = env.BuildProgram()
-    silent_action = Action(firmware_metrics)
-    silent_action.strfunction = lambda target, source, env: '' # hack to silence scons command output
-    env.AddPostAction(target_elf, silent_action)
+    #silent_action = Action(firmware_metrics)
+    #silent_action.strfunction = lambda target, source, env: '' # hack to silence scons command output
+    #env.AddPostAction(target_elf, silent_action)
+    env.AddPostAction(
+        "firmware_metrics",
+        env.VerboseAction(
+            lambda target, source, env: '',
+            "Showing firmware metrics $SOURCES"))
     if set(["buildfs", "uploadfs", "uploadfsota"]) & set(COMMAND_LINE_TARGETS):
         target_firm = env.DataToBin(
             join("$BUILD_DIR", "${ESP32_FS_IMAGE_NAME}"), "$PROJECT_DATA_DIR"
@@ -401,31 +406,31 @@ else:
     else:
         target_firm = env.ElfToBin(
             join("$BUILD_DIR", "${PROGNAME}"), target_elf)
-        #env.Depends(target_firm, "checkprogsize")
+        env.Depends(target_firm, "checkprogsize")
 
 env.AddPlatformTarget("buildfs", target_firm, target_firm, "Build Filesystem Image")
 AlwaysBuild(env.Alias("nobuild", target_firm))
 target_buildprog = env.Alias("buildprog", target_firm, target_firm)
 
 # update max upload size based on CSV file
-#if env.get("PIOMAINPROG"):
-#    env.AddPreAction(
-#        "checkprogsize",
-#        env.VerboseAction(
-#            lambda source, target, env: _update_max_upload_size(env),
-#            "Retrieving maximum program size $SOURCES"))
+if env.get("PIOMAINPROG"):
+    env.AddPreAction(
+        "checkprogsize",
+        env.VerboseAction(
+            lambda source, target, env: _update_max_upload_size(env),
+            "Retrieving maximum program size $SOURCES"))
 
 #
 # Target: Print binary size
 #
 
-#target_size = env.AddPlatformTarget(
-#    "size",
-#    target_elf,
-#    env.VerboseAction("$SIZEPRINTCMD", "Calculating size $SOURCE"),
-#    "Program Size",
-#    "Calculate program size",
-#)
+target_size = env.AddPlatformTarget(
+    "size",
+    target_elf,
+    env.VerboseAction("$SIZEPRINTCMD", "Calculating size $SOURCE"),
+    "Program Size",
+    "Calculate program size",
+)
 
 #
 # Target: Upload firmware or FS image
@@ -621,5 +626,4 @@ env.SConscript("sizedata.py", exports="env")
 # Default targets
 #
 
-Default([target_buildprog])
-# Default([target_buildprog, target_size])
+Default([target_buildprog, target_size])
