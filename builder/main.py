@@ -389,14 +389,9 @@ if "nobuild" in COMMAND_LINE_TARGETS:
         target_firm = join("$BUILD_DIR", "${PROGNAME}.bin")
 else:
     target_elf = env.BuildProgram()
-    #silent_action = Action(firmware_metrics)
-    #silent_action.strfunction = lambda target, source, env: '' # hack to silence scons command output
-    #env.AddPostAction(target_elf, silent_action)
-    env.AddPostAction(
-        "firmware_metrics",
-        env.VerboseAction(
-            lambda target, source, env: '',
-            "Showing firmware metrics $SOURCES"))
+    silent_action = Action(firmware_metrics)
+    silent_action.strfunction = lambda target, source, env: '' # hack to silence scons command output
+    env.AddPostAction(target_elf, silent_action)
     if set(["buildfs", "uploadfs", "uploadfsota"]) & set(COMMAND_LINE_TARGETS):
         target_firm = env.DataToBin(
             join("$BUILD_DIR", "${ESP32_FS_IMAGE_NAME}"), "$PROJECT_DATA_DIR"
