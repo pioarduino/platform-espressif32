@@ -156,6 +156,16 @@ if (
 ):
     print("Warning! Debugging an IDF project requires PlatformIO Core >= 6.1.11!")
 
+# Generate firmware.map during linking when flag SHOW_METRICS is set
+if "CPPDEFINES" in env:
+    print("******* CPPDEFINES:", env["CPPDEFINES"])
+    flatten_cppdefines = env.Flatten(env['CPPDEFINES'])
+    print("******* Flattened CPPDEFINES:", flatten_cppdefines)
+    if "SHOW_METRICS" in flatten_cppdefines:
+        env.Append(
+            LINKFLAGS=['-Wl,-Map="%s"' % join("${BUILD_DIR}", "${PROGNAME}.map")]
+        )
+
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     ARDUINO_FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
     ARDUINO_FRMWRK_LIB_DIR = platform.get_package_dir("framework-arduinoespressif32-libs")

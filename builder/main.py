@@ -296,15 +296,6 @@ env.Replace(
     PROGSUFFIX=".elf"
 )
 
-# Generate firmware.map during linking when flag SHOW_METRICS is set
-# only needed for IDF projects since map file is default build with Arduino projects
-if "CPPDEFINES" in env:
-    flatten_cppdefines = env.Flatten(env['CPPDEFINES'])
-    if "SHOW_METRICS" in flatten_cppdefines:
-        env.Append(
-            LINKFLAGS=['-Wl,-Map="%s"' % join("${BUILD_DIR}", "${PROGNAME}.map")]
-        )
-
 # Check if lib_archive is set in platformio.ini and set it to False
 # if not found. This makes weak defs in framework and libs possible.
 def check_lib_archive_exists():
