@@ -56,7 +56,7 @@ if os.environ.get("PYTHONPATH"):
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
 
-# remove old map file
+# remove maybe existing old map file in project root
 map_file = os.path.join(env.subst("$PROJECT_DIR"), env.subst("$PROGNAME") + ".map")
 if os.path.exists(map_file):
     os.remove(map_file)
@@ -1801,7 +1801,9 @@ if "CPPDEFINES" in env:
     flatten_cppdefines = env.Flatten(env['CPPDEFINES'])
     if "SHOW_METRICS" in flatten_cppdefines:
         # This will add the linker flag for the map file
-        extra_cmake_args.append('-DCMAKE_EXE_LINKER_FLAGS=-Wl,-Map=firmware.map')
+        extra_cmake_args.append(
+            '-DCMAKE_EXE_LINKER_FLAGS=-Wl,-Map=${BUILD_DIR}/${PROGNAME}.map'
+        )
 
 # Add any extra args from board config
 extra_cmake_args += click.parser.split_arg_string(board.get("build.cmake_extra_args", ""))
