@@ -621,4 +621,5 @@ env.SConscript("sizedata.py", exports="env")
 # Default targets
 #
 
-Default([target_buildprog, target_size])
+Default([target_buildprog])
+# Default([target_buildprog, target_size])
