@@ -56,6 +56,11 @@ if os.environ.get("PYTHONPATH"):
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
 
+# remove old map file
+map_file = os.path.join(env.subst("$PROJECT_DIR"), env.subst("$PROGNAME") + ".map")
+if os.path.exists(map_file):
+    os.remove(map_file)
+
 def install_standard_python_deps():
     def _get_installed_standard_pip_packages():
         result = {}
