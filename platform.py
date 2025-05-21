@@ -120,8 +120,8 @@ class Espressif32Platform(PlatformBase):
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
-            # use branch master
-            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
+            # use branch release/v3.3.x
+            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/release/v3.3.x/package/package_esp32_index.template.json"
             packjdata = requests.get(URL).json()
             dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
             self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
@@ -276,7 +276,7 @@ class Espressif32Platform(PlatformBase):
         # A special case for the Kaluga board that has a separate interface config
         if board.id == "esp32-s2-kaluga-1":
             supported_debug_tools.append("ftdi")
-        if board.get("build.mcu", "") in ("esp32c3", "esp32c6", "esp32s3", "esp32h2"):
+        if board.get("build.mcu", "") in ("esp32c3", "esp32c5", "esp32c6", "esp32s3", "esp32h2", "esp32p4"):
             supported_debug_tools.append("esp-builtin")
 
         upload_protocol = board.manifest.get("upload", {}).get("protocol")
