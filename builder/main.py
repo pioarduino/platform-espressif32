@@ -17,7 +17,7 @@ import sys
 from os.path import isfile, join
 
 from SCons.Script import (
-    ARGUMENTS, COMMAND_LINE_TARGETS, AlwaysBuild, Builder, Default,
+    Action, ARGUMENTS, COMMAND_LINE_TARGETS, AlwaysBuild, Builder, Default,
     DefaultEnvironment)
 
 from platformio.util import get_serial_ports
@@ -363,7 +363,7 @@ if not env.get("PIOFRAMEWORK"):
     env.SConscript("frameworks/_bare.py", exports="env")
 
 
-def print_firmware_metrics(target, source, env):
+def firmware_metrics(target, source, env):
     map_file = os.path.join(env.subst("$BUILD_DIR"), "firmware.map")
     if os.path.isfile(map_file):
         try:
@@ -387,7 +387,8 @@ if "nobuild" in COMMAND_LINE_TARGETS:
         target_firm = join("$BUILD_DIR", "${PROGNAME}.bin")
 else:
     target_elf = env.BuildProgram()
-    env.AddPostAction(target_elf, print_firmware_metrics)
+    silent_action = Action(firmware_metrics, quiet=True)
+    env.AddPostAction(target_elf, firmware_metrics)
     if set(["buildfs", "uploadfs", "uploadfsota"]) & set(COMMAND_LINE_TARGETS):
         target_firm = env.DataToBin(
             join("$BUILD_DIR", "${ESP32_FS_IMAGE_NAME}"), "$PROJECT_DATA_DIR"
