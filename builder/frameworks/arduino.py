@@ -273,7 +273,7 @@ if check_reinstall_frwrk() == True:
     
 if flag_custom_sdkconfig == True and flag_any_custom_sdkconfig == False:
     call_compile_libs()
-print("LINKFLAGS:", env.get('LINKFLAGS'))
+
 if "arduino" in env.subst("$PIOFRAMEWORK") and "espidf" not in env.subst("$PIOFRAMEWORK") and env.subst("$ARDUINO_LIB_COMPILE_FLAG") in ("Inactive", "True"):
     if IS_WINDOWS:
         env.AddBuildMiddleware(shorthen_includes)
