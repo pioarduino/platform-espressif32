@@ -21,6 +21,7 @@ from SCons.Script import (
     DefaultEnvironment)
 
 from platformio.util import get_serial_ports
+from platformio.project.helpers import get_project_dir
 
 import os
 
@@ -359,6 +360,11 @@ if not env.get("PIOFRAMEWORK"):
 
 def firmware_metrics(target, source, env):
     map_file = os.path.join(env.subst("$BUILD_DIR"), env.subst("$PROGNAME") + ".map")
+    if not os.path.isfile(map_file):
+        # map file can be in project dir
+        project_dir = get_project_dir()
+        map_file = os.path.join(project_dir, env.subst("$PROGNAME") + ".map")
+        print("MAP directory:", map_file)
     if os.path.isfile(map_file):
         try:
             import subprocess
