@@ -401,31 +401,31 @@ else:
     else:
         target_firm = env.ElfToBin(
             join("$BUILD_DIR", "${PROGNAME}"), target_elf)
-        env.Depends(target_firm, "checkprogsize")
+        #env.Depends(target_firm, "checkprogsize")
 
 env.AddPlatformTarget("buildfs", target_firm, target_firm, "Build Filesystem Image")
 AlwaysBuild(env.Alias("nobuild", target_firm))
 target_buildprog = env.Alias("buildprog", target_firm, target_firm)
 
 # update max upload size based on CSV file
-if env.get("PIOMAINPROG"):
-    env.AddPreAction(
-        "checkprogsize",
-        env.VerboseAction(
-            lambda source, target, env: _update_max_upload_size(env),
-            "Retrieving maximum program size $SOURCES"))
+#if env.get("PIOMAINPROG"):
+#    env.AddPreAction(
+#        "checkprogsize",
+#        env.VerboseAction(
+#            lambda source, target, env: _update_max_upload_size(env),
+#            "Retrieving maximum program size $SOURCES"))
 
 #
 # Target: Print binary size
 #
 
-target_size = env.AddPlatformTarget(
-    "size",
-    target_elf,
-    env.VerboseAction("$SIZEPRINTCMD", "Calculating size $SOURCE"),
-    "Program Size",
-    "Calculate program size",
-)
+#target_size = env.AddPlatformTarget(
+#    "size",
+#    target_elf,
+#    env.VerboseAction("$SIZEPRINTCMD", "Calculating size $SOURCE"),
+#    "Program Size",
+#    "Calculate program size",
+#)
 
 #
 # Target: Upload firmware or FS image
