@@ -402,6 +402,7 @@ def get_project_lib_includes(env):
 
     return paths
 
+print("****** Linker flags:", env.get("LINKFLAGS"))
 
 def is_cmake_reconfigure_required(cmake_api_reply_dir):
     cmake_cache_file = os.path.join(BUILD_DIR, "CMakeCache.txt")
