@@ -367,10 +367,12 @@ def firmware_metrics(target, source, env):
     map_file = os.path.join(env.subst("$BUILD_DIR"), "firmware.map")
     if os.path.isfile(map_file):
         try:
-            import esp_idf_size
-            #print("[INFO] Running esp-idf-size on %s" % map_file)
-            env.Execute(f"$PYTHONEXE -m esp_idf_size \"{map_file}\"")
-        except:
+            import subprocess
+            with open(os.devnull, 'w') as devnull:
+                subprocess.call([
+                    env.subst("$PYTHONEXE"), "-m", "esp_idf_size", map_file
+                ], stdout=devnull, stderr=devnull)
+        except Exception:
             pass
 
 #
