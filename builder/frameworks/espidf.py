@@ -1802,7 +1802,7 @@ if "CPPDEFINES" in env:
     if "SHOW_METRICS" in flatten_cppdefines:
         # This will add the linker flag for the map file
         extra_cmake_args.append(
-            '-DCMAKE_EXE_LINKER_FLAGS=-Wl,-Map=${BUILD_DIR}/${PROGNAME}.map'
+            f'-DCMAKE_EXE_LINKER_FLAGS=-Wl,-Map={os.path.join(BUILD_DIR, env.subst("$PROGNAME") + ".map")}'
         )
 
 # Add any extra args from board config
