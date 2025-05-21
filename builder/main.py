@@ -296,8 +296,6 @@ env.Replace(
     PROGSUFFIX=".elf"
 )
 
-print("LINKFLAGS:", env["LINKFLAGS"])
-
 # Check if lib_archive is set in platformio.ini and set it to False
 # if not found. This makes weak defs in framework and libs possible.
 def check_lib_archive_exists():
