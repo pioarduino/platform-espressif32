@@ -83,7 +83,8 @@ def install_standard_python_deps():
     deps = {
         "wheel": ">=0.35.1",
         "rich-click": ">=1.8.6",
-        "PyYAML": ">=6.0.2"
+        "PyYAML": ">=6.0.2",
+        "esp-idf-size": ">=1.6.1"
     }
 
     installed_packages = _get_installed_standard_pip_packages()
