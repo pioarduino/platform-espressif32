@@ -296,14 +296,7 @@ env.Replace(
     PROGSUFFIX=".elf"
 )
 
-# Generate firmware.map during linking when flag SHOW_METRICS is set
-if "CPPDEFINES" in env:
-    flatten_cppdefines = env.Flatten(env['CPPDEFINES'])
-    if "SHOW_METRICS" in flatten_cppdefines:
-        print("Flatten CPPDEFINES: ", flatten_cppdefines)
-        env.Append(
-            LINKFLAGS=["-Wl,-Map=${BUILD_DIR}/firmware.map"]
-        )
+print("LINKFLAGS:", env["LINKFLAGS"])
 
 # Check if lib_archive is set in platformio.ini and set it to False
 # if not found. This makes weak defs in framework and libs possible.
