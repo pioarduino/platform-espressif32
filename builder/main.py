@@ -372,6 +372,7 @@ def firmware_metrics(target, source, env):
                 env.subst("$PYTHONEXE"), "-m", "esp_idf_size", "--ng", map_file
             ], check=False)
         except Exception:
+            print("Warning: Failed to run firmware metrics. Is esp-idf-size installed?")
             pass
 
 #
