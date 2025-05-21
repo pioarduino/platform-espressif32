@@ -1800,7 +1800,7 @@ if "CPPDEFINES" in env:
 
 # Add any extra args from board config
 extra_cmake_args += click.parser.split_arg_string(board.get("build.cmake_extra_args", ""))
-print("CMake args: %s" % extra_cmake_args)
+
 print("Reading CMake configuration...")
 project_codemodel = get_cmake_code_model(
     PROJECT_DIR,

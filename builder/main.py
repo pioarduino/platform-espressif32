@@ -362,9 +362,8 @@ def firmware_metrics(target, source, env):
     map_file = os.path.join(env.subst("$BUILD_DIR"), env.subst("$PROGNAME") + ".map")
     if not os.path.isfile(map_file):
         # map file can be in project dir
-        project_dir = get_project_dir()
-        map_file = os.path.join(project_dir, env.subst("$PROGNAME") + ".map")
-        print("MAP directory:", map_file)
+        map_file = os.path.join(get_project_dir(), env.subst("$PROGNAME") + ".map")
+
     if os.path.isfile(map_file):
         try:
             import subprocess
