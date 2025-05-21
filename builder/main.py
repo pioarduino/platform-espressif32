@@ -358,7 +358,7 @@ if not env.get("PIOFRAMEWORK"):
 
 
 def firmware_metrics(target, source, env):
-    map_file = os.path.join(env.subst("$BUILD_DIR"), "firmware.map")
+    map_file = os.path.join(env.subst("$BUILD_DIR"), env.subst("$PROGNAME") + ".map")
     if os.path.isfile(map_file):
         try:
             import subprocess
