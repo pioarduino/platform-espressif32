@@ -129,8 +129,8 @@ class Espressif32Platform(PlatformBase):
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
-            # use branch release/v3.3.x
-            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/release/v3.3.x/package/package_esp32_index.template.json"
+            # use branch master
+            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
             packjdata = requests.get(URL).json()
             dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
             self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url

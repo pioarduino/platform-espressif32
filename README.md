@@ -7,7 +7,6 @@
 Espressif Systems is a privately held, fabless semiconductor company renowned for delivering cost-effective wireless communication microcontrollers. Their innovative solutions are widely adopted in mobile devices and Internet of Things (IoT) applications around the globe.
 
 ## General
-
 * Issues with boards (wrong / missing). All issues caused from boards will not be fixed from the maintainer(s). A PR needs to be provided against branch `develop` to solve.
 * No support for the Arduino Nora Nano board, issues needs to be solved by the community
 ## IDE Preparation
