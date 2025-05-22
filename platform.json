@@ -18,7 +18,7 @@
     "type": "git",
     "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "55.03.30+develop",
+  "version": "54.03.20+develop",
   "frameworks": {
     "arduino": {
       "script": "builder/frameworks/arduino.py"
@@ -33,7 +33,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/archive/release/v3.3.x.zip"
+      "version": "https://github.com/espressif/arduino-esp32/archive/master.zip"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
@@ -45,7 +45,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/55.03.30-alpha1/c2_arduino_compile_skeleton.zip"
+      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/54.03.20/c2_arduino_compile_skeleton.zip"
     },
     "framework-espidf": {
       "type": "framework",
