@@ -121,7 +121,7 @@ def install_python_deps():
         env.Execute(
             env.VerboseAction(
                 (
-                    '"$PYTHONEXE" -m pip install -U '
+                    '"$PYTHONEXE" -m pip install -U -q -q -q '
                     + " ".join(
                         [
                             '"%s%s"' % (p, deps[p])
