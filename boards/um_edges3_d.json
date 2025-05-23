@@ -6,10 +6,10 @@
     },
     "core": "esp32",
     "extra_flags": [
-      "-DARDUINO_TINYS3",
+      "-DARDUINO_EDGES3[D]",
       "-DBOARD_HAS_PSRAM",
       "-DARDUINO_USB_CDC_ON_BOOT=1",
-      "-DARDUINO_USB_MODE=1",
+	  "-DARDUINO_USB_MODE=1",
       "-DARDUINO_RUNNING_CORE=1",
       "-DARDUINO_EVENT_RUNNING_CORE=1"
     ],
@@ -19,11 +19,11 @@
     "hwids": [
       [
         "0X303A",
-        "0x80D0"
+        "0x82DC"
       ]
     ],
     "mcu": "esp32s3",
-    "variant": "um_tinys3"
+    "variant": "um_edges3_d"
   },
   "connectivity": [
     "bluetooth",
@@ -36,7 +36,7 @@
     "arduino",
     "espidf"
   ],
-  "name": "Unexpected Maker TinyS3",
+  "name": "Unexpected Maker EDGES3[D]",
   "upload": {
     "flash_size": "8MB",
     "maximum_ram_size": 327680,
@@ -44,6 +44,6 @@
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://unexpectedmaker.com/shop/tinys3",
+  "url": "https://unexpectedmaker.com/",
   "vendor": "Unexpected Maker"
 }
