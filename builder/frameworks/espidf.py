@@ -599,10 +599,15 @@ def extract_defines(compile_group):
         define_string = define_string.strip()
         if "=" in define_string:
             define, value = define_string.split("=", maxsplit=1)
-            if any(char in value for char in (' ', '<', '>')):
+            needs_quotes = (
+                not value.isalnum()
+                or " " in value
+                or value == ""
+                or any(char in value for char in (' ', '<', '>', '-', ':', '.', '/'))
+            )
+            value = value.replace('"', '\\"')
+            if needs_quotes and not (value.startswith('"') and value.endswith('"')):
                 value = f'"{value}"'
-            elif '"' in value and not value.startswith("\\"):
-                value = value.replace('"', '\\"')
             return (define, value)
         return define_string
 
