@@ -599,9 +599,10 @@ def extract_defines(compile_group):
         define_string = define_string.strip()
         if "=" in define_string:
             define, value = define_string.split("=", maxsplit=1)
+        if define == "OPENTHREAD_BUILD_DATETIME":
+            return (define, '"Unknown"')
             if any(char in value for char in (' ', '<', '>')):
-                # FIX: Escaped quotes für C-String-Literal
-                value = f'\\""{value}\\"'  # Erzeugt: \"May 24 2025 17:03:00\"
+                value = f'"{value}"'
             elif '"' in value and not value.startswith("\\"):
                 value = value.replace('"', '\\"')
             return (define, value)
