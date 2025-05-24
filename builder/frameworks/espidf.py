@@ -600,8 +600,9 @@ def extract_defines(compile_group):
         if "=" in define_string:
             define, value = define_string.split("=", maxsplit=1)
             if any(char in value for char in (' ', '<', '>')):
-                value = f'"{value}"'
-            if '"' in value and not value.startswith("\\"):
+                # FIX: Escaped quotes für C-String-Literal
+                value = f'\\""{value}\\"'  # Erzeugt: \"May 24 2025 17:03:00\"
+            elif '"' in value and not value.startswith("\\"):
                 value = value.replace('"', '\\"')
             return (define, value)
         return define_string
