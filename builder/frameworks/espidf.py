@@ -605,7 +605,7 @@ def extract_defines(compile_group):
                 or value == ""
                 or any(char in value for char in (' ', '<', '>', '-', ':', '.', '/'))
             )
-            value = value.replace('"', '\\"')
+            value = value.replace('\\', '\\\\').replace('"', '\\"')
             if needs_quotes and not (value.startswith('"') and value.endswith('"')):
                 value = f'"{value}"'
             return (define, value)
