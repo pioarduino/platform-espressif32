@@ -66,7 +66,11 @@ FRAMEWORK_LIB_DIR = platform.get_package_dir("framework-arduinoespressif32-libs"
 FRAMEWORK_SDK_DIR = fs.to_unix_path(join(FRAMEWORK_LIB_DIR, mcu, "include"))
 
 # Configuration flags
-entry_custom_sdkconfig = config.get(f"env:{pioenv}", "custom_sdkconfig", fallback="\n")
+if config.has_option(f"env:{pioenv}", "custom_sdkconfig"):
+    entry_custom_sdkconfig = config.get(f"env:{pioenv}", "custom_sdkconfig")
+else:
+    entry_custom_sdkconfig = "\n"
+
 flag_custom_sdkconfig = (
     config.has_option(f"env:{pioenv}", "custom_sdkconfig") or 
     len(str(board_sdkconfig)) > 2
