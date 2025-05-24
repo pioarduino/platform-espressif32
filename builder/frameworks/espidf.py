@@ -599,8 +599,9 @@ def extract_defines(compile_group):
         define_string = define_string.strip()
         if "=" in define_string:
             define, value = define_string.split("=", maxsplit=1)
+            if any(char in value for char in (' ', '<', '>')):
+                value = f'"{value}"'
             if '"' in value and not value.startswith("\\"):
-                # Escape only raw values
                 value = value.replace('"', '\\"')
             return (define, value)
         return define_string
