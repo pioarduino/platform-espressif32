@@ -612,9 +612,12 @@ def extract_defines(compile_group):
 
     for f in compile_group.get("compileCommandFragments", []):
         fragment = f.get("fragment", "").strip()
+        if fragment.startswith('"'):
+            fragment = fragment.strip('"')
         if fragment.startswith("-D"):
-            define = fragment[2:].strip()
-            result.append(_normalize_define(define))
+            result.append(_normalize_define(fragment[2:]))
+
+    return result
 
 
 def get_app_defines(app_config):
