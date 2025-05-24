@@ -37,7 +37,7 @@ from platformio.package.version import pepver_to_semver
 from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
 
-# Globale Variablen für bessere Performance
+# Global variables for better performance
 env = DefaultEnvironment()
 pm = ToolPackageManager()
 platform = env.PioPlatform()
@@ -48,11 +48,11 @@ board_sdkconfig = board.get("espidf.custom_sdkconfig", "")
 IS_WINDOWS = sys.platform.startswith("win")
 IS_INTEGRATION_DUMP = env.IsIntegrationDump()
 
-# Cache für häufig verwendete Werte
+# Cache for frequently used values
 FRAMEWORK_LIB_DIR = platform.get_package_dir("framework-arduinoespressif32-libs")
 FRAMEWORK_SDK_DIR = fs.to_unix_path(join(FRAMEWORK_LIB_DIR, mcu, "include"))
 
-# Optimierte Konfigurationserkennung
+# Optimized configuration detection
 entry_custom_sdkconfig = "\n"
 flag_custom_sdkconfig = False
 pioenv = env["PIOENV"]
@@ -73,7 +73,7 @@ flag_any_custom_sdkconfig = exists(join(FRAMEWORK_LIB_DIR, "sdkconfig"))
 
 SConscript("_embed_files.py", exports="env")
 
-# Optimierte ESP32-Solo1 Konfiguration
+# Optimized ESP32-Solo1 configuration
 if (flag_custom_sdkconfig and 
     ("CORE32SOLO1" in extra_flags or 
      "CONFIG_FREERTOS_UNICORE=y" in entry_custom_sdkconfig or 
@@ -86,7 +86,7 @@ if (flag_custom_sdkconfig and
     build_unflags += " -mdisable-hardware-atomics -ustart_app_other_cores"
     env.Replace(BUILD_UNFLAGS=build_unflags.split())
 
-# Cache für installierte Pakete
+# Cache for installed packages
 _installed_packages_cache = None
 
 def install_python_deps():
@@ -140,11 +140,11 @@ def install_python_deps():
 
 install_python_deps()
 
-# Optimierte MD5-Hash-Funktion
+# Optimized MD5 hash function
 def get_MD5_hash(phrase):
     return hashlib.md5(phrase.encode('utf-8')).hexdigest()[:16]
 
-# Cache für sdkconfig-Matching
+# Cache for sdkconfig matching
 _sdkconfig_cache = {}
 
 def matching_custom_sdkconfig():
@@ -202,7 +202,7 @@ def check_reinstall_frwrk():
     
     return False
 
-# Optimierte Include-Pfad-Verkürzung
+# Optimized include path shortening
 def shorthen_includes(env, node):
     if IS_INTEGRATION_DUMP:
         return node
@@ -235,7 +235,7 @@ def is_framework_subfolder(potential_subfolder):
     return (os.path.commonpath([FRAMEWORK_SDK_DIR]) == 
             os.path.commonpath([FRAMEWORK_SDK_DIR, potential_subfolder]))
 
-# Cache für Framework-Erkennung
+# Cache for framework detection
 _current_env_frameworks = None
 
 def get_frameworks_in_current_env():
@@ -266,7 +266,7 @@ def call_compile_libs():
     print(f"*** Compile Arduino IDF libs for {pioenv} ***")
     SConscript("espidf.py")
 
-# Hauptlogik für Framework-Neuinstallation
+# Main logic for framework reinstallation
 if check_reinstall_frwrk():
     envs = [section.replace("env:", "") for section in config.sections() 
             if section.startswith("env:")]
@@ -279,7 +279,7 @@ if check_reinstall_frwrk():
     
     print("*** Reinstall Arduino framework ***")
     
-    # Parallele Löschung vorbereiten
+    # Prepare parallel deletion
     dirs_to_remove = [
         platform.get_package_dir("framework-arduinoespressif32"),
         platform.get_package_dir("framework-arduinoespressif32-libs")
@@ -289,7 +289,7 @@ if check_reinstall_frwrk():
         if exists(dir_path):
             shutil.rmtree(dir_path)
     
-    # URLs extrahieren und installieren
+    # Extract URLs and install
     arduino_frmwrk_url = str(platform.get_package_spec("framework-arduinoespressif32")).split("uri=", 1)[1][:-1]
     arduino_frmwrk_lib_url = str(platform.get_package_spec("framework-arduinoespressif32-libs")).split("uri=", 1)[1][:-1]
     
@@ -303,7 +303,7 @@ if check_reinstall_frwrk():
 if flag_custom_sdkconfig and not flag_any_custom_sdkconfig:
     call_compile_libs()
 
-# Finale Ausführung
+# Final execution
 pioframework = env.subst("$PIOFRAMEWORK")
 arduino_lib_compile_flag = env.subst("$ARDUINO_LIB_COMPILE_FLAG")
 
