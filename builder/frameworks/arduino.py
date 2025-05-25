@@ -31,7 +31,7 @@ import shutil
 import hashlib
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 from os.path import join, exists
 
 from SCons.Script import COMMAND_LINE_TARGETS, DefaultEnvironment, SConscript
