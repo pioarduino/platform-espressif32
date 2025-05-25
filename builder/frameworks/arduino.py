@@ -310,8 +310,7 @@ if ("arduino" in pioframework and
         env.AddBuildMiddleware(shorthen_includes)
     
     framework_dir = platform.get_package_dir("framework-arduinoespressif32")
-    pio_build_path = Path(framework_dir) / "tools" / "platformio-build.py"
+    pio_build_path = Path(framework_dir) / "tools" / "pioarduino-build.py"
     
-    build_script = "platformio-build.py" if pio_build_path.exists() else "pioarduino-build.py"
-    SConscript(join(framework_dir, "tools", build_script))
+    SConscript(join(framework_dir, pio_build_path))
 
