@@ -14,6 +14,7 @@
 
 import os
 import contextlib
+import requests
 import json
 import subprocess
 import sys
@@ -21,6 +22,7 @@ import shutil
 import logging
 from functools import lru_cache
 from typing import Optional, Dict, List, Any
+from os.path import join
 
 from platformio.public import PlatformBase, to_unix_path
 from platformio.proc import get_pythonexe_path
