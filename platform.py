@@ -14,15 +14,12 @@
 
 import os
 import contextlib
-import requests
 import json
 import subprocess
 import sys
 import shutil
 import logging
-from functools import lru_cache
 from typing import Optional, Dict, List, Any
-from os.path import join
 
 from platformio.public import PlatformBase, to_unix_path
 from platformio.proc import get_pythonexe_path
@@ -36,7 +33,11 @@ MKLITTLEFS_VERSION_320 = "3.2.0"
 MKLITTLEFS_VERSION_400 = "4.0.0"
 DEFAULT_DEBUG_SPEED = "5000"
 DEFAULT_APP_OFFSET = "0x10000"
+
 ARDUINO_ESP32_PACKAGE_URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
+
+# MCUs that support ESP-builtin debug
+ESP_BUILTIN_DEBUG_MCUS = frozenset(["esp32c3", "esp32c5", "esp32c6", "esp32s3", "esp32h2", "esp32p4"])
 
 # MCU configuration
 MCU_TOOLCHAIN_CONFIG = {
@@ -96,7 +97,7 @@ def safe_file_operation(operation_func):
             return False
         except Exception as e:
             logger.error(f"Unexpected error in {operation_func.__name__}: {e}")
-            return False
+            raise  # Re-raise unexpected exceptions
     return wrapper
 
 
@@ -123,6 +124,7 @@ class Espressif32Platform(PlatformBase):
         super().__init__(*args, **kwargs)
         self._packages_dir = None
         self._tools_cache = {}
+        self._mcu_config_cache = {}
 
     @property
     def packages_dir(self) -> str:
@@ -167,13 +169,12 @@ class Espressif32Platform(PlatformBase):
         ]
 
         try:
-            with open(os.devnull, 'w') as devnull:
-                result = subprocess.run(
-                    cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=SUBPROCESS_TIMEOUT
-                )
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=SUBPROCESS_TIMEOUT
+            )
 
             if result.returncode != 0:
                 logger.error("idf_tools.py installation failed")
@@ -317,13 +318,17 @@ class Espressif32Platform(PlatformBase):
 
     def _get_mcu_config(self, mcu: str) -> Optional[Dict]:
         """MCU configuration with optimized search"""
-        for arch_name, config in MCU_TOOLCHAIN_CONFIG.items():
+        if mcu in self._mcu_config_cache:
+            return self._mcu_config_cache[mcu]
+
+        for _, config in MCU_TOOLCHAIN_CONFIG.items():
             if mcu in config["mcus"]:
                 # Dynamically add ULP toolchain
                 result = config.copy()
                 result["ulp_toolchain"] = ["toolchain-esp32ulp"]
                 if mcu != "esp32":
                     result["ulp_toolchain"].append("toolchain-riscv32-esp")
+                self._mcu_config_cache[mcu] = result
                 return result
         return None
 
@@ -331,7 +336,7 @@ class Espressif32Platform(PlatformBase):
         """Check if debug tools are needed"""
         return bool(
             variables.get("build_type") or
-            "debug" in "".join(targets) or
+            "debug" in targets or
             variables.get("upload_protocol")
         )
 
@@ -483,7 +488,7 @@ class Espressif32Platform(PlatformBase):
             logger.info("Package configuration completed successfully")
 
         except Exception as e:
-            logger.error(f"Error in package configuration: {e}")
+            logger.error(f"Error in package configuration: {type(e).__name__}: {e}")
             # Don't re-raise to maintain compatibility
 
         return super().configure_default_packages(variables, targets)
@@ -512,9 +517,17 @@ class Espressif32Platform(PlatformBase):
         debug = board.manifest.get("debug", {})
         non_debug_protocols = ["esptool", "espota"]
         supported_debug_tools = [
-            "cmsis-dap", "esp-prog", "esp-bridge", "iot-bus-jtag", "jlink",
-            "minimodule", "olimex-arm-usb-tiny-h", "olimex-arm-usb-ocd-h",
-            "olimex-arm-usb-ocd", "olimex-jtag-tiny", "tumpa"
+            "cmsis-dap",
+            "esp-prog",
+            "esp-bridge",
+            "iot-bus-jtag",
+            "jlink",
+            "minimodule",
+            "olimex-arm-usb-tiny-h",
+            "olimex-arm-usb-ocd-h",
+            "olimex-arm-usb-ocd",
+            "olimex-jtag-tiny",
+            "tumpa"
         ]
 
         # Special configuration for Kaluga board
@@ -523,7 +536,7 @@ class Espressif32Platform(PlatformBase):
 
         # ESP-builtin for certain MCUs
         mcu = board.get("build.mcu", "")
-        if mcu in ("esp32c3", "esp32c5", "esp32c6", "esp32s3", "esp32h2", "esp32p4"):
+        if mcu in ESP_BUILTIN_DEBUG_MCUS:
             supported_debug_tools.append("esp-builtin")
 
         upload_protocol = board.manifest.get("upload", {}).get("protocol")
@@ -595,10 +608,16 @@ class Espressif32Platform(PlatformBase):
 
     def _get_debug_server_args(self, openocd_interface: str, debug: Dict) -> List[str]:
         """Generate debug server arguments"""
+        if 'openocd_target' in debug:
+            config_type = 'target'
+            config_name = debug.get('openocd_target')
+        else:
+            config_type = 'board'
+            config_name = debug.get('openocd_board')
         return [
             "-s", "$PACKAGE_DIR/share/openocd/scripts",
             "-f", f"interface/{openocd_interface}.cfg",
-            "-f", f"{('target', debug.get('openocd_target')) if 'openocd_target' in debug else ('board', debug.get('openocd_board'))}"
+            "-f", f"{config_type}/{config_name}.cfg"
         ]
 
     def configure_debug_session(self, debug_config):
