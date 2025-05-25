@@ -276,20 +276,20 @@ class Espressif32Platform(PlatformBase):
             safe_remove_directory(paths['tool_path'])
             return self.install_tool(tool_name, retry_count + 1)
 
-     def _get_arduino_package_data(self) -> Optional[Dict]:
-         """Cached HTTP request for Arduino package data"""
-         if hasattr(self, '_arduino_package_cache'):
-             return self._arduino_package_cache
-            
-         try:
-             response = requests.get(ARDUINO_ESP32_PACKAGE_URL, timeout=30)
-             response.raise_for_status()
-             self._arduino_package_cache = response.json()
-             return self._arduino_package_cache
-         except requests.RequestException as e:
-             logger.error(f"Error fetching Arduino package data: {e}")
-             self._arduino_package_cache = None
-             return None
+    def _get_arduino_package_data(self) -> Optional[Dict]:
+        """Cached HTTP request for Arduino package data"""
+        if hasattr(self, '_arduino_package_cache'):
+            return self._arduino_package_cache
+         
+        try:
+            response = requests.get(ARDUINO_ESP32_PACKAGE_URL, timeout=30)
+            response.raise_for_status()
+            self._arduino_package_cache = response.json()
+            return self._arduino_package_cache
+        except requests.RequestException as e:
+            logger.error(f"Error fetching Arduino package data: {e}")
+            self._arduino_package_cache = None
+            return None
 
     def _configure_arduino_framework(self, frameworks: List[str]) -> None:
         """Configure Arduino framework"""
