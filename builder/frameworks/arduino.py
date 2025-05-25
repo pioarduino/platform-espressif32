@@ -281,8 +281,15 @@ def reinstall_framework() -> None:
     ]
     
     for spec in arduino_specs:
-        url = str(spec).split("uri=", 1)[1][:-1]
-        pm.install(url)
+        try:
+            spec_str = str(spec)
+            if "uri=" in spec_str:
+                url = spec_str.split("uri=", 1)[1][:-1]
+                pm.install(url)
+            else:
+                print(f"Warning: Could not extract URL from spec: {spec}")
+        except Exception as e:
+            print(f"Error processing spec {spec}: {e}")
 
 # Setup ESP32-Solo1 configuration
 setup_esp32_solo1_config()
