@@ -32,7 +32,7 @@ import hashlib
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Tuple
-from os.path import join, exists
+from os.path import join, exists, relpath
 
 from SCons.Script import COMMAND_LINE_TARGETS, DefaultEnvironment, SConscript
 from platformio import fs
