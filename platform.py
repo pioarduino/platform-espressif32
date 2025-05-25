@@ -21,7 +21,7 @@ import sys
 import shutil
 import logging
 from functools import lru_cache
-from typing import Dict, List, Any
+from typing import Optional, Dict, List, Any
 
 from platformio.public import PlatformBase, to_unix_path
 from platformio.proc import get_pythonexe_path
