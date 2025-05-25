@@ -182,25 +182,34 @@ def check_reinstall_framework() -> bool:
 def shorthen_includes(env, node):
     """Optimize include paths for Windows builds."""
     if IS_INTEGRATION_DUMP:
+        # Don't shorten include paths for IDE integrations
         return node
 
-    includes = [fs.to_unix_path(inc) for inc in env.get("CPPPATH", [])]
+    # Local references for better performance
+    env_get = env.get
+    to_unix_path = fs.to_unix_path
+    ccflags = env["CCFLAGS"]
+    asflags = env["ASFLAGS"]
+    
+    includes = [to_unix_path(inc) for inc in env_get("CPPPATH", [])]
     shortened_includes = []
     generic_includes = []
     
     for inc in includes:
         if is_framework_subfolder(inc):
-            rel_path = fs.to_unix_path(os.path.relpath(inc, FRAMEWORK_SDK_DIR))
-            shortened_includes.append(f"-iwithprefix/{rel_path}")
+            shortened_includes.append(
+                "-iwithprefix/" + to_unix_path(relpath(inc, FRAMEWORK_SDK_DIR))
+            )
         else:
             generic_includes.append(inc)
 
     common_flags = ["-iprefix", FRAMEWORK_SDK_DIR] + shortened_includes
+    
     return env.Object(
         node,
         CPPPATH=generic_includes,
-        CCFLAGS=env["CCFLAGS"] + common_flags,
-        ASFLAGS=env["ASFLAGS"] + common_flags,
+        CCFLAGS=ccflags + common_flags,
+        ASFLAGS=asflags + common_flags,
     )
 
 def is_framework_subfolder(potential_subfolder: str) -> bool:
