@@ -29,6 +29,7 @@ import os
 import sys
 import shutil
 import hashlib
+from pathlib import Path
 from os.path import join, exists, isabs, splitdrive, commonpath, relpath
 
 from SCons.Script import DefaultEnvironment, SConscript
@@ -58,21 +59,24 @@ class PathCache:
         self._framework_dir = None
         self._framework_lib_dir = None
         self._sdk_dir = None
+        self._project_dir = None
     
     @property
     def framework_dir(self):
         if self._framework_dir is None:
-            self._framework_dir = self.platform.get_package_dir("framework-arduinoespressif32")
-            if not self._framework_dir or not exists(self._framework_dir):
+            framework_path = self.platform.get_package_dir("framework-arduinoespressif32")
+            if not framework_path or not Path(framework_path).exists():
                 raise RuntimeError("Arduino framework package not found")
+            self._framework_dir = framework_path
         return self._framework_dir
     
     @property
     def framework_lib_dir(self):
         if self._framework_lib_dir is None:
-            self._framework_lib_dir = self.platform.get_package_dir("framework-arduinoespressif32-libs")
-            if not self._framework_lib_dir or not exists(self._framework_lib_dir):
+            lib_path = self.platform.get_package_dir("framework-arduinoespressif32-libs")
+            if not lib_path or not Path(lib_path).exists():
                 raise RuntimeError("Arduino framework libs package not found")
+            self._framework_lib_dir = lib_path
         return self._framework_lib_dir
     
     @property 
@@ -82,6 +86,12 @@ class PathCache:
                 join(self.framework_lib_dir, self.mcu, "include")
             )
         return self._sdk_dir
+    
+    @property
+    def project_dir(self):
+        if self._project_dir is None:
+            self._project_dir = Path(env.subst("$PROJECT_DIR"))
+        return self._project_dir
 
 # Initialization
 env = DefaultEnvironment()
@@ -93,7 +103,6 @@ board = env.BoardConfig()
 # Cached values
 mcu = board.get("build.mcu", "esp32")
 pioenv = env["PIOENV"]
-project_dir = env.subst("$PROJECT_DIR")
 path_cache = PathCache(platform, mcu)
 
 # Board configuration
@@ -123,7 +132,7 @@ FRAMEWORK_SDK_DIR = path_cache.sdk_dir
 
 SConscript("_embed_files.py", exports="env")
 
-flag_any_custom_sdkconfig = exists(join(FRAMEWORK_LIB_DIR, "sdkconfig"))
+flag_any_custom_sdkconfig = (Path(FRAMEWORK_LIB_DIR) / "sdkconfig").exists()
 
 def has_unicore_flags():
     """Check if any UNICORE flags are present in configuration"""
@@ -189,15 +198,15 @@ def matching_custom_sdkconfig():
     if not flag_any_custom_sdkconfig:
         return True, cust_sdk_is_present
         
-    last_sdkconfig_path = join(project_dir, "sdkconfig.defaults")
-    if not exists(last_sdkconfig_path):
+    last_sdkconfig_path = path_cache.project_dir / "sdkconfig.defaults"
+    if not last_sdkconfig_path.exists():
         return False, cust_sdk_is_present
         
     if not flag_custom_sdkconfig:
         return False, cust_sdk_is_present
     
     try:
-        with open(last_sdkconfig_path) as src:
+        with last_sdkconfig_path.open('r') as src:
             line = src.readline()
             if line.startswith("# TASMOTA__"):
                 cust_sdk_is_present = True
@@ -226,13 +235,14 @@ def check_reinstall_frwrk():
 def call_compile_libs():
     # ESP32-C2 special handling
     if mcu == "esp32c2":
-        arduino_frmwrk_c2_lib_dir = join(FRAMEWORK_LIB_DIR, mcu)
-        if not exists(arduino_frmwrk_c2_lib_dir):
-            arduino_c2_dir = join(
-                platform.get_package_dir("framework-arduino-c2-skeleton-lib"), mcu
-            )
-            if exists(arduino_c2_dir):
-                shutil.copytree(arduino_c2_dir, arduino_frmwrk_c2_lib_dir, dirs_exist_ok=True)
+        arduino_frmwrk_c2_lib_dir = Path(FRAMEWORK_LIB_DIR) / mcu
+        if not arduino_frmwrk_c2_lib_dir.exists():
+            arduino_c2_source = Path(
+                platform.get_package_dir("framework-arduino-c2-skeleton-lib")
+            ) / mcu
+            
+            if arduino_c2_source.exists():
+                shutil.copytree(arduino_c2_source, arduino_frmwrk_c2_lib_dir, dirs_exist_ok=True)
     
     print(f"*** Compile Arduino IDF libs for {pioenv} ***")
     SConscript("espidf.py")
@@ -280,28 +290,34 @@ def get_frameworks_in_current_env():
     """Determines the frameworks of the current environment"""
     if "framework" in config.options(current_env_section):
         frameworks_str = config.get(current_env_section, "framework", "")
-        return frameworks_str.split(",") if isinstance(frameworks_str, str) else frameworks_str
+        return frameworks_str.split(",") if frameworks_str else []
     return []
+
+def clean_sdkconfig_files():
+    """Clean up existing sdkconfig files using pathlib"""
+    envs = [section.replace("env:", "") for section in config.sections() 
+            if section.startswith("env:")]
+    
+    for env_name in envs:
+        sdkconfig_file = path_cache.project_dir / f"sdkconfig.{env_name}"
+        if sdkconfig_file.exists():
+            sdkconfig_file.unlink()
 
 def reinstall_framework():
     """Reinstall Arduino framework packages"""
-    envs = [section.replace("env:", "") for section in config.sections() if section.startswith("env:")]
-    for env_name in envs:
-        file_path = join(project_dir, f"sdkconfig.{env_name}")
-        if exists(file_path):
-            os.remove(file_path)
+    clean_sdkconfig_files()
     
     print("*** Reinstall Arduino framework ***")
     
-    # Remove framework directories
-    framework_dirs = [
-        path_cache.framework_dir,
-        path_cache.framework_lib_dir
+    # Remove framework directories using pathlib
+    framework_paths = [
+        Path(path_cache.framework_dir),
+        Path(path_cache.framework_lib_dir)
     ]
     
-    for dir_path in framework_dirs:
-        if exists(dir_path):
-            shutil.rmtree(dir_path)
+    for framework_path in framework_paths:
+        if framework_path.exists():
+            shutil.rmtree(framework_path)
     
     # Extract URLs and install packages
     arduino_specs = [
@@ -326,7 +342,6 @@ if "arduino" in current_env_frameworks and "espidf" in current_env_frameworks:
 # Framework reinstallation if required
 if check_reinstall_frwrk():
     reinstall_framework()
-    
     if flag_custom_sdkconfig:
         call_compile_libs()
         flag_custom_sdkconfig = False
@@ -344,7 +359,7 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
     if IS_WINDOWS:
         env.AddBuildMiddleware(shorthen_includes)
     
-    # Arduino SCons build script
-    build_script_path = join(path_cache.framework_dir, "tools", "pioarduino-build.py")
-    SConscript(build_script_path)
+    # Arduino SCons build script using pathlib for cleaner path construction
+    build_script_path = Path(path_cache.framework_dir) / "tools" / "pioarduino-build.py"
+    SConscript(str(build_script_path))
 
