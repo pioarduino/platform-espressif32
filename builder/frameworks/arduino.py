@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Arduino
+Arduino Framework for ESP32
 
 Arduino Wiring-based Framework allows writing cross-platform software to
 control devices attached to a wide range of Arduino boards to create all
@@ -28,14 +28,27 @@ import semantic_version
 import os
 import sys
 import shutil
-from os.path import join, exists
+import hashlib
+from functools import lru_cache
+from pathlib import Path
+from typing import Dict, List, Tuple
+from os.path import join, exists, relpath
 
-from SCons.Script import COMMAND_LINE_TARGETS, DefaultEnvironment, SConscript
+from SCons.Script import DefaultEnvironment, SConscript
 from platformio import fs
 from platformio.package.version import pepver_to_semver
-from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
 
+# Constants
+PYTHON_DEPS = {
+    "wheel": ">=0.35.1",
+    "rich-click": ">=1.8.6", 
+    "PyYAML": ">=6.0.2",
+    "intelhex": ">=2.3.0",
+    "esp-idf-size": ">=1.6.1"
+}
+
+# Global environment setup
 env = DefaultEnvironment()
 pm = ToolPackageManager()
 platform = env.PioPlatform()
@@ -43,243 +56,276 @@ config = env.GetProjectConfig()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 board_sdkconfig = board.get("espidf.custom_sdkconfig", "")
-entry_custom_sdkconfig = "\n"
-flag_custom_sdkconfig = False
 IS_WINDOWS = sys.platform.startswith("win")
+IS_INTEGRATION_DUMP = env.IsIntegrationDump()
+pioenv = env["PIOENV"]
 
-if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig"):
-    entry_custom_sdkconfig = env.GetProjectOption("custom_sdkconfig")
-    flag_custom_sdkconfig = True
-
-if len(str(board_sdkconfig)) > 2:
-    flag_custom_sdkconfig = True
-
-extra_flags = (''.join([element for element in board.get("build.extra_flags", "")])).replace("-D", " ")
-framework_reinstall = False
-flag_any_custom_sdkconfig = False
-
+# Framework paths
 FRAMEWORK_LIB_DIR = platform.get_package_dir("framework-arduinoespressif32-libs")
+FRAMEWORK_SDK_DIR = fs.to_unix_path(join(FRAMEWORK_LIB_DIR, mcu, "include"))
 
+# Configuration flags
+if config.has_option(f"env:{pioenv}", "custom_sdkconfig"):
+    entry_custom_sdkconfig = config.get(f"env:{pioenv}", "custom_sdkconfig")
+else:
+    entry_custom_sdkconfig = "\n"
+
+flag_custom_sdkconfig = (
+    config.has_option(f"env:{pioenv}", "custom_sdkconfig") or 
+    len(str(board_sdkconfig)) > 2
+)
+
+# Process extra flags
+extra_flags_raw = board.get("build.extra_flags", [])
+extra_flags = (" ".join(extra_flags_raw) if isinstance(extra_flags_raw, list) 
+               else str(extra_flags_raw)).replace("-D", " ")
+
+flag_any_custom_sdkconfig = exists(join(FRAMEWORK_LIB_DIR, "sdkconfig"))
+
+# Load embedded files
 SConscript("_embed_files.py", exports="env")
 
-flag_any_custom_sdkconfig = os.path.exists(join(platform.get_package_dir("framework-arduinoespressif32-libs"),"sdkconfig"))
+def setup_esp32_solo1_config() -> None:
+    """Configure ESP32-Solo1 specific settings."""
+    solo1_conditions = [
+        "CORE32SOLO1" in extra_flags,
+        "CONFIG_FREERTOS_UNICORE=y" in entry_custom_sdkconfig,
+        "CONFIG_FREERTOS_UNICORE=y" in board_sdkconfig
+    ]
+    
+    if flag_custom_sdkconfig and any(solo1_conditions):
+        if len(str(env.GetProjectOption("build_unflags"))) == 2:
+            env['BUILD_UNFLAGS'] = {}
+        
+        build_unflags = " ".join(env['BUILD_UNFLAGS'])
+        build_unflags += " -mdisable-hardware-atomics -ustart_app_other_cores"
+        env.Replace(BUILD_UNFLAGS=build_unflags.split())
 
-# Esp32-solo1 libs needs adopted settings
-if flag_custom_sdkconfig == True and ("CORE32SOLO1" in extra_flags or "CONFIG_FREERTOS_UNICORE=y" in entry_custom_sdkconfig or "CONFIG_FREERTOS_UNICORE=y" in board_sdkconfig):
-    if len(str(env.GetProjectOption("build_unflags"))) == 2: # No valid env, needs init
-        env['BUILD_UNFLAGS'] = {}
-    build_unflags = " ".join(env['BUILD_UNFLAGS'])
-    build_unflags = build_unflags + " -mdisable-hardware-atomics -ustart_app_other_cores"
-    new_build_unflags = build_unflags.split()
-    env.Replace(
-      BUILD_UNFLAGS=new_build_unflags
-    )
+@lru_cache(maxsize=1)
+def get_installed_pip_packages() -> Dict[str, str]:
+    """Get list of installed pip packages with caching."""
+    try:
+        pip_output = subprocess.check_output([
+            env.subst("$PYTHONEXE"), "-m", "pip", "list", 
+            "--format=json", "--disable-pip-version-check"
+        ], timeout=30)
+        packages = json.loads(pip_output)
+        return {p["name"]: pepver_to_semver(p["version"]) for p in packages}
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, json.JSONDecodeError):
+        print("Warning! Couldn't extract the list of installed Python packages.")
+        return {}
 
-def install_python_deps():
-    def _get_installed_pip_packages():
-        result = {}
-        packages = {}
-        pip_output = subprocess.check_output(
-            [
-                env.subst("$PYTHONEXE"),
-                "-m",
-                "pip",
-                "list",
-                "--format=json",
-                "--disable-pip-version-check",
-            ]
-        )
-        try:
-            packages = json.loads(pip_output)
-        except:
-            print("Warning! Couldn't extract the list of installed Python packages.")
-            return {}
-        for p in packages:
-            result[p["name"]] = pepver_to_semver(p["version"])
-
-        return result
-
-    deps = {
-        "wheel": ">=0.35.1",
-        "rich-click": ">=1.8.6",
-        "PyYAML": ">=6.0.2",
-        "intelhex": ">=2.3.0",
-        "esp-idf-size": ">=1.6.1"
-    }
-
-    installed_packages = _get_installed_pip_packages()
+def install_python_deps() -> None:
+    """Install required Python dependencies efficiently."""
+    installed_packages = get_installed_pip_packages()
     packages_to_install = []
-    for package, spec in deps.items():
+    
+    for package, spec in PYTHON_DEPS.items():
         if package not in installed_packages:
-            packages_to_install.append(package)
+            packages_to_install.append(f"{package}{spec}")
         else:
             version_spec = semantic_version.Spec(spec)
             if not version_spec.match(installed_packages[package]):
-                packages_to_install.append(package)
+                packages_to_install.append(f"{package}{spec}")
 
     if packages_to_install:
-        env.Execute(
-            env.VerboseAction(
-                (
-                    '"$PYTHONEXE" -m pip install -U -q -q -q '
-                    + " ".join(
-                        [
-                            '"%s%s"' % (p, deps[p])
-                            for p in packages_to_install
-                        ]
-                    )
-                ),
-                "Installing Arduino Python dependencies",
-            )
-        )
-    return
+        env.Execute(env.VerboseAction(
+            f'"$PYTHONEXE" -m pip install -U -q -q -q {" ".join(packages_to_install)}',
+            "Installing Arduino Python dependencies"
+        ))
 
-install_python_deps()
+def get_md5_hash(phrase: str) -> str:
+    """Generate MD5 hash for given phrase."""
+    return hashlib.md5(phrase.encode('utf-8')).hexdigest()[:16]
 
-def get_MD5_hash(phrase):
-    import hashlib
-    return hashlib.md5((phrase).encode('utf-8')).hexdigest()[:16]
-
-
-def matching_custom_sdkconfig():
-    # check if current env is matching to existing sdkconfig
+@lru_cache(maxsize=32)
+def matching_custom_sdkconfig() -> Tuple[bool, bool]:
+    """Check if custom sdkconfig matches current configuration."""
     cust_sdk_is_present = False
     matching_sdkconfig = False
-    last_sdkconfig_path = join(env.subst("$PROJECT_DIR"),"sdkconfig.defaults")
-    if flag_any_custom_sdkconfig == False:
-        matching_sdkconfig = True
+    last_sdkconfig_path = Path(env.subst("$PROJECT_DIR")) / "sdkconfig.defaults"
+    
+    if not flag_any_custom_sdkconfig:
+        return True, cust_sdk_is_present
+        
+    if not last_sdkconfig_path.exists():
         return matching_sdkconfig, cust_sdk_is_present
-    if os.path.exists(last_sdkconfig_path) == False:
-        return matching_sdkconfig, cust_sdk_is_present
-    if flag_custom_sdkconfig == False:
-        matching_sdkconfig = False
-        return matching_sdkconfig, cust_sdk_is_present
-    with open(last_sdkconfig_path) as src:
-        line = src.readline()
-        if line.startswith("# TASMOTA__"):
-            cust_sdk_is_present = True;
-            costum_options = entry_custom_sdkconfig
-            if (line.split("__")[1]).strip() == get_MD5_hash((costum_options).strip() + mcu):
-                matching_sdkconfig = True
-
+        
+    if not flag_custom_sdkconfig:
+        return False, cust_sdk_is_present
+    
+    try:
+        with open(last_sdkconfig_path, 'r') as src:
+            line = src.readline()
+            if line.startswith("# TASMOTA__"):
+                cust_sdk_is_present = True
+                expected_hash = get_md5_hash(f"{entry_custom_sdkconfig.strip()}{mcu}")
+                if line.split("__")[1].strip() == expected_hash:
+                    matching_sdkconfig = True
+    except (IOError, IndexError):
+        pass
+    
     return matching_sdkconfig, cust_sdk_is_present
 
-def check_reinstall_frwrk():
-    framework_reinstall = False
-    cust_sdk_is_present = False
-    matching_sdkconfig = False
-    if flag_custom_sdkconfig == True:
-        matching_sdkconfig, cust_sdk_is_present = matching_custom_sdkconfig()
-    if flag_custom_sdkconfig == False and flag_any_custom_sdkconfig == True:
-        # case custom sdkconfig exists and a env without "custom_sdkconfig"
-        framework_reinstall = True
-    if flag_custom_sdkconfig == True  and matching_sdkconfig == False:
-        # check if current custom sdkconfig is different from existing
-        framework_reinstall = True
-    return framework_reinstall
-
-
-FRAMEWORK_SDK_DIR = fs.to_unix_path(
-    os.path.join(
-        FRAMEWORK_LIB_DIR,
-        mcu,
-        "include",
-    )
-)
-
-IS_INTEGRATION_DUMP = env.IsIntegrationDump()
-
-
-def is_framework_subfolder(potential_subfolder):
-    if not os.path.isabs(potential_subfolder):
-        return False
-    if (
-        os.path.splitdrive(FRAMEWORK_SDK_DIR)[0]
-        != os.path.splitdrive(potential_subfolder)[0]
-    ):
-        return False
-    return os.path.commonpath([FRAMEWORK_SDK_DIR]) == os.path.commonpath(
-        [FRAMEWORK_SDK_DIR, potential_subfolder]
-    )
-
+def check_reinstall_framework() -> bool:
+    """Determine if framework needs reinstallation."""
+    if not flag_custom_sdkconfig and flag_any_custom_sdkconfig:
+        return True
+    
+    if flag_custom_sdkconfig:
+        matching_sdkconfig, _ = matching_custom_sdkconfig()
+        return not matching_sdkconfig
+    
+    return False
 
 def shorthen_includes(env, node):
+    """Optimize include paths for Windows builds."""
     if IS_INTEGRATION_DUMP:
         # Don't shorten include paths for IDE integrations
         return node
 
-    includes = [fs.to_unix_path(inc) for inc in env.get("CPPPATH", [])]
+    # Local references for better performance
+    env_get = env.get
+    to_unix_path = fs.to_unix_path
+    ccflags = env["CCFLAGS"]
+    asflags = env["ASFLAGS"]
+    
+    includes = [to_unix_path(inc) for inc in env_get("CPPPATH", [])]
     shortened_includes = []
     generic_includes = []
+    
     for inc in includes:
         if is_framework_subfolder(inc):
             shortened_includes.append(
-                "-iwithprefix/"
-                + fs.to_unix_path(os.path.relpath(inc, FRAMEWORK_SDK_DIR))
+                "-iwithprefix/" + to_unix_path(relpath(inc, FRAMEWORK_SDK_DIR))
             )
         else:
             generic_includes.append(inc)
 
+    common_flags = ["-iprefix", FRAMEWORK_SDK_DIR] + shortened_includes
+    
     return env.Object(
         node,
         CPPPATH=generic_includes,
-        CCFLAGS=env["CCFLAGS"]
-        + ["-iprefix", FRAMEWORK_SDK_DIR]
-        + shortened_includes,
-        ASFLAGS=env["ASFLAGS"]
-        + ["-iprefix", FRAMEWORK_SDK_DIR]
-        + shortened_includes,
+        CCFLAGS=ccflags + common_flags,
+        ASFLAGS=asflags + common_flags,
     )
 
-# Check if framework = arduino, espidf is set -> compile Arduino as an component of IDF
-# using platformio.ini entry since we modify the framework env var for Hybrid Compile!
-def get_frameworks_in_current_env():
-    current_env_section = "env:" + env["PIOENV"]
+def is_framework_subfolder(potential_subfolder: str) -> bool:
+    """Check if path is a framework subfolder."""
+    if not os.path.isabs(potential_subfolder):
+        return False
+    
+    framework_drive = os.path.splitdrive(FRAMEWORK_SDK_DIR)[0]
+    potential_drive = os.path.splitdrive(potential_subfolder)[0]
+    
+    if framework_drive != potential_drive:
+        return False
+    
+    try:
+        return (os.path.commonpath([FRAMEWORK_SDK_DIR]) == 
+                os.path.commonpath([FRAMEWORK_SDK_DIR, potential_subfolder]))
+    except ValueError:
+        return False
+
+@lru_cache(maxsize=1)
+def get_frameworks_in_current_env() -> List[str]:
+    """Get frameworks configured for current environment."""
+    current_env_section = f"env:{pioenv}"
     if "framework" in config.options(current_env_section):
         frameworks = config.get(current_env_section, "framework", "")
-        return frameworks
+        return frameworks.split(",") if isinstance(frameworks, str) else frameworks
     return []
 
-current_env_frameworks = get_frameworks_in_current_env()
-if "arduino" in current_env_frameworks and "espidf" in current_env_frameworks:
-    # Arduino as component is set, switch off Hybrid compile
-    flag_custom_sdkconfig = False
-
-def call_compile_libs():
+def call_compile_libs() -> None:
+    """Compile Arduino IDF libraries."""
     if mcu == "esp32c2":
-        ARDUINO_FRMWRK_C2_LIB_DIR = join(platform.get_package_dir("framework-arduinoespressif32-libs"),mcu)
-        if not os.path.exists(ARDUINO_FRMWRK_C2_LIB_DIR):
-            ARDUINO_C2_DIR = join(platform.get_package_dir("framework-arduino-c2-skeleton-lib"),mcu)
-            shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
-    print("*** Compile Arduino IDF libs for %s ***" % env["PIOENV"])
+        arduino_frmwrk_c2_lib_dir = Path(FRAMEWORK_LIB_DIR) / mcu
+        if not arduino_frmwrk_c2_lib_dir.exists():
+            arduino_c2_dir = Path(
+                platform.get_package_dir("framework-arduino-c2-skeleton-lib")
+            ) / mcu
+            shutil.copytree(arduino_c2_dir, arduino_frmwrk_c2_lib_dir, dirs_exist_ok=True)
+    
+    print(f"*** Compile Arduino IDF libs for {pioenv} ***")
     SConscript("espidf.py")
 
-if check_reinstall_frwrk() == True:
-    envs = [section.replace("env:", "") for section in config.sections() if section.startswith("env:")]
+def reinstall_framework() -> None:
+    """Reinstall Arduino framework packages."""
+    # Clean up existing sdkconfig files
+    envs = [section.replace("env:", "") for section in config.sections() 
+            if section.startswith("env:")]
+    
+    project_dir = Path(env.subst("$PROJECT_DIR"))
     for env_name in envs:
-        file_path = join(env.subst("$PROJECT_DIR"), f"sdkconfig.{env_name}")
-        if exists(file_path):
-            os.remove(file_path)
+        sdkconfig_file = project_dir / f"sdkconfig.{env_name}"
+        if sdkconfig_file.exists():
+            sdkconfig_file.unlink()
+    
     print("*** Reinstall Arduino framework ***")
-    shutil.rmtree(platform.get_package_dir("framework-arduinoespressif32"))
-    shutil.rmtree(platform.get_package_dir("framework-arduinoespressif32-libs"))
-    ARDUINO_FRMWRK_URL = str(platform.get_package_spec("framework-arduinoespressif32")).split("uri=",1)[1][:-1]
-    ARDUINO_FRMWRK_LIB_URL = str(platform.get_package_spec("framework-arduinoespressif32-libs")).split("uri=",1)[1][:-1]
-    pm.install(ARDUINO_FRMWRK_URL)
-    pm.install(ARDUINO_FRMWRK_LIB_URL)
-    if flag_custom_sdkconfig == True:
+    
+    # Remove framework directories
+    framework_dirs = [
+        platform.get_package_dir("framework-arduinoespressif32"),
+        platform.get_package_dir("framework-arduinoespressif32-libs")
+    ]
+    
+    for dir_path in framework_dirs:
+        if Path(dir_path).exists():
+            shutil.rmtree(dir_path)
+    
+    # Extract URLs and install packages
+    arduino_specs = [
+        platform.get_package_spec("framework-arduinoespressif32"),
+        platform.get_package_spec("framework-arduinoespressif32-libs")
+    ]
+    
+    for spec in arduino_specs:
+        try:
+            spec_str = str(spec)
+            if "uri=" in spec_str:
+                url = spec_str.split("uri=", 1)[1][:-1]
+                pm.install(url)
+            else:
+                print(f"Warning: Could not extract URL from spec: {spec}")
+        except Exception as e:
+            print(f"Error processing spec {spec}: {e}")
+
+# Setup ESP32-Solo1 configuration
+setup_esp32_solo1_config()
+
+# Install Python dependencies
+install_python_deps()
+
+# Handle framework configuration
+current_env_frameworks = get_frameworks_in_current_env()
+if "arduino" in current_env_frameworks and "espidf" in current_env_frameworks:
+    flag_custom_sdkconfig = False
+
+# Check if framework reinstallation is needed
+if check_reinstall_framework():
+    reinstall_framework()
+    if flag_custom_sdkconfig:
         call_compile_libs()
         flag_custom_sdkconfig = False
-    
-if flag_custom_sdkconfig == True and flag_any_custom_sdkconfig == False:
+
+# Compile libs if needed
+if flag_custom_sdkconfig and not flag_any_custom_sdkconfig:
     call_compile_libs()
 
-if "arduino" in env.subst("$PIOFRAMEWORK") and "espidf" not in env.subst("$PIOFRAMEWORK") and env.subst("$ARDUINO_LIB_COMPILE_FLAG") in ("Inactive", "True"):
+# Final framework setup
+pioframework = env.subst("$PIOFRAMEWORK")
+arduino_lib_compile_flag = env.subst("$ARDUINO_LIB_COMPILE_FLAG")
+
+if ("arduino" in pioframework and 
+    "espidf" not in pioframework and 
+    arduino_lib_compile_flag in ("Inactive", "True")):
+    
     if IS_WINDOWS:
         env.AddBuildMiddleware(shorthen_includes)
-    if os.path.exists(join(platform.get_package_dir(
-            "framework-arduinoespressif32"), "tools", "platformio-build.py")):
-        PIO_BUILD = "platformio-build.py"
-    else:
-        PIO_BUILD = "pioarduino-build.py"
-    SConscript(join(platform.get_package_dir("framework-arduinoespressif32"), "tools", PIO_BUILD))
+    
+    framework_dir = platform.get_package_dir("framework-arduinoespressif32")
+    pio_build_path = Path(framework_dir) / "tools" / "pioarduino-build.py"
+    
+    SConscript(join(framework_dir, pio_build_path))
+
