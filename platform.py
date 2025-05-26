@@ -20,7 +20,6 @@ import subprocess
 import sys
 import shutil
 import logging
-from functools import lru_cache
 from typing import Optional, Dict, List, Any
 
 from platformio.public import PlatformBase, to_unix_path
@@ -316,7 +315,8 @@ class Espressif32Platform(PlatformBase):
                                        board_config.get("espidf.custom_sdkconfig", ""))
 
         if custom_sdkconfig is not None or len(str(board_sdkconfig)) > 3:
-            frameworks.append("espidf")
+            if "espidf" not in frameworks:
+                frameworks.append("espidf")
             self.packages["framework-espidf"]["optional"] = False
 
             if mcu == "esp32c2":
