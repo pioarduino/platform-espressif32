@@ -280,7 +280,6 @@ class Espressif32Platform(PlatformBase):
         self.packages["framework-arduinoespressif32"]["optional"] = False
         self.packages["framework-arduinoespressif32-libs"]["optional"] = False
         # use branch master
-        board_sdkconfig = variables.get("board_espidf.custom_sdkconfig",
         URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
         packjdata = requests.get(URL).json()
         dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
