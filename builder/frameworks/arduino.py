@@ -116,7 +116,7 @@ class PathCache:
     def sdk_dir(self):
         if self._sdk_dir is None:
             self._sdk_dir = fs.to_unix_path(
-                join(self.framework_dir, "tools", "esp32-arduino-libs", self.mcu, "include")
+                join(self.framework_lib_dir, self.mcu, "include")
             )
         return self._sdk_dir
 
