@@ -131,12 +131,8 @@ class ComponentManager:
             lib_deps_str = ' '.join(str(dep) for dep in lib_deps).upper()
             
             bt_ble_keywords = ['BLE', 'BT', 'NIMBLE', 'BLUETOOTH']
-            
-            for keyword in bt_ble_keywords:
-                if keyword in lib_deps_str:
-                    return True
-            
-            return False
+
+            return any(keyword in lib_deps_str for keyword in bt_ble_keywords)
             
         except Exception:
             return False
@@ -157,12 +153,8 @@ class ComponentManager:
             'ESP_BLE',
             'ESP_BT'
         ]
-        
-        for bt_name in bt_related_names:
-            if bt_name in lib_name_upper:
-                return True
-        
-        return False
+
+        return any(bt_name in lib_name_upper for bt_name in bt_related_names)
     
     def _get_arduino_core_libraries(self) -> Dict[str, str]:
         """Get all Arduino core libraries and their corresponding include paths."""
