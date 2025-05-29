@@ -488,11 +488,11 @@ def check_reinstall_frwrk():
     return False
 
 def call_compile_libs():
-    if mcu == "esp32c2":
-        ARDUINO_FRMWRK_C2_LIB_DIR = join(platform.get_package_dir("framework-arduinoespressif32-libs"),mcu)
-        if not os.path.exists(ARDUINO_FRMWRK_C2_LIB_DIR):
-            ARDUINO_C2_DIR = join(platform.get_package_dir("framework-arduino-c2-skeleton-lib"),mcu)
-            shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
+#    if mcu == "esp32c2":
+#        ARDUINO_FRMWRK_C2_LIB_DIR = join(platform.get_package_dir("framework-arduinoespressif32-libs"),mcu)
+#        if not os.path.exists(ARDUINO_FRMWRK_C2_LIB_DIR):
+#            ARDUINO_C2_DIR = join(platform.get_package_dir("framework-arduino-c2-skeleton-lib"),mcu)
+#            shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
     print(f"*** Compile Arduino IDF libs for {pioenv} ***")
     SConscript("espidf.py")
 
