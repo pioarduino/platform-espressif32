@@ -135,7 +135,6 @@ idf_variant = mcu.lower()
 flag_custom_sdkonfig = False
 flag_custom_component_add = False
 flag_custom_component_remove = False
-removed_components = set()
 
 IDF5 = (
     platform.get_package_version("framework-espidf")
