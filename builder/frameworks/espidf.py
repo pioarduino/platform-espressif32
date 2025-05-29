@@ -219,18 +219,22 @@ def HandleArduinoIDFsettings(env):
                     response = requests.get(file_entry.split(" ")[0])
                     if response.ok:
                         return response.content.decode('utf-8')
-                except Exception as e:
+                except requests.RequestException as e:
                     print(f"Error downloading {file_entry}: {e}")
+                except UnicodeDecodeError as e:
+                    print(f"Error decoding response from {file_entry}: {e}")
                     return ""
             
             # Handle local files
             if "file://" in file_entry:
-                file_path = join(PROJECT_DIR, file_entry.lstrip("file://").split(os.path.sep)[-1])
+                file_ref = file_entry[7:] if file_entry.startswith("file://") else file_entry
+                filename = os.path.basename(file_ref)
+                file_path = join(PROJECT_DIR, filename)
                 if os.path.exists(file_path):
                     try:
                         with open(file_path, 'r') as f:
                             return f.read()
-                    except Exception as e:
+                    except IOError as e:
                         print(f"Error reading file {file_path}: {e}")
                         return ""
                 else:
