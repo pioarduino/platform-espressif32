@@ -52,8 +52,8 @@ class ComponentManager:
             remove_components: Whether to process component removals
         """
 
-        # Create backup before first component removal
-        if remove_components and not self.removed_components or add_components and not self.add_components:
+        # Create backup before first component removal and on every add of a component
+        if remove_components and not self.removed_components or add_components:
             self._backup_pioarduino_build_py()
             self._log_change("Created backup of build file")
     
