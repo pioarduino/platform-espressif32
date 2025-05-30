@@ -81,11 +81,6 @@ pm = ToolPackageManager()
 logger = logging.getLogger(__name__)
 
 
-class ToolInstallationError(Exception):
-    """Custom exception for tool installation errors"""
-    pass
-
-
 def safe_file_operation(operation_func):
     """Decorator for safe filesystem operations"""
     def wrapper(*args, **kwargs):
