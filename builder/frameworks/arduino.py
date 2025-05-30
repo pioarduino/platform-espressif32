@@ -163,7 +163,7 @@ def validate_threshold(threshold, mcu):
     platform_default = get_platform_default_threshold(mcu)
     if threshold < platform_default * 0.7:  # More than 30% below bleeding edge default
         print(f"*** Info: Include path threshold {threshold} is conservative compared to bleeding edge default {platform_default} for {mcu} ***")
-        print(f"*** Consider using higher values for maximum performance ***")
+        print("*** Consider using higher values for maximum performance ***")
     
     if original_threshold != threshold:
         logging.warning(f"Threshold adjusted from {original_threshold} to bleeding edge value {threshold} for {mcu}")
@@ -267,22 +267,16 @@ def get_threshold_info(env, config, current_env_section):
     
     # Collect all possible sources
     if config.has_option(current_env_section, setting_name):
-        try:
+        with suppress(ValueError):
             info["env_specific"] = config.getint(current_env_section, setting_name)
-        except ValueError:
-            pass
     
     if config.has_option("env", setting_name):
-        try:
+        with suppress(ValueError):
             info["global_env"] = config.getint("env", setting_name)
-        except ValueError:
-            pass
-    
+
     if config.has_option("platformio", setting_name):
-        try:
+        with suppress(ValueError):
             info["platformio_section"] = config.getint("platformio", setting_name)
-        except ValueError:
-            pass
     
     # Determine final threshold and source
     info["final_threshold"] = get_include_path_threshold(env, config, current_env_section)
@@ -805,7 +799,8 @@ def apply_include_shortening(env, node, includes, total_length):
     with _PATH_SHORTENING_LOCK:
         if not _PATH_SHORTENING_MESSAGES['shortening_applied']:
             if shortened_includes:
-                new_total_length = original_length - saved_chars + len(f"-iprefix{FRAMEWORK_SDK_DIR}")
+                removed_i_flags = len(shortened_includes) * 2  # Each -I is 2 chars
+                new_total_length = original_length - saved_chars + len(f"-iprefix{FRAMEWORK_SDK_DIR}") - removed_i_flags
                 print(f"*** Applied include path shortening for {len(shortened_includes)} framework paths ***")
                 print(f"*** Path length reduced from {original_length} to ~{new_total_length} characters ***")
                 print(f"*** Estimated savings: {saved_chars} characters ***")
@@ -852,12 +847,12 @@ def smart_include_length_shorten(env, node):
         
         # Extended debug information about bleeding edge threshold configuration
         threshold_info = get_threshold_info(env, config, current_env_section)
-        print(f"*** Bleeding Edge Threshold Configuration Debug ***")
+        print("*** Bleeding Edge Threshold Configuration Debug ***")
         print(f"***   MCU: {threshold_info['mcu']} ***")
         print(f"***   Bleeding Edge Platform Default: {threshold_info['platform_default']} ***")
         print(f"***   Final Bleeding Edge Threshold: {threshold_info['final_threshold']} ***")
         print(f"***   Source: {threshold_info['source']} ***")
-        print(f"***   Performance Mode: Maximum Aggressive ***")
+        print("***   Performance Mode: Maximum Aggressive ***")
         if threshold_info['env_variable']:
             print(f"***   Env Variable: {threshold_info['env_variable']} ***")
         if threshold_info['env_specific']:
