@@ -53,12 +53,12 @@ class ComponentManager:
         """
 
         # Create backup before first component removal
-        if remove_components and not self.removed_components or add_components:
+        if remove_components and not self.removed_components or add_components and not self.add_components:
             self._backup_pioarduino_build_py()
             self._log_change("Created backup of build file")
     
         # Check if env and GetProjectOption are available
-        if hasattr(self, 'env') and hasattr(self.env, 'GetProjectOption'):
+        if hasattr(self, 'env') or hasattr(self.env, 'GetProjectOption'):
             component_yml_path = self._get_or_create_component_yml()
             component_data = self._load_component_yml(component_yml_path)
     
