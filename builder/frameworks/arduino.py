@@ -535,6 +535,7 @@ env = DefaultEnvironment()
 pm = ToolPackageManager()
 platform = env.PioPlatform()
 config = env.GetProjectConfig()
+print("******* config", config)
 board = env.BoardConfig()
 
 # Cached values
@@ -567,6 +568,7 @@ if config.has_option(current_env_section, "custom_component_remove"):
 # Custom SDKConfig check
 if config.has_option(current_env_section, "custom_sdkconfig"):
     entry_custom_sdkconfig = env.GetProjectOption("custom_sdkconfig")
+    print("entry custom_sdkconfig", entry_custom_sdkconfig)
     flag_custom_sdkconfig = True
 
 if len(board_sdkconfig) > 2:
