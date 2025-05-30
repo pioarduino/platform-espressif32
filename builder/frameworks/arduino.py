@@ -536,19 +536,21 @@ env = DefaultEnvironment()
 pm = ToolPackageManager()
 platform = env.PioPlatform()
 config = env.GetProjectConfig()
-print("******* config", config)
 board = env.BoardConfig()
+print("******* board", board)
+
 
 # Cached values
 mcu = board.get("build.mcu", "esp32")
 pioenv = env["PIOENV"]
 project_dir = env.subst("$PROJECT_DIR")
 path_cache = PathCache(platform, mcu)
-current_env_section = "env:"+env["PIOENV"]
+current_env_section = "env:"+pioenv
 
 
 # Board configuration
 board_sdkconfig = board.get("espidf.custom_sdkconfig", "")
+print("****** board sdkconfig:", board_sdkconfig)
 entry_custom_sdkconfig = "\n"
 flag_custom_sdkconfig = False
 flag_custom_component_remove = False
@@ -567,6 +569,7 @@ if config.has_option(current_env_section, "custom_component_remove"):
     flag_custom_component_remove = True
 
 if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig"):
+    print("entry custom_sdkconfig", entry_custom_sdkconfig)
     entry_custom_sdkconfig = env.GetProjectOption("custom_sdkconfig")
     flag_custom_sdkconfig = True
 
