@@ -39,7 +39,6 @@ from typing import Union, List
 from SCons.Script import DefaultEnvironment, SConscript
 from platformio import fs
 from platformio.package.version import pepver_to_semver
-from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
 
 IS_WINDOWS = sys.platform.startswith("win")
@@ -71,6 +70,12 @@ def setup_logging():
 # Only setup logging if enabled via environment variable
 if os.environ.get('ARDUINO_FRAMEWORK_ENABLE_LOGGING'):
     setup_logging()
+
+# Constants for better performance
+UNICORE_FLAGS = {
+    "CORE32SOLO1",
+    "CONFIG_FREERTOS_UNICORE=y"
+}
 
 # Thread-safe global flags to prevent message spam
 _PATH_SHORTENING_LOCK = threading.Lock()
@@ -537,20 +542,16 @@ pm = ToolPackageManager()
 platform = env.PioPlatform()
 config = env.GetProjectConfig()
 board = env.BoardConfig()
-print("******* board", board)
-
 
 # Cached values
 mcu = board.get("build.mcu", "esp32")
 pioenv = env["PIOENV"]
 project_dir = env.subst("$PROJECT_DIR")
 path_cache = PathCache(platform, mcu)
-current_env_section = "env:"+pioenv
-
+current_env_section = f"env:{pioenv}"
 
 # Board configuration
 board_sdkconfig = board.get("espidf.custom_sdkconfig", "")
-print("****** board sdkconfig:", board_sdkconfig)
 entry_custom_sdkconfig = "\n"
 flag_custom_sdkconfig = False
 flag_custom_component_remove = False
@@ -568,21 +569,20 @@ if config.has_option(current_env_section, "lib_ignore"):
 if config.has_option(current_env_section, "custom_component_remove"):
     flag_custom_component_remove = True
 
-if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig"):
-    print("entry custom_sdkconfig", entry_custom_sdkconfig)
-    entry_custom_sdkconfig = env.GetProjectOption("custom_sdkconfig")
-    flag_custom_sdkconfig = True
-
 # Custom SDKConfig check
 if config.has_option(current_env_section, "custom_sdkconfig"):
     entry_custom_sdkconfig = env.GetProjectOption("custom_sdkconfig")
-    print("entry custom_sdkconfig", entry_custom_sdkconfig)
     flag_custom_sdkconfig = True
 
-if len(str(board_sdkconfig)) > 2:
+if board_sdkconfig:
+    print(f"board_sdkconfig: {board_sdkconfig}")
     flag_custom_sdkconfig = True
 
-extra_flags = (''.join([element for element in board.get("build.extra_flags", "")])).replace("-D", " ")
+extra_flags_raw = board.get("build.extra_flags", [])
+if isinstance(extra_flags_raw, list):
+    extra_flags = " ".join(extra_flags_raw).replace("-D", " ")
+else:
+    extra_flags = str(extra_flags_raw).replace("-D", " ")
 
 framework_reinstall = False
 
@@ -593,8 +593,13 @@ SConscript("_embed_files.py", exports="env")
 
 flag_any_custom_sdkconfig = exists(join(platform.get_package_dir("framework-arduinoespressif32-libs"),"sdkconfig"))
 
+def has_unicore_flags():
+    """Check if any UNICORE flags are present in configuration"""
+    return any(flag in extra_flags or flag in entry_custom_sdkconfig 
+               or flag in board_sdkconfig for flag in UNICORE_FLAGS)
+
 # Esp32-solo1 libs settings
-if flag_custom_sdkconfig == True and ("CORE32SOLO1" in extra_flags or "CONFIG_FREERTOS_UNICORE=y" in entry_custom_sdkconfig or "CONFIG_FREERTOS_UNICORE=y" in board_sdkconfig):
+if flag_custom_sdkconfig and has_unicore_flags():
     build_unflags = env.GetProjectOption("build_unflags")
     if not build_unflags:  # not existing needs init
         env['BUILD_UNFLAGS'] = []
