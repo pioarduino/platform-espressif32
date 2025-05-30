@@ -5,7 +5,7 @@ import re
 import yaml
 from yaml import SafeLoader
 from os.path import join
-from typing import Set, Optional, Dict, Any, List
+from typing import Set, Optional, Dict, Any, List, Tuple
 
 
 class ComponentManager:
@@ -633,7 +633,7 @@ class ComponentManager:
             else:
                 self._log_change(f"Component already exists: {component_name}")
     
-    def _parse_component_entry(self, entry: str) -> tuple[str, str]:
+    def _parse_component_entry(self, entry: str) -> Tuple[str, str]:
         """
         Parse component entry into name and version.
         
@@ -721,13 +721,13 @@ class ComponentManager:
         except Exception:
             pass
     
-    def restore_pioarduino_build_py(self, source=None, target=None, env=None) -> None:
+    def restore_pioarduino_build_py(self, target=None, source=None, env=None) -> None:
         """
         Restore the original pioarduino-build.py from backup.
         
         Args:
+            target: Build target (unused)
             source: Build source (unused)
-            target: Build target (unused) 
             env: Environment (unused)
         """
         build_py_path = join(self.arduino_libs_mcu, "pioarduino-build.py")
