@@ -153,6 +153,11 @@ TOOLCHAIN_DIR = platform.get_package_dir(
 assert os.path.isdir(FRAMEWORK_DIR)
 assert os.path.isdir(TOOLCHAIN_DIR)
 
+def create_silent_action(action_func):
+    """Create a silent SCons action that suppresses output"""
+    silent_action = env.Action(action_func)
+    silent_action.strfunction = lambda target, source, env: ''
+    return silent_action
 
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     ARDUINO_FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
@@ -2196,8 +2201,7 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
             from component_manager import ComponentManager
             component_manager = ComponentManager(env)
             component_manager.restore_pioarduino_build_py()
-    silent_action = env.Action(idf_lib_copy)
-    silent_action.strfunction = lambda target, source, env: '' # hack to silence scons command output
+    silent_action = create_silent_action(idf_lib_copy)
     env.AddPostAction("checkprogsize", silent_action)
 
 if "espidf" in env.subst("$PIOFRAMEWORK") and (flag_custom_component_add == True or flag_custom_component_remove == True):
@@ -2220,8 +2224,7 @@ if "espidf" in env.subst("$PIOFRAMEWORK") and (flag_custom_component_add == True
             from component_manager import ComponentManager
             component_manager = ComponentManager(env)
             component_manager.restore_pioarduino_build_py()
-    silent_action = env.Action(idf_custom_component)
-    silent_action.strfunction = lambda target, source, env: '' # hack to silence scons command output
+    silent_action = create_silent_action(idf_custom_component)
     env.AddPostAction("checkprogsize", silent_action)
 #
 # Process OTA partition and image
