@@ -427,8 +427,7 @@ def validate_platformio_path(path: Union[str, Path]) -> bool:
         # Must be framework-related
         framework_indicators = [
             "framework-arduinoespressif32",
-            "framework-arduinoespressif32-libs",
-            "framework-arduino-c2-skeleton-lib"
+            "framework-arduinoespressif32-libs"
         ]
         
         if not any(indicator in path_str for indicator in framework_indicators):
@@ -578,11 +577,7 @@ if config.has_option(current_env_section, "custom_sdkconfig"):
 if len(board_sdkconfig) > 2:
     flag_custom_sdkconfig = True
 
-extra_flags_raw = board.get("build.extra_flags", [])
-if isinstance(extra_flags_raw, list):
-    extra_flags = " ".join(extra_flags_raw).replace("-D", " ")
-else:
-    extra_flags = str(extra_flags_raw).replace("-D", " ")
+extra_flags = (''.join([element for element in board.get("build.extra_flags", "")])).replace("-D", " ")
 
 framework_reinstall = False
 
