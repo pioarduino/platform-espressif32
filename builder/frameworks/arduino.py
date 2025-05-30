@@ -71,12 +71,6 @@ def setup_logging():
 if os.environ.get('ARDUINO_FRAMEWORK_ENABLE_LOGGING'):
     setup_logging()
 
-# Constants for better performance
-UNICORE_FLAGS = {
-    "CORE32SOLO1",
-    "CONFIG_FREERTOS_UNICORE=y"
-}
-
 # Thread-safe global flags to prevent message spam
 _PATH_SHORTENING_LOCK = threading.Lock()
 _PATH_SHORTENING_MESSAGES = {
@@ -588,13 +582,8 @@ SConscript("_embed_files.py", exports="env")
 
 flag_any_custom_sdkconfig = exists(join(platform.get_package_dir("framework-arduinoespressif32-libs"),"sdkconfig"))
 
-def has_unicore_flags():
-    """Check if any UNICORE flags are present in configuration"""
-    return any(flag in extra_flags or flag in entry_custom_sdkconfig 
-               or flag in board_sdkconfig for flag in UNICORE_FLAGS)
-
 # Esp32-solo1 libs settings
-if flag_custom_sdkconfig and has_unicore_flags():
+if flag_custom_sdkconfig == True and ("CORE32SOLO1" in extra_flags or "CONFIG_FREERTOS_UNICORE=y" in entry_custom_sdkconfig or "CONFIG_FREERTOS_UNICORE=y" in board_sdkconfig):
     build_unflags = env.GetProjectOption("build_unflags")
     if not build_unflags:  # not existing needs init
         env['BUILD_UNFLAGS'] = []
