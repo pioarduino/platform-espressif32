@@ -579,7 +579,7 @@ if config.has_option(current_env_section, "custom_sdkconfig"):
     print("entry custom_sdkconfig", entry_custom_sdkconfig)
     flag_custom_sdkconfig = True
 
-if len(board_sdkconfig) > 2:
+if len(str(board_sdkconfig)) > 2:
     flag_custom_sdkconfig = True
 
 extra_flags = (''.join([element for element in board.get("build.extra_flags", "")])).replace("-D", " ")
