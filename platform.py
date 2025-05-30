@@ -424,7 +424,7 @@ class Espressif32Platform(PlatformBase):
         handler()
 
     # Currently only Arduino Nano ESP32 uses the dfuutil tool as uploader
-    def _handle_dfuutil_tool(self, for_download: bool) -> None:
+    def _handle_dfuutil_tool(self, variables: Dict, for_download: bool = False) -> None:
         """Install  dfuutil tool for Arduino Nano Board"""
         if variables.get("board") == "arduino_nano_esp32":
             self.install_tool("tool-dfuutil-arduino")
