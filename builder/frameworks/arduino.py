@@ -39,6 +39,7 @@ from typing import Union, List
 from SCons.Script import DefaultEnvironment, SConscript
 from platformio import fs
 from platformio.package.version import pepver_to_semver
+from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
 
 IS_WINDOWS = sys.platform.startswith("win")
