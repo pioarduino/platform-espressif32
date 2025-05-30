@@ -14,6 +14,7 @@
 
 import os
 import re
+import sys
 import locale
 from os.path import isfile, join
 
@@ -380,7 +381,6 @@ def firmware_metrics(target, source, env):
 
     try:
         import subprocess
-        import sys
         import shlex
         
         cmd = [env.subst("$PYTHONEXE"), "-m", "esp_idf_size", "--ng"]
