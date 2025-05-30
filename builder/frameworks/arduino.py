@@ -469,7 +469,9 @@ def validate_deletion_path(path: Union[str, Path],
     
     for critical in filter(None, critical_paths):
         try:
-            if path == critical or critical in path.parents:
+            normalized_path = path.resolve()
+            normalized_critical = critical.resolve()
+            if normalized_path == normalized_critical or normalized_critical in normalized_path.parents:
                 logging.error(f"Critical system path detected: {path}")
                 return False
         except (OSError, ValueError):
