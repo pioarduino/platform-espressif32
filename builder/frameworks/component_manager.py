@@ -26,35 +26,43 @@ class ComponentManager:
     
     def handle_component_settings(self, add_components: bool = False, remove_components: bool = False) -> None:
         """Handle adding and removing IDF components based on project configuration."""
-        if not (add_components or remove_components):
-            return
-        
+
         # Create backup before first component removal
-        if remove_components and not self.removed_components:
+        if remove_components and not self.removed_components or add_components and not self.add_components:
             self._backup_pioarduino_build_py()
+    
+        # Check if env and GetProjectOption are available
+        if hasattr(self, 'env') or hasattr(self.env, 'GetProjectOption'):
+            component_yml_path = self._get_or_create_component_yml()
+            component_data = self._load_component_yml(component_yml_path)
+    
+            if remove_components:
+                try:
+                    remove_option = self.env.GetProjectOption("custom_component_remove", None)
+                    if remove_option:
+                        components_to_remove = remove_option.splitlines()
+                        self._remove_components(component_data, components_to_remove)
+                except Exception as e:
+                    # Optional: Logging for debugging
+                    # print(f"Error removing components: {e}")
+                    pass
+    
+            if add_components:
+                try:
+                    add_option = self.env.GetProjectOption("custom_component_add", None)
+                    if add_option:
+                        components_to_add = add_option.splitlines()
+                        self._add_components(component_data, components_to_add)
+                except Exception as e:
+                    # Optional: Logging for debugging
+                    # print(f"Error adding components: {e}")
+                    pass
+
+            self._save_component_yml(component_yml_path, component_data)
         
-        component_yml_path = self._get_or_create_component_yml()
-        component_data = self._load_component_yml(component_yml_path)
-        
-        if remove_components:
-            try:
-                components_to_remove = self.env.GetProjectOption("custom_component_remove").splitlines()
-                self._remove_components(component_data, components_to_remove)
-            except:
-                pass
-        
-        if add_components:
-            try:
-                components_to_add = self.env.GetProjectOption("custom_component_add").splitlines()
-                self._add_components(component_data, components_to_add)
-            except:
-                pass
-        
-        self._save_component_yml(component_yml_path, component_data)
-        
-        # Clean up removed components
-        if self.removed_components:
-            self._cleanup_removed_components()
+            # Clean up removed components
+            if self.removed_components:
+                self._cleanup_removed_components()
 
         self.handle_lib_ignore()
     
