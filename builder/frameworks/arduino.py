@@ -566,6 +566,10 @@ if config.has_option(current_env_section, "lib_ignore"):
 if config.has_option(current_env_section, "custom_component_remove"):
     flag_custom_component_remove = True
 
+if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig"):
+    entry_custom_sdkconfig = env.GetProjectOption("custom_sdkconfig")
+    flag_custom_sdkconfig = True
+
 # Custom SDKConfig check
 if config.has_option(current_env_section, "custom_sdkconfig"):
     entry_custom_sdkconfig = env.GetProjectOption("custom_sdkconfig")
