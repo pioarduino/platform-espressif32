@@ -575,7 +575,6 @@ if config.has_option(current_env_section, "custom_sdkconfig"):
     flag_custom_sdkconfig = True
 
 if board_sdkconfig:
-    print(f"board_sdkconfig: {board_sdkconfig}")
     flag_custom_sdkconfig = True
 
 extra_flags_raw = board.get("build.extra_flags", [])
