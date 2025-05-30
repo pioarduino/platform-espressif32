@@ -456,6 +456,7 @@ class Espressif32Platform(PlatformBase):
 
             self._configure_check_tools(variables)
             self._configure_filesystem_tools(variables, targets)
+            self._handle_dfuutil_tool(variables)
 
             logger.info("Package configuration completed successfully")
 
