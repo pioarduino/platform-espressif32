@@ -688,18 +688,13 @@ arduino_lib_compile_flag = env.subst("$ARDUINO_LIB_COMPILE_FLAG")
 
 if ("arduino" in pioframework and "espidf" not in pioframework and 
     arduino_lib_compile_flag in ("Inactive", "True")):
-    
-    if flag_custom_component_remove or flag_lib_ignore:
-        flag_remove = True
-        from component_manager import ComponentManager
-        component_manager = ComponentManager(env)
-        component_manager.handle_component_settings(
-            add_components=flag_custom_component_add,
-            remove_components=flag_remove
-        )
-        silent_action = env.Action(component_manager.restore_pioarduino_build_py)
-        silent_action.strfunction = lambda target, source, env: '' # hack to silence scons command output
-        env.AddPostAction("checkprogsize", silent_action)
+    # try to remove not needed include path if an lib_ignore entry exists
+    from component_manager import ComponentManager
+    component_manager = ComponentManager(env)
+    component_manager.handle_component_settings()
+    silent_action = env.Action(component_manager.restore_pioarduino_build_py)
+    silent_action.strfunction = lambda target, source, env: '' # hack to silence scons command output
+    env.AddPostAction("checkprogsize", silent_action)
 
     if IS_WINDOWS:
         # Smart include path optimization based on total path length
