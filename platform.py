@@ -323,7 +323,8 @@ class Espressif32Platform(PlatformBase):
             board_config.get("espidf.custom_sdkconfig", "")
         )
 
-        if custom_sdkconfig or board_sdkconfig:
+        if (custom_sdkconfig and custom_sdkconfig.strip()) or \
+           (board_sdkconfig and board_sdkconfig.strip()):
             frameworks.append("espidf")
             self.packages["framework-espidf"]["optional"] = False
             if mcu == "esp32c2":
