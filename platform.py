@@ -200,7 +200,7 @@ class Espressif32Platform(PlatformBase):
         paths = self._get_tool_paths(tool_name)
 
         try:
-            with open(paths['package_path'], 'r') as f:
+            with open(paths['package_path'], 'r', encoding='utf-8') as f:
                 package_data = json.load(f)
 
             required_version = self.packages.get(tool_name, {}).get("package-version")
@@ -406,7 +406,7 @@ class Espressif32Platform(PlatformBase):
 
         if os.path.exists(piopm_path):
             try:
-                with open(piopm_path, 'r') as f:
+                with open(piopm_path, 'r', encoding='utf-8') as f:
                     package_data = json.load(f)
                 if package_data.get('version') != MKLITTLEFS_VERSION_320:
                     os.remove(piopm_path)
