@@ -287,11 +287,11 @@ class Espressif32Platform(PlatformBase):
             self.packages[tool_name]["optional"] = False
             logger.debug(f"Tool {tool_name} found with correct version")
             return True
-        else:
-            # Wrong version, reinstall
-            logger.info(f"Reinstalling {tool_name} due to version mismatch")
-            safe_remove_directory(paths['tool_path'])
-            return self.install_tool(tool_name, retry_count + 1)
+
+        # Wrong version, reinstall
+        logger.info(f"Reinstalling {tool_name} due to version mismatch")
+        safe_remove_directory(paths['tool_path'])
+        return self.install_tool(tool_name, retry_count + 1)
 
     def _configure_arduino_framework(self, frameworks: List[str]) -> None:
         """Configure Arduino framework with dynamic library URL fetching."""
