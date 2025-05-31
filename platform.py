@@ -117,6 +117,11 @@ def safe_copy_file(src: str, dst: str) -> bool:
     return True
 
 
+def has_valid_sdkconfig(config_value: str) -> bool:
+    """Check if sdkconfig value is valid and non-empty."""
+    return bool(config_value and config_value.strip())
+
+
 class Espressif32Platform(PlatformBase):
     """ESP32 platform implementation for PlatformIO with optimized toolchain management."""
 
@@ -323,8 +328,7 @@ class Espressif32Platform(PlatformBase):
             board_config.get("espidf.custom_sdkconfig", "")
         )
 
-        if (custom_sdkconfig and custom_sdkconfig.strip()) or \
-           (board_sdkconfig and board_sdkconfig.strip()):
+        if has_valid_sdkconfig(custom_sdkconfig) or has_valid_sdkconfig(board_sdkconfig):
             frameworks.append("espidf")
             self.packages["framework-espidf"]["optional"] = False
             if mcu == "esp32c2":
