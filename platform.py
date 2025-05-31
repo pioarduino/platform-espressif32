@@ -167,7 +167,8 @@ class Espressif32Platform(PlatformBase):
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                timeout=SUBPROCESS_TIMEOUT
+                timeout=SUBPROCESS_TIMEOUT,
+                check=False
             )
 
             if result.returncode != 0:
@@ -277,9 +278,14 @@ class Espressif32Platform(PlatformBase):
         self.packages["framework-arduinoespressif32-libs"]["optional"] = False
         # use branch master
         URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
-        packjdata = requests.get(URL).json()
-        dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
-        self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
+        try:
+            response = requests.get(URL, timeout=30)
+            response.raise_for_status()
+            packjdata = response.json()
+            dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
+            self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
+        except (requests.RequestException, KeyError, IndexError) as e:
+            logger.error(f"Failed to fetch Arduino framework library URL: {e}")
 
     def _configure_espidf_framework(self, frameworks: List[str], variables: Dict, board_config: Dict, mcu: str) -> None:
         """Configure ESP-IDF framework"""
