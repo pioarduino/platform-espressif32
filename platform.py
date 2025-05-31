@@ -191,7 +191,7 @@ class Espressif32Platform(PlatformBase):
         except subprocess.TimeoutExpired:
             logger.error(f"Timeout in idf_tools.py after {SUBPROCESS_TIMEOUT}s")
             return False
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError) as e:
             logger.error(f"Error in idf_tools.py: {e}")
             return False
 
