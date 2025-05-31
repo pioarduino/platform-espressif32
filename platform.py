@@ -117,9 +117,11 @@ def safe_copy_file(src: str, dst: str) -> bool:
     return True
 
 
-def has_valid_sdkconfig(config_value: str) -> bool:
+def has_valid_sdkconfig(config_value) -> bool:
     """Check if sdkconfig value is valid and non-empty."""
-    return bool(config_value and config_value.strip())
+    if not config_value:
+        return False
+    return bool(config_value.strip())
 
 
 class Espressif32Platform(PlatformBase):
