@@ -176,7 +176,7 @@ def _parse_partitions(env):
     result = []
     next_offset = 0
     app_offset = 0x10000  # Default address for firmware
-    
+
     with open(partitions_csv) as fp:
         for line in fp.readlines():
             line = line.strip()
@@ -200,7 +200,7 @@ def _parse_partitions(env):
             if partition["subtype"] == "ota_0":
                 app_offset = next_offset
             next_offset = next_offset + _parse_size(partition["size"])
-    
+
     # Configure application partition offset
     env.Replace(ESP32_APP_OFFSET=str(hex(app_offset)))
     # Propagate application offset to debug configurations
