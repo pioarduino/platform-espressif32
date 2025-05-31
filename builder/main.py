@@ -408,15 +408,15 @@ def firmware_metrics(target, source, env):
     if result.returncode != 0:
         print(f"Warning: esp-idf-size exited with code {result.returncode}")
             
-except ImportError:
-    print("Error: esp-idf-size module not found.")
-    print("Install with: pip install esp-idf-size")
-except FileNotFoundError:
-    print("Error: Python executable not found.")
-    print("Check your Python installation.")
-except Exception as e:
-    print(f"Error: Failed to run firmware metrics: {e}")
-    print("Make sure esp-idf-size is installed: pip install esp-idf-size")
+    except ImportError:
+        print("Error: esp-idf-size module not found.")
+        print("Install with: pip install esp-idf-size")
+    except FileNotFoundError:
+        print("Error: Python executable not found.")
+        print("Check your Python installation.")
+    except Exception as e:
+        print(f"Error: Failed to run firmware metrics: {e}")
+        print("Make sure esp-idf-size is installed: pip install esp-idf-size")
 
 #
 # Target: Build executable and linkable firmware or FS image
