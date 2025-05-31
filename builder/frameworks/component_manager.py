@@ -433,7 +433,7 @@ class ComponentManager:
             self._log_change("BT/BLE protection enabled")
         
         try:
-            with open(build_py_path, 'r') as f:
+            with open(build_py_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
             original_content = content
@@ -480,7 +480,7 @@ class ComponentManager:
             
             # Validate and write changes
             if self._validate_changes(original_content, content) and content != original_content:
-                with open(build_py_path, 'w') as f:
+                with open(build_py_path, 'w', encoding='utf-8') as f:
                     f.write(content)
                 self._log_change(f"Updated build file ({total_removed} total removals)")
                 
@@ -552,7 +552,7 @@ class ComponentManager:
             }
         }
         
-        with open(file_path, 'w') as f:
+        with open(file_path, 'w', encoding='utf-8') as f:
             yaml.dump(default_content, f)
     
     def _load_component_yml(self, file_path: str) -> Dict[str, Any]:
@@ -566,7 +566,7 @@ class ComponentManager:
             Parsed YAML data
         """
         try:
-            with open(file_path, "r") as f:
+            with open(file_path, "r", encoding='utf-8') as f:
                 return yaml.load(f, Loader=SafeLoader) or {"dependencies": {}}
         except Exception:
             return {"dependencies": {}}
@@ -580,7 +580,7 @@ class ComponentManager:
             data: Data to save
         """
         try:
-            with open(file_path, "w") as f:
+            with open(file_path, "w", encoding='utf-8') as f:
                 yaml.dump(data, f)
         except Exception:
             pass
@@ -698,7 +698,7 @@ class ComponentManager:
             return
         
         try:
-            with open(build_py_path, 'r') as f:
+            with open(build_py_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
             original_content = content
@@ -715,7 +715,7 @@ class ComponentManager:
                     content = re.sub(pattern, '', content)
             
             if content != original_content:
-                with open(build_py_path, 'w') as f:
+                with open(build_py_path, 'w', encoding='utf-8') as f:
                     f.write(content)
                 
         except Exception:
