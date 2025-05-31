@@ -233,19 +233,19 @@ def HandleArduinoIDFsettings(env):
             # Handle HTTP/HTTPS URLs
             if "http" in file_entry and "://" in file_entry:
                 url = file_entry.split(" ")[0]
-            # Path Traversal protection
-            if contains_path_traversal(url):
-                print(f"Path Traversal detected: {url} check your URL path")
-            else:
-                try:
-                    response = requests.get(file_entry.split(" ")[0])
-                    if response.ok:
-                        return response.content.decode('utf-8')
-                except requests.RequestException as e:
-                    print(f"Error downloading {file_entry}: {e}")
-                except UnicodeDecodeError as e:
-                    print(f"Error decoding response from {file_entry}: {e}")
-                    return ""
+                # Path Traversal protection
+                if contains_path_traversal(url):
+                    print(f"Path Traversal detected: {url} check your URL path")
+                else:
+                    try:
+                        response = requests.get(file_entry.split(" ")[0])
+                        if response.ok:
+                            return response.content.decode('utf-8')
+                    except requests.RequestException as e:
+                        print(f"Error downloading {file_entry}: {e}")
+                    except UnicodeDecodeError as e:
+                        print(f"Error decoding response from {file_entry}: {e}")
+                        return ""
             
             # Handle local files
             if "file://" in file_entry:
