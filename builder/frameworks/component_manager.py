@@ -484,8 +484,10 @@ class ComponentManager:
                     f.write(content)
                 self._log_change(f"Updated build file ({total_removed} total removals)")
                 
-        except Exception as e:
+        except (IOError, OSError) as e:
             self._log_change(f"Error processing libraries: {str(e)}")
+        except Exception as e:
+            self._log_change(f"Unexpected error processing libraries: {str(e)}")
     
     def _validate_changes(self, original_content: str, new_content: str) -> bool:
         """
