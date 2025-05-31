@@ -24,7 +24,6 @@ http://arduino.cc/en/Reference/HomePage
 
 import subprocess
 import json
-import semantic_version
 import os
 import sys
 import shutil
@@ -36,6 +35,7 @@ from os.path import join, exists, isabs, splitdrive, commonpath, relpath
 from pathlib import Path
 from typing import Union, List
 
+import semantic_version
 from SCons.Script import DefaultEnvironment, SConscript
 from platformio import fs
 from platformio.package.version import pepver_to_semver
