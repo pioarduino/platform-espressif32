@@ -217,7 +217,7 @@ def _update_max_upload_size(env):
     """
     if not env.get("PARTITIONS_TABLE_CSV"):
         return
-    
+
     sizes = {
         p["subtype"]: _parse_size(p["size"])
         for p in _parse_partitions(env)
