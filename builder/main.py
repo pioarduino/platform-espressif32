@@ -14,6 +14,8 @@
 
 import os
 import re
+import subprocess
+import shlex
 import sys
 import locale
 from os.path import isfile, join
@@ -378,48 +380,43 @@ def firmware_metrics(target, source, env):
         print(f"Error: Map file not found: {map_file}")
         print("Make sure the project is built first with 'pio run'")
         return
+ 
+    cmd = [env.subst("$PYTHONEXE"), "-m", "esp_idf_size", "--ng"]
 
-    try:
-        import subprocess
-        import shlex
+    # Parameters from platformio.ini
+    extra_args = env.GetProjectOption("custom_esp_idf_size_args", "")
+    if extra_args:
+        cmd.extend(shlex.split(extra_args))
+
+    # Command Line Parameter, after --
+    cli_args = []
+    if "--" in sys.argv:
+        dash_index = sys.argv.index("--")
+        if dash_index + 1 < len(sys.argv):
+            cli_args = sys.argv[dash_index + 1:]
+
+    # Map-file as last argument
+    cmd.append(map_file)
         
-        cmd = [env.subst("$PYTHONEXE"), "-m", "esp_idf_size", "--ng"]
-        
-        # Parameters from platformio.ini
-        extra_args = env.GetProjectOption("custom_esp_idf_size_args", "")
-        if extra_args:
-            cmd.extend(shlex.split(extra_args))
-        
-        # Command Line Parameter, after --
-        cli_args = []
-        if "--" in sys.argv:
-            dash_index = sys.argv.index("--")
-            if dash_index + 1 < len(sys.argv):
-                cli_args = sys.argv[dash_index + 1:]
-                cmd.extend(cli_args)
-        
-        # Map-file as last argument
-        cmd.append(map_file)
-        
-        # Debug-Info if wanted
-        if env.GetProjectOption("custom_esp_idf_size_verbose", False):
-            print(f"Running command: {' '.join(cmd)}")
-        
-        # Call esp-idf-size
-        result = subprocess.run(cmd, check=False, capture_output=False)
-        
-        if result.returncode != 0:
-            print(f"Warning: esp-idf-size exited with code {result.returncode}")
+    # Debug-Info if wanted
+    if env.GetProjectOption("custom_esp_idf_size_verbose", False):
+        print(f"Running command: {' '.join(cmd)}")
+
+    # Call esp-idf-size
+    result = subprocess.run(cmd, check=False, capture_output=False)
+
+    if result.returncode != 0:
+        print(f"Warning: esp-idf-size exited with code {result.returncode}")
             
-    except ImportError:
-        print("Error: esp-idf-size module not found.")
-        print("Install with: pip install esp-idf-size")
-    except FileNotFoundError:
-        print("Error: Python executable not found.")
-        print("Check your Python installation.")
-    except Exception as e:
-        print(f"Error: Failed to run firmware metrics: {e}")
-        print("Make sure esp-idf-size is installed: pip install esp-idf-size")
+except ImportError:
+    print("Error: esp-idf-size module not found.")
+    print("Install with: pip install esp-idf-size")
+except FileNotFoundError:
+    print("Error: Python executable not found.")
+    print("Check your Python installation.")
+except Exception as e:
+    print(f"Error: Failed to run firmware metrics: {e}")
+    print("Make sure esp-idf-size is installed: pip install esp-idf-size")
 
 #
 # Target: Build executable and linkable firmware or FS image
