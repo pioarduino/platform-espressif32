@@ -238,7 +238,7 @@ def HandleArduinoIDFsettings(env):
                     print(f"Path Traversal detected: {url} check your URL path")
                 else:
                     try:
-                        response = requests.get(file_entry.split(" ")[0])
+                        response = requests.get(file_entry.split(" ")[0], timeout=10)
                         if response.ok:
                             return response.content.decode('utf-8')
                     except requests.RequestException as e:
@@ -318,6 +318,9 @@ def HandleArduinoIDFsettings(env):
         return config_flags
 
     def write_sdkconfig_file(idf_config_flags, checksum_source):
+        if "arduino" not in env.subst("$PIOFRAMEWORK"):
+            print("Error: Arduino framework required for sdkconfig processing")
+            return
         """Write the final sdkconfig.defaults file with checksum."""
         sdkconfig_src = join(arduino_libs_mcu, "sdkconfig")
         sdkconfig_dst = join(PROJECT_DIR, "sdkconfig.defaults")
