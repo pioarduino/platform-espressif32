@@ -599,8 +599,7 @@ def has_unicore_flags():
 
 # Esp32-solo1 libs settings
 if flag_custom_sdkconfig and has_unicore_flags():
-    build_unflags = env.GetProjectOption("build_unflags")
-    if not build_unflags:  # not existing needs init
+    if not env.get('BUILD_UNFLAGS'):  # Initialize if not set
         env['BUILD_UNFLAGS'] = []
     
     build_unflags = " ".join(env['BUILD_UNFLAGS']) + " -mdisable-hardware-atomics -ustart_app_other_cores"
