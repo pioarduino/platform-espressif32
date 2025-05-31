@@ -328,7 +328,7 @@ def HandleArduinoIDFsettings(env):
         # Generate checksum for validation (maintains original logic)
         checksum = get_MD5_hash(checksum_source.strip() + mcu)
         
-        with open(sdkconfig_src, 'r') as src, open(sdkconfig_dst, 'w') as dst:
+        with open(sdkconfig_src, 'r', encoding='utf-8') as src, open(sdkconfig_dst, 'w', encoding='utf-8') as dst:
             # Write checksum header (critical for compilation decision logic)
             dst.write(f"# TASMOTA__{checksum}\n")
             
