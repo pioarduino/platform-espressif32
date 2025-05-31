@@ -1,4 +1,10 @@
-# component_manager.py
+"""
+Component manager for ESP32 Arduino framework builds in PlatformIO.
+
+This module provides the ComponentManager class for handling IDF component
+addition/removal, library ignore processing, and build script modifications.
+"""
+
 import os
 import shutil
 import re
