@@ -187,6 +187,18 @@ SDKCONFIG_PATH = os.path.expandvars(board.get(
         os.path.join(PROJECT_DIR, "sdkconfig.%s" % env.subst("$PIOENV")),
 ))
 
+def contains_path_traversal(url):
+    """Check for Path Traversal patterns"""
+    dangerous_patterns = [
+        '../', '..\\',  # Standard Path Traversal
+        '%2e%2e%2f', '%2e%2e%5c',  # URL-encoded
+        '..%2f', '..%5c',  # Mixed
+        '%252e%252e%252f',  # Double encoded
+    ]
+    
+    url_lower = url.lower()
+    return any(pattern in url_lower for pattern in dangerous_patterns)
+
 #
 # generate modified Arduino IDF sdkconfig, applying settings from "custom_sdkconfig"
 #
@@ -220,6 +232,11 @@ def HandleArduinoIDFsettings(env):
         for file_entry in sdkconfig_entries:
             # Handle HTTP/HTTPS URLs
             if "http" in file_entry and "://" in file_entry:
+                url = file_entry.split(" ")[0]
+            # Path Traversal protection
+            if contains_path_traversal(url):
+                print(f"Path Traversal detected: {url} check your URL path")
+            else:
                 try:
                     response = requests.get(file_entry.split(" ")[0])
                     if response.ok:
