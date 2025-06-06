@@ -1800,13 +1800,10 @@ extra_cmake_args = [
     "-DSDKCONFIG=" + SDKCONFIG_PATH,
 ]
 
-if "CPPDEFINES" in env:
-    flatten_cppdefines = env.Flatten(env['CPPDEFINES'])
-    if "SHOW_METRICS" in flatten_cppdefines:
-        # This will add the linker flag for the map file
-        extra_cmake_args.append(
-            f'-DCMAKE_EXE_LINKER_FLAGS=-Wl,-Map={os.path.join(BUILD_DIR, env.subst("$PROGNAME") + ".map")}'
-        )
+# This will add the linker flag for the map file
+extra_cmake_args.append(
+    f'-DCMAKE_EXE_LINKER_FLAGS=-Wl,-Map={os.path.join(BUILD_DIR, env.subst("$PROGNAME") + ".map")}'
+)
 
 # Add any extra args from board config
 extra_cmake_args += click.parser.split_arg_string(board.get("build.cmake_extra_args", ""))

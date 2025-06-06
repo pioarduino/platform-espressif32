@@ -360,28 +360,66 @@ if not env.get("PIOFRAMEWORK"):
 
 
 def firmware_metrics(target, source, env):
+    """
+    Custom target to run esp-idf-size with support for command line parameters
+    Usage: pio run -t metrics -- [esp-idf-size arguments]
+    """
     if terminal_cp != "utf-8":
         print("Firmware metrics can not be shown. Set the terminal codepage to \"utf-8\"")
         return
+
     map_file = os.path.join(env.subst("$BUILD_DIR"), env.subst("$PROGNAME") + ".map")
     if not os.path.isfile(map_file):
         # map file can be in project dir
         map_file = os.path.join(get_project_dir(), env.subst("$PROGNAME") + ".map")
 
-    if os.path.isfile(map_file):
-        try:
-            import subprocess
-            python_exe = env.subst("$PYTHONEXE")
-            run_env = os.environ.copy()
-            run_env["PYTHONIOENCODING"] = "utf-8"
-            run_env["PYTHONUTF8"] = "1"
-            # Show output of esp_idf_size, but suppresses the command echo
-            subprocess.run([
-                python_exe, "-m", "esp_idf_size", "--ng", map_file
-            ], env=run_env, check=False)
-        except Exception:
-            print("Warning: Failed to run firmware metrics. Is esp-idf-size installed?")
-            pass
+    if not os.path.isfile(map_file):
+        print(f"Error: Map file not found: {map_file}")
+        print("Make sure the project is built first with 'pio run'")
+        return
+
+    try:
+        import subprocess
+        import sys
+        import shlex
+        
+        cmd = [env.subst("$PYTHONEXE"), "-m", "esp_idf_size", "--ng"]
+        
+        # Parameters from platformio.ini
+        extra_args = env.GetProjectOption("custom_esp_idf_size_args", "")
+        if extra_args:
+            cmd.extend(shlex.split(extra_args))
+        
+        # Command Line Parameter, after --
+        cli_args = []
+        if "--" in sys.argv:
+            dash_index = sys.argv.index("--")
+            if dash_index + 1 < len(sys.argv):
+                cli_args = sys.argv[dash_index + 1:]
+                cmd.extend(cli_args)
+        
+        # Map-file as last argument
+        cmd.append(map_file)
+        
+        # Debug-Info if wanted
+        if env.GetProjectOption("custom_esp_idf_size_verbose", False):
+            print(f"Running command: {' '.join(cmd)}")
+        
+        # Call esp-idf-size
+        result = subprocess.run(cmd, check=False, capture_output=False)
+        
+        if result.returncode != 0:
+            print(f"Warning: esp-idf-size exited with code {result.returncode}")
+            
+    except ImportError:
+        print("Error: esp-idf-size module not found.")
+        print("Install with: pip install esp-idf-size")
+    except FileNotFoundError:
+        print("Error: Python executable not found.")
+        print("Check your Python installation.")
+    except Exception as e:
+        print(f"Error: Failed to run firmware metrics: {e}")
+        print("Make sure esp-idf-size is installed: pip install esp-idf-size")
 
 #
 # Target: Build executable and linkable firmware or FS image
@@ -617,6 +655,31 @@ env.AddPlatformTarget(
     ],
     "Erase Flash",
 )
+
+#
+# Register Custom Target
+#
+env.AddCustomTarget(
+    name="metrics",
+    dependencies="$BUILD_DIR/${PROGNAME}.elf",
+    actions=firmware_metrics,
+    title="Firmware Size Metrics",
+    description="Analyze firmware size using esp-idf-size (supports CLI args after --)",
+    always_build=True
+)
+
+#
+# Additional Target without Build-Dependency when already compiled
+#
+env.AddCustomTarget(
+    name="metrics-only",
+    dependencies=None,
+    actions=firmware_metrics,
+    title="Firmware Size Metrics (No Build)",
+    description="Analyze firmware size without building first",
+    always_build=True
+)
+
 
 #
 # Override memory inspection behavior
