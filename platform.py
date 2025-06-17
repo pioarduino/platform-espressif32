@@ -140,11 +140,16 @@ class Espressif32Platform(PlatformBase):
             if is_internet_available():
                 try:
                     # use branch master
-                    URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
-                    packjdata = requests.get(URL, timeout=10).json()
+                    URL = (
+                        "https://raw.githubusercontent.com/espressif/arduino-esp32/master/"
+                        "package/package_esp32_index.template.json"
+                    )
+                    response = requests.get(URL, timeout=10)
+                    response.raise_for_status()
+                    packjdata = response.json()
                     dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
                     self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
-                except (requests.RequestException, KeyError, IndexError) as e:
+                except (requests.RequestException, ValueError, KeyError, IndexError) as e:
                     print(f"Error loading latest Arduino ESP32 libs: {e}")
             else:
                 print("No Internet connection  - using local/standard configuration")
