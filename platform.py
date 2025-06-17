@@ -37,6 +37,14 @@ if IS_WINDOWS:
 python_exe = get_pythonexe_path()
 pm = ToolPackageManager()
 
+def is_internet_available():
+    """Check if connected to Internet"""
+    try:
+        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        return True
+    except OSError:
+        return False
+
 class Espressif32Platform(PlatformBase):
     def configure_default_packages(self, variables, targets):
         if not variables.get("board"):
@@ -128,11 +136,17 @@ class Espressif32Platform(PlatformBase):
         if "arduino" in frameworks:
             self.packages["framework-arduinoespressif32"]["optional"] = False
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
-            # use branch master
-            URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
-            packjdata = requests.get(URL).json()
-            dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
-            self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
+            if is_internet_available():
+                try:
+                    # use branch master
+                    URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
+                    packjdata = requests.get(URL, timeout=10).json()
+                    dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
+                    self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
+                except (requests.RequestException, KeyError, IndexError) as e:
+                    print(f"Error loading latest Arduino ESP32 libs: {e}")
+            else:
+                print("No Internet connection  - using local/standard configuration")
 
         if variables.get("custom_sdkconfig") is not None or len(str(board_sdkconfig)) > 3:
             frameworks.append("espidf")
