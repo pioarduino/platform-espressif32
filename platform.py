@@ -139,9 +139,9 @@ class Espressif32Platform(PlatformBase):
             self.packages["framework-arduinoespressif32-libs"]["optional"] = False
             if is_internet_available():
                 try:
-                    # use branch master
+                    # use espressif Arduino v3.1.x libs
                     URL = (
-                        "https://raw.githubusercontent.com/espressif/arduino-esp32/master/"
+                        "https://raw.githubusercontent.com/espressif/arduino-esp32/release/v3.1.x/"
                         "package/package_esp32_index.template.json"
                     )
                     response = requests.get(URL, timeout=10)

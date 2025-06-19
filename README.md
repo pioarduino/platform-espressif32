@@ -16,11 +16,11 @@ Espressif Systems is a privately held, fabless semiconductor company renowned fo
 - Search for the `pioarduino ide` extension.
 - Install pioarduino IDE extension.
 
-# Usage
+## Usage
 1. Setup new VSCode pioarduino project.
 1. Configure a platform option in platformio.ini file:
 
-# Documentation
+## Documentation
 [pioarduino Wiki](https://deepwiki.com/pioarduino/platform-espressif32)
 The Wiki is AI generated and insane detailed and accurate.
 
