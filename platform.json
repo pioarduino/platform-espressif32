@@ -92,7 +92,7 @@
       "type": "uploader",
       "optional": false,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esptool/releases/download/v4.8.11/esptool.zip"
+      "version": "https://github.com/pioarduino/esptool/releases/download/v5.0.0-dev/esptool.zip"
     },
     "tl-install": {
       "type": "tool",
