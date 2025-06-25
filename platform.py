@@ -16,6 +16,7 @@ import os
 import contextlib
 import json
 import requests
+import socket
 import subprocess
 import sys
 import shutil
