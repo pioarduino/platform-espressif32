@@ -397,7 +397,11 @@ def firmware_metrics(target, source, env):
             if dash_index + 1 < len(sys.argv):
                 cli_args = sys.argv[dash_index + 1:]
                 cmd.extend(cli_args)
-        
+
+        # Add CLI arguments before the map file
+        if cli_args:
+            cmd.extend(cli_args)
+
         # Map-file as last argument
         cmd.append(map_file)
         
