@@ -89,6 +89,8 @@ def install_standard_python_deps():
         "wheel": ">=0.35.1",
         "rich-click": ">=1.8.6",
         "PyYAML": ">=6.0.2",
+        "intelhex": ">=2.3.0",
+        "rich": ">=14.0.0",
         "esp-idf-size": ">=1.6.1"
     }
 
@@ -1844,7 +1846,6 @@ extra_cmake_args = [
     "-DPYTHON=" + get_python_exe(),
     "-DSDKCONFIG=" + SDKCONFIG_PATH,
 ]
-
 
 # This will add the linker flag for the map file
 extra_cmake_args.append(

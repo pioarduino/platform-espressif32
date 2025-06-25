@@ -410,7 +410,7 @@ env.Replace(
     SIZECHECKCMD="$SIZETOOL -A -d $SOURCES",
     SIZEPRINTCMD="$SIZETOOL -B -d $SOURCES",
     ERASEFLAGS=["--chip", mcu, "--port", '"$UPLOAD_PORT"'],
-    ERASECMD='"$PYTHONEXE" "$OBJCOPY" $ERASEFLAGS erase_flash',
+    ERASECMD='"$PYTHONEXE" "$OBJCOPY" $ERASEFLAGS erase-flash',
     # mkspiffs package contains two different binaries for IDF and Arduino
     MKFSTOOL="mk%s" % filesystem
     + (
@@ -459,11 +459,11 @@ env.Append(
                         "--chip",
                         mcu,
                         "elf2image",
-                        "--flash_mode",
+                        "--flash-mode",
                         "${__get_board_flash_mode(__env__)}",
-                        "--flash_freq",
+                        "--flash-freq",
                         "${__get_board_f_image(__env__)}",
-                        "--flash_size",
+                        "--flash-size",
                         board.get("upload.flash_size", "4MB"),
                         "-o",
                         "$TARGET",
@@ -498,7 +498,76 @@ env.Append(
 if not env.get("PIOFRAMEWORK"):
     env.SConscript("frameworks/_bare.py", exports="env")
 
-# Build executable and linkable firmware or FS image
+def firmware_metrics(target, source, env):
+    """
+    Custom target to run esp-idf-size with support for command line parameters
+    Usage: pio run -t metrics -- [esp-idf-size arguments]
+    """
+    if terminal_cp != "utf-8":
+        print("Firmware metrics can not be shown. Set the terminal codepage to \"utf-8\"")
+        return
+
+    map_file = os.path.join(env.subst("$BUILD_DIR"), env.subst("$PROGNAME") + ".map")
+    if not os.path.isfile(map_file):
+        # map file can be in project dir
+        map_file = os.path.join(get_project_dir(), env.subst("$PROGNAME") + ".map")
+
+    if not os.path.isfile(map_file):
+        print(f"Error: Map file not found: {map_file}")
+        print("Make sure the project is built first with 'pio run'")
+        return
+
+    try:
+        import subprocess
+        import sys
+        import shlex
+        
+        cmd = [env.subst("$PYTHONEXE"), "-m", "esp_idf_size", "--ng"]
+        
+        # Parameters from platformio.ini
+        extra_args = env.GetProjectOption("custom_esp_idf_size_args", "")
+        if extra_args:
+            cmd.extend(shlex.split(extra_args))
+        
+        # Command Line Parameter, after --
+        cli_args = []
+        if "--" in sys.argv:
+            dash_index = sys.argv.index("--")
+            if dash_index + 1 < len(sys.argv):
+                cli_args = sys.argv[dash_index + 1:]
+                cmd.extend(cli_args)
+
+        # Add CLI arguments before the map file
+        if cli_args:
+            cmd.extend(cli_args)
+
+        # Map-file as last argument
+        cmd.append(map_file)
+        
+        # Debug-Info if wanted
+        if env.GetProjectOption("custom_esp_idf_size_verbose", False):
+            print(f"Running command: {' '.join(cmd)}")
+        
+        # Call esp-idf-size
+        result = subprocess.run(cmd, check=False, capture_output=False)
+        
+        if result.returncode != 0:
+            print(f"Warning: esp-idf-size exited with code {result.returncode}")
+            
+    except ImportError:
+        print("Error: esp-idf-size module not found.")
+        print("Install with: pip install esp-idf-size")
+    except FileNotFoundError:
+        print("Error: Python executable not found.")
+        print("Check your Python installation.")
+    except Exception as e:
+        print(f"Error: Failed to run firmware metrics: {e}")
+        print("Make sure esp-idf-size is installed: pip install esp-idf-size")
+
+#
+# Target: Build executable and linkable firmware or FS image
+#
+
 target_elf = None
 if "nobuild" in COMMAND_LINE_TARGETS:
     target_elf = join("$BUILD_DIR", "${PROGNAME}.elf")
@@ -600,16 +669,16 @@ elif upload_protocol == "esptool":
             "--baud",
             "$UPLOAD_SPEED",
             "--before",
-            board.get("upload.before_reset", "default_reset"),
+            board.get("upload.before_reset", "default-reset"),
             "--after",
-            board.get("upload.after_reset", "hard_reset"),
-            "write_flash",
+            board.get("upload.after_reset", "hard-reset"),
+            "write-flash",
             "-z",
-            "--flash_mode",
+            "--flash-mode",
             "${__get_board_flash_mode(__env__)}",
-            "--flash_freq",
+            "--flash-freq",
             "${__get_board_f_image(__env__)}",
-            "--flash_size",
+            "--flash-size",
             "detect",
         ],
         UPLOADCMD='"$PYTHONEXE" "$UPLOADER" $UPLOADERFLAGS '
@@ -628,16 +697,16 @@ elif upload_protocol == "esptool":
                 "--baud",
                 "$UPLOAD_SPEED",
                 "--before",
-                board.get("upload.before_reset", "default_reset"),
+                board.get("upload.before_reset", "default-reset"),
                 "--after",
-                board.get("upload.after_reset", "hard_reset"),
-                "write_flash",
+                board.get("upload.after_reset", "hard-reset"),
+                "write-flash",
                 "-z",
-                "--flash_mode",
+                "--flash-mode",
                 "${__get_board_flash_mode(__env__)}",
-                "--flash_freq",
+                "--flash-freq",
                 "${__get_board_f_image(__env__)}",
-                "--flash_size",
+                "--flash-size",
                 "detect",
                 "$FS_START",
             ],
@@ -772,11 +841,10 @@ env.AddCustomTarget(
 # Additional Target without Build-Dependency when already compiled
 env.AddCustomTarget(
     name="metrics-only",
-    dependencies=None,
     actions=firmware_metrics,
     title="Firmware Size Metrics (No Build)",
     description="Analyze firmware size without building first",
-    always_build=True,
+    always_build=True
 )
 
 # Override memory inspection behavior
