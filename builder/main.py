@@ -841,10 +841,11 @@ env.AddCustomTarget(
 # Additional Target without Build-Dependency when already compiled
 env.AddCustomTarget(
     name="metrics-only",
+    dependencies=None,
     actions=firmware_metrics,
     title="Firmware Size Metrics (No Build)",
     description="Analyze firmware size without building first",
-    always_build=True
+    always_build=True,
 )
 
 # Override memory inspection behavior
