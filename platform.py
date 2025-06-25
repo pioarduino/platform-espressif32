@@ -84,6 +84,13 @@ pm = ToolPackageManager()
 # Configure logger
 logger = logging.getLogger(__name__)
 
+def is_internet_available():
+    """Check if connected to Internet"""
+    try:
+        with socket.create_connection(("8.8.8.8", 53), timeout=3):
+            return True
+    except OSError:
+        return False
 
 def safe_file_operation(operation_func):
     """Decorator for safe filesystem operations with error handling."""
@@ -301,17 +308,18 @@ class Espressif32Platform(PlatformBase):
         self.packages["framework-arduinoespressif32"]["optional"] = False
         self.packages["framework-arduinoespressif32-libs"]["optional"] = False
 
-        # Use branch master
-        url = ("https://raw.githubusercontent.com/espressif/arduino-esp32/"
-               "master/package/package_esp32_index.template.json")
-        try:
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-            packjdata = response.json()
-            dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
-            self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
-        except (requests.RequestException, KeyError, IndexError) as e:
-            logger.error(f"Failed to fetch Arduino framework library URL: {e}")
+        if is_internet_available():
+            # Use branch master
+            url = ("https://raw.githubusercontent.com/espressif/arduino-esp32/"
+                   "master/package/package_esp32_index.template.json")
+            try:
+                response = requests.get(url, timeout=30)
+                response.raise_for_status()
+                packjdata = response.json()
+                dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
+                self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
+            except (requests.RequestException, KeyError, IndexError) as e:
+                logger.error(f"Failed to fetch Arduino framework library URL: {e}")
 
     def _configure_espidf_framework(
         self, frameworks: List[str], variables: Dict, board_config: Dict, mcu: str
