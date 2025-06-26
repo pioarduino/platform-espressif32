@@ -117,6 +117,7 @@ def get_platform_default_threshold(mcu):
     }
 
     default_value = platform_defaults.get(mcu, 31600)
+
     # Debug output only in verbose mode
     if logging.getLogger().isEnabledFor(logging.DEBUG):
         logging.debug(
@@ -124,6 +125,7 @@ def get_platform_default_threshold(mcu):
             f"{default_value}")
 
     return default_value
+
 
 def validate_threshold(threshold, mcu):
     """
