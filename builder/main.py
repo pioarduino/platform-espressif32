@@ -303,60 +303,6 @@ def check_lib_archive_exists():
     return False
 
 
-def firmware_metrics(target, source, env):
-    """
-    Custom target to run esp-idf-size with support for command line parameters.
-    Usage: pio run -t metrics -- [esp-idf-size arguments]
-    """
-    if terminal_cp != "utf-8":
-        print(
-            'Firmware metrics can not be shown. Set the terminal codepage '
-            'to "utf-8"'
-        )
-        return
-
-    map_file = os.path.join(
-        env.subst("$BUILD_DIR"), env.subst("$PROGNAME") + ".map"
-    )
-    if not os.path.isfile(map_file):
-        # Map file can be in project dir
-        map_file = os.path.join(
-            get_project_dir(), env.subst("$PROGNAME") + ".map"
-        )
-
-    if not os.path.isfile(map_file):
-        print(f"Error: Map file not found: {map_file}")
-        print("Make sure the project is built first with 'pio run'")
-        return
-
-    cmd = [env.subst("$PYTHONEXE"), "-m", "esp_idf_size", "--ng"]
-
-    # Parameters from platformio.ini
-    extra_args = env.GetProjectOption("custom_esp_idf_size_args", "")
-    if extra_args:
-        cmd.extend(shlex.split(extra_args))
-
-    # Command Line Parameter, after --
-    cli_args = []
-    if "--" in sys.argv:
-        dash_index = sys.argv.index("--")
-        if dash_index + 1 < len(sys.argv):
-            cli_args = sys.argv[dash_index + 1 :]
-
-    # Map-file as last argument
-    cmd.append(map_file)
-
-    # Debug-Info if wanted
-    if env.GetProjectOption("custom_esp_idf_size_verbose", False):
-        print(f"Running command: {' '.join(cmd)}")
-
-    # Call esp-idf-size
-    result = subprocess.run(cmd, check=False, capture_output=False)
-
-    if result.returncode != 0:
-        print(f"Warning: esp-idf-size exited with code {result.returncode}")
-
-
 # Initialize board configuration and MCU settings
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
