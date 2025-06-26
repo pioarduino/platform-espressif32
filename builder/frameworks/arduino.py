@@ -121,8 +121,8 @@ def get_platform_default_threshold(mcu):
     # Debug output only in verbose mode
     if logging.getLogger().isEnabledFor(logging.DEBUG):
         logging.debug(
-             f"Max. possible platform default threshold for {mcu}: "
-             f"{default_value}")
+            f"Max. possible platform default threshold for {mcu}: "
+            f"{default_value}")
 
     return default_value
 
