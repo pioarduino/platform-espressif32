@@ -617,17 +617,15 @@ class Espressif32Platform(PlatformBase):
         """Determine OpenOCD interface configuration for debug link."""
         if link in ("jlink", "cmsis-dap"):
             return link
-        elif link in ("esp-prog", "ftdi"):
+        if link in ("esp-prog", "ftdi"):
             if board.id == "esp32-s2-kaluga-1":
                 return "ftdi/esp32s2_kaluga_v1"
-            else:
-                return "ftdi/esp32_devkitj_v1"
-        elif link == "esp-bridge":
+            return "ftdi/esp32_devkitj_v1"
+        if link == "esp-bridge":
             return "esp_usb_bridge"
-        elif link == "esp-builtin":
+        if link == "esp-builtin":
             return "esp_usb_jtag"
-        else:
-            return f"ftdi/{link}"
+        return f"ftdi/{link}"
 
     def _get_debug_server_args(self, openocd_interface: str, debug: Dict) -> List[str]:
         """Generate debug server arguments for OpenOCD configuration."""
