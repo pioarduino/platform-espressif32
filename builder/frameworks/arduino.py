@@ -926,7 +926,7 @@ def apply_include_shortening(env, node, includes, total_length):
 
 def smart_include_length_shorten(env, node):
     """
-    Include path shortening based on bleeding edge configurable threshold 
+    Include path shortening based on max. performance configurable threshold 
     with enhanced MCU support
     Uses aggressive thresholds for maximum performance
     """
@@ -950,14 +950,14 @@ def smart_include_length_shorten(env, node):
     if env.get("VERBOSE"):
         debug_framework_paths(env, include_count, total_path_length)
 
-        # Extended debug information about bleeding edge threshold 
+        # Extended debug information about maximum edge threshold 
         # configuration
         threshold_info = get_threshold_info(env, config, current_env_section)
-        print("*** Bleeding Edge Threshold Configuration Debug ***")
+        print("*** Maximum Threshold Configuration Debug ***")
         print(f"***   MCU: {threshold_info['mcu']} ***")
-        print(f"***   Bleeding Edge Platform Default: "
+        print(f"***   Maximum Platform Default: "
               f"{threshold_info['platform_default']} ***")
-        print(f"***   Final Bleeding Edge Threshold: "
+        print(f"***   Final maximum Threshold: "
               f"{threshold_info['final_threshold']} ***")
         print(f"***   Source: {threshold_info['source']} ***")
         print("***   Performance Mode: Maximum Aggressive ***")
