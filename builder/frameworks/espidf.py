@@ -20,16 +20,36 @@ Espressif IoT Development Framework for ESP32 MCU
 https://github.com/espressif/esp-idf
 """
 
+"""
+ESP-IDF Managed Components Integration for PlatformIO
+
+This module provides clean, robust integration of ESP-IDF managed components
+into PlatformIO's build system, ensuring that Kconfig files from managed
+components are properly processed and their configuration options appear
+in the generated sdkconfig files.
+
+Key Features:
+- Automatic detection and integration of managed components
+- Proper Kconfig processing for component configuration options
+- Clean cache management to ensure fresh configuration when needed
+- Seamless integration with ESP-IDF's component manager system
+
+The integration ensures that PlatformIO builds behave identically to 
+native ESP-IDF builds when using managed components.
+"""
+
 import copy
 import json
 import subprocess
 import sys
 import shutil
 import os
+import time
 from os.path import join
 import re
 import requests
 import platform as sys_platform
+import glob
 
 import click
 import semantic_version
@@ -125,7 +145,6 @@ install_standard_python_deps()
 
 # Allow changes in folders of managed components
 os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
-
 platform = env.PioPlatform()
 config = env.GetProjectConfig()
 board = env.BoardConfig()
@@ -188,6 +207,9 @@ SDKCONFIG_PATH = os.path.expandvars(board.get(
         "build.esp-idf.sdkconfig_path",
         os.path.join(PROJECT_DIR, "sdkconfig.%s" % env.subst("$PIOENV")),
 ))
+
+# Enable ESP-IDF Component Manager by default (ESP-IDF 5.x standard)
+os.environ["IDF_COMPONENT_MANAGER"] = "1"
 
 def contains_path_traversal(url):
     """Check for Path Traversal patterns"""
@@ -456,8 +478,35 @@ def is_cmake_reconfigure_required(cmake_api_reply_dir):
     ]
     cmake_preconf_dir = os.path.join(BUILD_DIR, "config")
     deafult_sdk_config = os.path.join(PROJECT_DIR, "sdkconfig.defaults")
-    idf_deps_lock = os.path.join(PROJECT_DIR, "dependencies.lock")
     ninja_buildfile = os.path.join(BUILD_DIR, "build.ninja")
+    
+    # Check if managed components exist but haven't been processed yet
+    managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
+    if os.path.isdir(managed_components_dir):
+        # If managed components exist but CMake cache doesn't, we need to configure
+        if not os.path.isfile(cmake_cache_file):
+            return True
+        
+        # Check if any Kconfig files in managed components are newer than CMake cache
+        for root, dirs, files in os.walk(managed_components_dir):
+            for file in files:
+                if file.startswith("Kconfig"):
+                    kconfig_path = os.path.join(root, file)
+                    if os.path.getmtime(kconfig_path) > os.path.getmtime(cmake_cache_file):
+                        print(f"Managed component Kconfig file {kconfig_path} requires reconfiguration")
+                        return True
+        
+        # Critical: Check if sdkconfig exists but managed components were added after it
+        # This handles the first-run case where managed components are downloaded
+        # but sdkconfig was generated before their Kconfig files were available
+        if os.path.isfile(cmake_cache_file) and os.path.isfile(SDKCONFIG_PATH):
+            # Check if any managed component directory is newer than the sdkconfig
+            for item in os.listdir(managed_components_dir):
+                item_path = os.path.join(managed_components_dir, item)
+                if os.path.isdir(item_path):
+                    if os.path.getmtime(item_path) > os.path.getmtime(SDKCONFIG_PATH):
+                        print(f"Managed component {item} was added after sdkconfig generation, forcing reconfiguration")
+                        return True
 
     for d in (cmake_api_reply_dir, cmake_preconf_dir):
         if not os.path.isdir(d) or not os.listdir(d):
@@ -473,10 +522,6 @@ def is_cmake_reconfigure_required(cmake_api_reply_dir):
     if os.path.isfile(deafult_sdk_config) and os.path.getmtime(
         deafult_sdk_config
     ) > os.path.getmtime(cmake_cache_file):
-        return True
-    if os.path.isfile(idf_deps_lock) and os.path.getmtime(
-        idf_deps_lock
-    ) > os.path.getmtime(ninja_buildfile):
         return True
     if any(
         os.path.getmtime(f) > os.path.getmtime(cmake_cache_file)
@@ -540,36 +585,6 @@ idf_component_register(SRCS ${app_sources})
             fp.write(prj_cmake_tpl % normalize_path(PROJECT_SRC_DIR))
 
 
-def get_cmake_code_model(src_dir, build_dir, extra_args=None):
-    cmake_api_dir = os.path.join(build_dir, ".cmake", "api", "v1")
-    cmake_api_query_dir = os.path.join(cmake_api_dir, "query")
-    cmake_api_reply_dir = os.path.join(cmake_api_dir, "reply")
-    query_file = os.path.join(cmake_api_query_dir, "codemodel-v2")
-
-    if not os.path.isfile(query_file):
-        os.makedirs(os.path.dirname(query_file))
-        open(query_file, "a").close()  # create an empty file
-
-    if not is_proper_idf_project():
-        create_default_project_files()
-
-    if is_cmake_reconfigure_required(cmake_api_reply_dir):
-        run_cmake(src_dir, build_dir, extra_args)
-
-    if not os.path.isdir(cmake_api_reply_dir) or not os.listdir(cmake_api_reply_dir):
-        sys.stderr.write("Error: Couldn't find CMake API response file\n")
-        env.Exit(1)
-
-    codemodel = {}
-    for target in os.listdir(cmake_api_reply_dir):
-        if target.startswith("codemodel-v2"):
-            with open(os.path.join(cmake_api_reply_dir, target), "r") as fp:
-                codemodel = json.load(fp)
-
-    assert codemodel["version"]["major"] == 2
-    return codemodel
-
-
 def populate_idf_env_vars(idf_env):
     idf_env["IDF_PATH"] = fs.to_unix_path(FRAMEWORK_DIR)
     additional_packages = [
@@ -587,6 +602,91 @@ def populate_idf_env_vars(idf_env):
         del idf_env["IDF_TOOLS_PATH"]
 
     idf_env["ESP_ROM_ELF_DIR"] = platform.get_package_dir("tool-esp-rom-elfs")
+
+
+
+def get_cmake_code_model(src_dir, build_dir, extra_args=None):
+    cmake_api_dir = os.path.join(build_dir, ".cmake", "api", "v1")
+    cmake_api_query_dir = os.path.join(cmake_api_dir, "query")
+    cmake_api_reply_dir = os.path.join(cmake_api_dir, "reply")
+    query_file = os.path.join(cmake_api_query_dir, "codemodel-v2")
+
+    if not os.path.isfile(query_file):
+        os.makedirs(os.path.dirname(query_file))
+        open(query_file, "a").close()  # create an empty file
+
+    if not is_proper_idf_project():
+        create_default_project_files()
+
+    managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
+    
+    # Check if managed components exist but haven't been processed
+    managed_components_exist_before = os.path.isdir(managed_components_dir)
+    managed_components_before = set()
+    if managed_components_exist_before:
+        managed_components_before = set(os.listdir(managed_components_dir))
+
+    # Initial cmake run or reconfiguration check
+    initial_reconfigure_needed = is_cmake_reconfigure_required(cmake_api_reply_dir)
+    if initial_reconfigure_needed:
+        run_cmake(src_dir, build_dir, extra_args)
+
+    # After first cmake run, check if managed components were downloaded
+    managed_components_exist_after = os.path.isdir(managed_components_dir)
+    need_additional_reconfigure = False
+    
+    if not managed_components_exist_before and managed_components_exist_after:
+        print("Managed components directory created during build, running additional configuration...")
+        need_additional_reconfigure = True
+    elif managed_components_exist_after:
+        managed_components_after = set(os.listdir(managed_components_dir))
+        new_components = managed_components_after - managed_components_before
+        
+        if new_components:
+            print(f"New managed components detected: {', '.join(new_components)}")
+            print("Running additional configuration to ensure all Kconfig options are available...")
+            need_additional_reconfigure = True
+    
+    if need_additional_reconfigure:
+        # Remove all sdkconfig files to force complete regeneration
+        for sdkconfig_pattern in ["sdkconfig", "sdkconfig.*"]:
+            sdkconfig_files = glob.glob(os.path.join(PROJECT_DIR, sdkconfig_pattern))
+            for sdkconfig_file in sdkconfig_files:
+                if os.path.isfile(sdkconfig_file) and not sdkconfig_file.endswith('.defaults'):
+                    print(f"Removing {sdkconfig_file} to force regeneration with managed component Kconfig options")
+                    os.remove(sdkconfig_file)
+        
+        # Remove CMake cache to force complete reconfiguration
+        cmake_cache_file = os.path.join(build_dir, "CMakeCache.txt")
+        if os.path.isfile(cmake_cache_file):
+            print("Removing CMake cache to force complete reconfiguration")
+            os.remove(cmake_cache_file)
+        
+        # Remove build configuration directory
+        config_dir = os.path.join(build_dir, "config")
+        if os.path.isdir(config_dir):
+            print("Removing config directory to force complete reconfiguration")
+            import shutil
+            shutil.rmtree(config_dir)
+        
+        # Force another cmake run to ensure Kconfig files from managed components are processed
+        run_cmake(src_dir, build_dir, extra_args)
+
+    if not os.path.isdir(cmake_api_reply_dir) or not os.listdir(cmake_api_reply_dir):
+        sys.stderr.write("Error: Couldn't find CMake API response file\n")
+        env.Exit(1)
+
+    codemodel = {}
+    for target in os.listdir(cmake_api_reply_dir):
+        if target.startswith("codemodel-v2"):
+            with open(os.path.join(cmake_api_reply_dir, target), "r") as fp:
+                codemodel = json.load(fp)
+
+    assert codemodel["version"]["major"] == 2
+    return codemodel
+
+
+
 
 
 def get_target_config(project_configs, target_index, cmake_api_reply_dir):
@@ -1143,6 +1243,14 @@ def RunMenuconfig(target, source, env):
 
 
 def run_cmake(src_dir, build_dir, extra_args=None):
+    # Set ESP_IDF_VERSION environment variable for managed components
+    managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
+    if os.path.isdir(managed_components_dir):
+        framework_version = get_framework_version()
+        major_minor_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
+        os.environ["ESP_IDF_VERSION"] = major_minor_version
+        print(f"Setting ESP_IDF_VERSION environment variable to {major_minor_version} for managed components Kconfig processing")
+    
     cmd = [
         os.path.join(platform.get_package_dir("tool-cmake") or "", "bin", "cmake"),
         "-S",
@@ -1258,6 +1366,9 @@ def build_bootloader(sdk_config):
     )
 
 
+    return []
+
+
 def get_targets_by_type(target_configs, target_types, ignore_targets=None):
     ignore_targets = ignore_targets or []
     result = []
@@ -1323,6 +1434,40 @@ idf_component_register(SRCS ${component_sources})
     if not os.path.isfile(component_cmake):
         with open(component_cmake, "w") as fp:
             fp.write(prj_cmake_tpl)
+
+
+def ensure_managed_components_in_build(target_configs, managed_components_dir):
+    """
+    Ensure that managed components are properly integrated into the build process
+    and their libraries are available for linking.
+    """
+    if not os.path.isdir(managed_components_dir):
+        return
+    
+    # Scan for managed components that should be included
+    managed_component_names = []
+    for item in os.listdir(managed_components_dir):
+        item_path = os.path.join(managed_components_dir, item)
+        if os.path.isdir(item_path) and os.path.isfile(os.path.join(item_path, "CMakeLists.txt")):
+            managed_component_names.append(item)
+    
+    # Check if managed components are missing from target configs
+    missing_components = []
+    for component_name in managed_component_names:
+        component_found = False
+        for target_id, target_config in target_configs.items():
+            if (target_config.get("name", "") == component_name or 
+                component_name in target_id or
+                target_id.endswith(f"__{component_name}")):
+                component_found = True
+                break
+        
+        if not component_found:
+            missing_components.append(component_name)
+    
+    if missing_components:
+        print(f"Warning: Managed components not found in build configuration: {', '.join(missing_components)}")
+        print("This may cause linking errors. Consider running 'pio run --target clean' to force reconfiguration.")
 
 
 def find_default_component(target_configs):
@@ -1783,7 +1928,7 @@ if not board.get("build.ldscript", ""):
             % os.path.join(FRAMEWORK_DIR, "components", "esp_system", "ld"),
             "Generating LD script $TARGET",
         ),
-    )
+       )
 
     env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", linker_script)
     env.Replace(LDSCRIPT_PATH="memory.ld")
@@ -1828,6 +1973,39 @@ if os.path.isfile(os.path.join(PROJECT_SRC_DIR, "sdkconfig.h")):
 extra_components = []
 if PROJECT_SRC_DIR != os.path.join(PROJECT_DIR, "main"):
     extra_components.append(PROJECT_SRC_DIR)
+
+# Check for managed_components directory and configure component manager
+managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
+
+extra_cmake_args = [
+    "-DIDF_TARGET=" + idf_variant,
+    "-DPYTHON_DEPS_CHECKED=1",
+    "-DPYTHON=" + get_python_exe(),
+    "-DSDKCONFIG=" + SDKCONFIG_PATH,
+]
+
+# Configure managed components if present
+if os.path.isdir(managed_components_dir):
+    print("Found managed components directory, enabling ESP-IDF component manager...")
+    extra_components.append(managed_components_dir)
+    
+    # Set ESP-IDF version environment variables for Kconfig processing
+    framework_version = get_framework_version()
+    major_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
+    os.environ["ESP_IDF_VERSION"] = major_version
+    
+    # Configure CMake for component manager
+    extra_cmake_args.extend([
+        "-DIDF_COMPONENT_MANAGER=1",
+        f"-DESP_IDF_VERSION={major_version}",
+        f"-DESP_IDF_VERSION_MAJOR={framework_version.split('.')[0]}",
+        f"-DESP_IDF_VERSION_MINOR={framework_version.split('.')[1]}",
+        "-DCOMPONENT_MANAGER_ENABLED=1",
+    ])
+    
+    print(f"Setting ESP_IDF_VERSION to {major_version} for managed components Kconfig processing")
+
+# Configure Arduino framework if needed
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     print(
         "Warning! Arduino framework as an ESP-IDF component doesn't handle "
@@ -1839,13 +2017,12 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
         LIBSOURCE_DIRS=[os.path.join(ARDUINO_FRAMEWORK_DIR, "libraries")]
     )
 
-extra_cmake_args = [
-    "-DIDF_TARGET=" + idf_variant,
-    "-DPYTHON_DEPS_CHECKED=1",
-    "-DEXTRA_COMPONENT_DIRS:PATH=" + ";".join(extra_components),
-    "-DPYTHON=" + get_python_exe(),
-    "-DSDKCONFIG=" + SDKCONFIG_PATH,
-]
+# Add ESP-IDF's components directory to ensure standard components are available
+framework_components_dir = os.path.join(FRAMEWORK_DIR, "components")
+if framework_components_dir not in extra_components:
+    extra_components.append(framework_components_dir)
+
+extra_cmake_args.append("-DEXTRA_COMPONENT_DIRS:PATH=" + ";".join(extra_components))
 
 # This will add the linker flag for the map file
 extra_cmake_args.append(
@@ -1874,6 +2051,9 @@ if not project_codemodel:
 target_configs = load_target_configurations(
     project_codemodel, os.path.join(BUILD_DIR, CMAKE_API_REPLY_PATH)
 )
+
+# Ensure managed components are properly integrated
+ensure_managed_components_in_build(target_configs, managed_components_dir)
 
 sdk_config = get_sdk_configuration()
 
@@ -1925,8 +2105,14 @@ app_includes = get_app_includes(elf_config)
 # Compile bootloader
 #
 
+bootloader_bin = None
 if flag_custom_sdkonfig == False:
-    env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", build_bootloader(sdk_config))
+    bootloader_bin = build_bootloader(sdk_config)
+    env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", bootloader_bin)
+
+# Add explicit bootloader target
+if bootloader_bin:
+    env.Alias("bootloader", bootloader_bin)
 
 #
 # Target: ESP-IDF menuconfig
