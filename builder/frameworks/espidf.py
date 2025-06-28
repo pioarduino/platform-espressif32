@@ -1427,36 +1427,6 @@ idf_component_register(SRCS ${component_sources})
             fp.write(prj_cmake_tpl)
 
 
-def ensure_managed_components_in_build(target_configs, managed_components_dir):
-    """
-    Ensure that managed components are properly integrated into the build process
-    and their libraries are available for linking.
-    """
-    if not os.path.isdir(managed_components_dir):
-        return
-    
-    # Scan for managed components that should be included
-    managed_component_names = []
-    for item in os.listdir(managed_components_dir):
-        item_path = os.path.join(managed_components_dir, item)
-        if os.path.isdir(item_path) and os.path.isfile(os.path.join(item_path, "CMakeLists.txt")):
-            managed_component_names.append(item)
-    
-    # Check if managed components are missing from target configs
-    missing_components = []
-    for component_name in managed_component_names:
-        component_found = False
-        for target_id, target_config in target_configs.items():
-            if (target_config.get("name", "") == component_name or 
-                component_name in target_id or
-                target_id.endswith(f"__{component_name}")):
-                component_found = True
-                break
-        
-        if not component_found:
-            missing_components.append(component_name)
-    
-
 def find_default_component(target_configs):
     for config in target_configs:
         if "__pio_env" in config:
@@ -2035,9 +2005,6 @@ if not project_codemodel:
 target_configs = load_target_configurations(
     project_codemodel, os.path.join(BUILD_DIR, CMAKE_API_REPLY_PATH)
 )
-
-# Ensure managed components are properly integrated
-ensure_managed_components_in_build(target_configs, managed_components_dir)
 
 sdk_config = get_sdk_configuration()
 
