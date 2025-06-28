@@ -493,7 +493,6 @@ def is_cmake_reconfigure_required(cmake_api_reply_dir):
                 if file.startswith("Kconfig"):
                     kconfig_path = os.path.join(root, file)
                     if os.path.getmtime(kconfig_path) > os.path.getmtime(cmake_cache_file):
-                        print(f"Managed component Kconfig file {kconfig_path} requires reconfiguration")
                         return True
         
         # Critical: Check if sdkconfig exists but managed components were added after it
@@ -505,7 +504,6 @@ def is_cmake_reconfigure_required(cmake_api_reply_dir):
                 item_path = os.path.join(managed_components_dir, item)
                 if os.path.isdir(item_path):
                     if os.path.getmtime(item_path) > os.path.getmtime(SDKCONFIG_PATH):
-                        print(f"Managed component {item} was added after sdkconfig generation, forcing reconfiguration")
                         return True
 
     for d in (cmake_api_reply_dir, cmake_preconf_dir):
@@ -636,15 +634,12 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
     need_additional_reconfigure = False
     
     if not managed_components_exist_before and managed_components_exist_after:
-        print("Managed components directory created during build, running additional configuration...")
         need_additional_reconfigure = True
     elif managed_components_exist_after:
         managed_components_after = set(os.listdir(managed_components_dir))
         new_components = managed_components_after - managed_components_before
         
         if new_components:
-            print(f"New managed components detected: {', '.join(new_components)}")
-            print("Running additional configuration to ensure all Kconfig options are available...")
             need_additional_reconfigure = True
     
     if need_additional_reconfigure:
@@ -653,19 +648,16 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
             sdkconfig_files = glob.glob(os.path.join(PROJECT_DIR, sdkconfig_pattern))
             for sdkconfig_file in sdkconfig_files:
                 if os.path.isfile(sdkconfig_file) and not sdkconfig_file.endswith('.defaults'):
-                    print(f"Removing {sdkconfig_file} to force regeneration with managed component Kconfig options")
                     os.remove(sdkconfig_file)
         
         # Remove CMake cache to force complete reconfiguration
         cmake_cache_file = os.path.join(build_dir, "CMakeCache.txt")
         if os.path.isfile(cmake_cache_file):
-            print("Removing CMake cache to force complete reconfiguration")
             os.remove(cmake_cache_file)
         
         # Remove build configuration directory
         config_dir = os.path.join(build_dir, "config")
         if os.path.isdir(config_dir):
-            print("Removing config directory to force complete reconfiguration")
             import shutil
             shutil.rmtree(config_dir)
         
@@ -1249,7 +1241,6 @@ def run_cmake(src_dir, build_dir, extra_args=None):
         framework_version = get_framework_version()
         major_minor_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
         os.environ["ESP_IDF_VERSION"] = major_minor_version
-        print(f"Setting ESP_IDF_VERSION environment variable to {major_minor_version} for managed components Kconfig processing")
     
     cmd = [
         os.path.join(platform.get_package_dir("tool-cmake") or "", "bin", "cmake"),
@@ -1465,10 +1456,6 @@ def ensure_managed_components_in_build(target_configs, managed_components_dir):
         if not component_found:
             missing_components.append(component_name)
     
-    if missing_components:
-        print(f"Warning: Managed components not found in build configuration: {', '.join(missing_components)}")
-        print("This may cause linking errors. Consider running 'pio run --target clean' to force reconfiguration.")
-
 
 def find_default_component(target_configs):
     for config in target_configs:
@@ -1986,7 +1973,6 @@ extra_cmake_args = [
 
 # Configure managed components if present
 if os.path.isdir(managed_components_dir):
-    print("Found managed components directory, enabling ESP-IDF component manager...")
     extra_components.append(managed_components_dir)
     
     # Set ESP-IDF version environment variables for Kconfig processing
@@ -2002,8 +1988,6 @@ if os.path.isdir(managed_components_dir):
         f"-DESP_IDF_VERSION_MINOR={framework_version.split('.')[1]}",
         "-DCOMPONENT_MANAGER_ENABLED=1",
     ])
-    
-    print(f"Setting ESP_IDF_VERSION to {major_version} for managed components Kconfig processing")
 
 # Configure Arduino framework if needed
 if "arduino" in env.subst("$PIOFRAMEWORK"):
