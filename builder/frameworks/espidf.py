@@ -443,7 +443,6 @@ def get_project_lib_includes(env):
     return paths
 
 def is_cmake_reconfigure_required(cmake_api_reply_dir):
-    """Check if CMake reconfiguration is required based on file timestamps."""
     cmake_cache_file = os.path.join(BUILD_DIR, "CMakeCache.txt")
     cmake_txt_files = [
         os.path.join(PROJECT_DIR, "CMakeLists.txt"),
@@ -451,30 +450,36 @@ def is_cmake_reconfigure_required(cmake_api_reply_dir):
     ]
     cmake_preconf_dir = os.path.join(BUILD_DIR, "config")
     deafult_sdk_config = os.path.join(PROJECT_DIR, "sdkconfig.defaults")
+    idf_deps_lock = os.path.join(PROJECT_DIR, "dependencies.lock")
     ninja_buildfile = os.path.join(BUILD_DIR, "build.ninja")
-    
-    # Check basic required files first
+
     for d in (cmake_api_reply_dir, cmake_preconf_dir):
         if not os.path.isdir(d) or not os.listdir(d):
             return True
-    
     if not os.path.isfile(cmake_cache_file):
         return True
-    
     if not os.path.isfile(ninja_buildfile):
         return True
-    
-    # Check if configuration files are newer than cache
-    if not os.path.isfile(SDKCONFIG_PATH) or os.path.getmtime(SDKCONFIG_PATH) > os.path.getmtime(cmake_cache_file):
+    if not os.path.isfile(SDKCONFIG_PATH) or os.path.getmtime(
+        SDKCONFIG_PATH
+    ) > os.path.getmtime(cmake_cache_file):
         return True
-    
-    if os.path.isfile(deafult_sdk_config) and os.path.getmtime(deafult_sdk_config) > os.path.getmtime(cmake_cache_file):
+    if os.path.isfile(deafult_sdk_config) and os.path.getmtime(
+        deafult_sdk_config
+    ) > os.path.getmtime(cmake_cache_file):
         return True
-    
-    if any(os.path.getmtime(f) > os.path.getmtime(cmake_cache_file) for f in cmake_txt_files + [cmake_preconf_dir, FRAMEWORK_DIR]):
+    if os.path.isfile(idf_deps_lock) and os.path.getmtime(
+        idf_deps_lock
+    ) > os.path.getmtime(ninja_buildfile):
         return True
-    
+    if any(
+        os.path.getmtime(f) > os.path.getmtime(cmake_cache_file)
+        for f in cmake_txt_files + [cmake_preconf_dir, FRAMEWORK_DIR]
+    ):
+        return True
+
     return False
+
 
 def is_proper_idf_project():
     return all(
@@ -2351,3 +2356,4 @@ env.Replace(ESP32_APP_OFFSET=str(hex(bound)))
 env["INTEGRATION_EXTRA_DATA"].update(
     {"application_offset": env.subst("$ESP32_APP_OFFSET")}
 )
+
