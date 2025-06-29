@@ -1336,9 +1336,6 @@ def build_bootloader(sdk_config):
     )
 
 
-    return []
-
-
 def get_targets_by_type(target_configs, target_types, ignore_targets=None):
     ignore_targets = ignore_targets or []
     result = []
@@ -1910,7 +1907,7 @@ extra_components = []
 if PROJECT_SRC_DIR != os.path.join(PROJECT_DIR, "main"):
     extra_components.append(PROJECT_SRC_DIR)
 
-# Set ESP-IDF version environment variables (needed for proper Kconfig processing)
+# Set ESP-IDF version environment variables (always needed for proper Kconfig processing)
 framework_version = get_framework_version()
 major_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
 os.environ["ESP_IDF_VERSION"] = major_version
