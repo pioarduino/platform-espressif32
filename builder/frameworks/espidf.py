@@ -1910,33 +1910,28 @@ extra_components = []
 if PROJECT_SRC_DIR != os.path.join(PROJECT_DIR, "main"):
     extra_components.append(PROJECT_SRC_DIR)
 
-# Check for managed_components directory and configure component manager
-managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
+# Set ESP-IDF version environment variables (needed for proper Kconfig processing)
+framework_version = get_framework_version()
+major_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
+os.environ["ESP_IDF_VERSION"] = major_version
 
+# Configure CMake arguments with ESP-IDF version and component manager (enabled by default)
 extra_cmake_args = [
     "-DIDF_TARGET=" + idf_variant,
     "-DPYTHON_DEPS_CHECKED=1",
     "-DPYTHON=" + get_python_exe(),
     "-DSDKCONFIG=" + SDKCONFIG_PATH,
+    "-DIDF_COMPONENT_MANAGER=1",
+    f"-DESP_IDF_VERSION={major_version}",
+    f"-DESP_IDF_VERSION_MAJOR={framework_version.split('.')[0]}",
+    f"-DESP_IDF_VERSION_MINOR={framework_version.split('.')[1]}",
+    "-DCOMPONENT_MANAGER_ENABLED=1",
 ]
 
-# Configure managed components if present
+# Check for managed_components directory and add to extra components if present
+managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
 if os.path.isdir(managed_components_dir):
     extra_components.append(managed_components_dir)
-    
-    # Set ESP-IDF version environment variables for Kconfig processing
-    framework_version = get_framework_version()
-    major_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
-    os.environ["ESP_IDF_VERSION"] = major_version
-    
-    # Configure CMake for component manager
-    extra_cmake_args.extend([
-        "-DIDF_COMPONENT_MANAGER=1",
-        f"-DESP_IDF_VERSION={major_version}",
-        f"-DESP_IDF_VERSION_MAJOR={framework_version.split('.')[0]}",
-        f"-DESP_IDF_VERSION_MINOR={framework_version.split('.')[1]}",
-        "-DCOMPONENT_MANAGER_ENABLED=1",
-    ])
 
 # Configure Arduino framework if needed
 if "arduino" in env.subst("$PIOFRAMEWORK"):
