@@ -21,6 +21,7 @@ https://github.com/espressif/esp-idf
 """
 
 import copy
+import glob
 import json
 import subprocess
 import sys
@@ -443,7 +444,15 @@ def get_project_lib_includes(env):
 
     return paths
 
+def get_managed_components_state():
+    """Get current state of managed components directory."""
+    managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
+    if not os.path.isdir(managed_components_dir):
+        return None, set()
+    return managed_components_dir, set(os.listdir(managed_components_dir))
+
 def is_cmake_reconfigure_required(cmake_api_reply_dir, managed_components_before=None):
+    """Check if CMake reconfiguration is required based on file timestamps and managed components state."""
     cmake_cache_file = os.path.join(BUILD_DIR, "CMakeCache.txt")
     cmake_txt_files = [
         os.path.join(PROJECT_DIR, "CMakeLists.txt"),
@@ -453,13 +462,30 @@ def is_cmake_reconfigure_required(cmake_api_reply_dir, managed_components_before
     deafult_sdk_config = os.path.join(PROJECT_DIR, "sdkconfig.defaults")
     ninja_buildfile = os.path.join(BUILD_DIR, "build.ninja")
     
-    # Check if managed components exist but haven't been processed yet
-    managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
-    if os.path.isdir(managed_components_dir):
-        # If managed components exist but CMake cache doesn't, we need to configure
-        if not os.path.isfile(cmake_cache_file):
+    # Check basic required files first
+    for d in (cmake_api_reply_dir, cmake_preconf_dir):
+        if not os.path.isdir(d) or not os.listdir(d):
             return True
-        
+    
+    if not os.path.isfile(cmake_cache_file):
+        return True
+    
+    if not os.path.isfile(ninja_buildfile):
+        return True
+    
+    # Check if configuration files are newer than cache
+    if not os.path.isfile(SDKCONFIG_PATH) or os.path.getmtime(SDKCONFIG_PATH) > os.path.getmtime(cmake_cache_file):
+        return True
+    
+    if os.path.isfile(deafult_sdk_config) and os.path.getmtime(deafult_sdk_config) > os.path.getmtime(cmake_cache_file):
+        return True
+    
+    if any(os.path.getmtime(f) > os.path.getmtime(cmake_cache_file) for f in cmake_txt_files + [cmake_preconf_dir, FRAMEWORK_DIR]):
+        return True
+    
+    # Check managed components state
+    managed_components_dir, current_components = get_managed_components_state()
+    if managed_components_dir:
         # Check if any Kconfig files in managed components are newer than CMake cache
         for root, dirs, files in os.walk(managed_components_dir):
             for file in files:
@@ -470,44 +496,38 @@ def is_cmake_reconfigure_required(cmake_api_reply_dir, managed_components_before
         
         # Check for new managed components if we have the before state
         if managed_components_before is not None:
-            managed_components_after = set(os.listdir(managed_components_dir))
-            new_components = managed_components_after - managed_components_before
+            new_components = current_components - managed_components_before
             if new_components:
                 return True
         
-        # Critical: Check if sdkconfig exists but managed components were added after it
-        # This handles the first-run case where managed components are downloaded
-        # but sdkconfig was generated before their Kconfig files were available
-        if os.path.isfile(cmake_cache_file) and os.path.isfile(SDKCONFIG_PATH):
-            # Check if any managed component directory is newer than the sdkconfig
-            for item in os.listdir(managed_components_dir):
+        # Check if any managed component directory is newer than the sdkconfig
+        if os.path.isfile(SDKCONFIG_PATH):
+            for item in current_components:
                 item_path = os.path.join(managed_components_dir, item)
-                if os.path.isdir(item_path):
-                    if os.path.getmtime(item_path) > os.path.getmtime(SDKCONFIG_PATH):
-                        return True
-
-    for d in (cmake_api_reply_dir, cmake_preconf_dir):
-        if not os.path.isdir(d) or not os.listdir(d):
-            return True
-    if not os.path.isfile(cmake_cache_file):
-        return True
-    if not os.path.isfile(ninja_buildfile):
-        return True
-    if not os.path.isfile(SDKCONFIG_PATH) or os.path.getmtime(
-        SDKCONFIG_PATH
-    ) > os.path.getmtime(cmake_cache_file):
-        return True
-    if os.path.isfile(deafult_sdk_config) and os.path.getmtime(
-        deafult_sdk_config
-    ) > os.path.getmtime(cmake_cache_file):
-        return True
-    if any(
-        os.path.getmtime(f) > os.path.getmtime(cmake_cache_file)
-        for f in cmake_txt_files + [cmake_preconf_dir, FRAMEWORK_DIR]
-    ):
-        return True
+                if os.path.isdir(item_path) and os.path.getmtime(item_path) > os.path.getmtime(SDKCONFIG_PATH):
+                    return True
 
     return False
+
+def force_cmake_reconfiguration(build_dir):
+    """Force a complete CMake reconfiguration by removing cache and config files."""
+    # Remove all sdkconfig files to force complete regeneration
+    for sdkconfig_pattern in ["sdkconfig", "sdkconfig.*"]:
+        sdkconfig_files = glob.glob(os.path.join(PROJECT_DIR, sdkconfig_pattern))
+        for sdkconfig_file in sdkconfig_files:
+            if os.path.isfile(sdkconfig_file) and not sdkconfig_file.endswith('.defaults'):
+                os.remove(sdkconfig_file)
+    
+    # Remove CMake cache to force complete reconfiguration
+    cmake_cache_file = os.path.join(build_dir, "CMakeCache.txt")
+    if os.path.isfile(cmake_cache_file):
+        os.remove(cmake_cache_file)
+    
+    # Remove build configuration directory
+    config_dir = os.path.join(build_dir, "config")
+    if os.path.isdir(config_dir):
+        import shutil
+        shutil.rmtree(config_dir)
 
 
 def is_proper_idf_project():
@@ -568,13 +588,8 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
     if not is_proper_idf_project():
         create_default_project_files()
 
-    managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
-    
     # Track managed components state before first cmake run
-    managed_components_exist_before = os.path.isdir(managed_components_dir)
-    managed_components_before = set()
-    if managed_components_exist_before:
-        managed_components_before = set(os.listdir(managed_components_dir))
+    managed_components_dir, managed_components_before = get_managed_components_state()
 
     # Initial cmake run or reconfiguration check
     initial_reconfigure_needed = is_cmake_reconfigure_required(cmake_api_reply_dir)
@@ -584,24 +599,7 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
     # Check if managed components were downloaded after first cmake run and need additional reconfiguration
     additional_reconfigure_needed = is_cmake_reconfigure_required(cmake_api_reply_dir, managed_components_before)
     if additional_reconfigure_needed and not initial_reconfigure_needed:
-        # Remove all sdkconfig files to force complete regeneration
-        for sdkconfig_pattern in ["sdkconfig", "sdkconfig.*"]:
-            sdkconfig_files = glob.glob(os.path.join(PROJECT_DIR, sdkconfig_pattern))
-            for sdkconfig_file in sdkconfig_files:
-                if os.path.isfile(sdkconfig_file) and not sdkconfig_file.endswith('.defaults'):
-                    os.remove(sdkconfig_file)
-        
-        # Remove CMake cache to force complete reconfiguration
-        cmake_cache_file = os.path.join(build_dir, "CMakeCache.txt")
-        if os.path.isfile(cmake_cache_file):
-            os.remove(cmake_cache_file)
-        
-        # Remove build configuration directory
-        config_dir = os.path.join(build_dir, "config")
-        if os.path.isdir(config_dir):
-            import shutil
-            shutil.rmtree(config_dir)
-        
+        force_cmake_reconfiguration(build_dir)
         # Force another cmake run to ensure Kconfig files from managed components are processed
         run_cmake(src_dir, build_dir, extra_args)
 
