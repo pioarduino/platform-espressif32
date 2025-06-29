@@ -1816,22 +1816,20 @@ extra_components = []
 if PROJECT_SRC_DIR != os.path.join(PROJECT_DIR, "main"):
     extra_components.append(PROJECT_SRC_DIR)
 
-# Set ESP-IDF version environment variables (always needed for proper Kconfig processing)
+# Set ESP-IDF version environment variables (needed for proper Kconfig processing)
 framework_version = get_framework_version()
 major_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
 os.environ["ESP_IDF_VERSION"] = major_version
 
-# Configure CMake arguments with ESP-IDF version and component manager
+# Configure CMake arguments with ESP-IDF version
 extra_cmake_args = [
     "-DIDF_TARGET=" + idf_variant,
     "-DPYTHON_DEPS_CHECKED=1",
     "-DPYTHON=" + get_python_exe(),
     "-DSDKCONFIG=" + SDKCONFIG_PATH,
-    "-DIDF_COMPONENT_MANAGER=1",
     f"-DESP_IDF_VERSION={major_version}",
     f"-DESP_IDF_VERSION_MAJOR={framework_version.split('.')[0]}",
     f"-DESP_IDF_VERSION_MINOR={framework_version.split('.')[1]}",
-    "-DCOMPONENT_MANAGER_ENABLED=1",
 ]
 
 # Check for managed_components directory and add to extra components if present
