@@ -492,6 +492,14 @@ def is_proper_idf_project():
     )
 
 
+def collect_src_files():
+    return [
+        f
+        for f in env.MatchSourceFiles("$PROJECT_SRC_DIR", env.get("SRC_FILTER"))
+        if not f.endswith((".h", ".hpp"))
+    ]
+
+
 def normalize_path(path):
     if PROJECT_DIR in path:
         path = path.replace(PROJECT_DIR, "${CMAKE_SOURCE_DIR}")
