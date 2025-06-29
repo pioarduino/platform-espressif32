@@ -1815,7 +1815,6 @@ if os.path.isfile(os.path.join(PROJECT_SRC_DIR, "sdkconfig.h")):
 extra_components = []
 if PROJECT_SRC_DIR != os.path.join(PROJECT_DIR, "main"):
     extra_components.append(PROJECT_SRC_DIR)
-
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     print(
         "Warning! Arduino framework as an ESP-IDF component doesn't handle "
@@ -1836,6 +1835,7 @@ os.environ["ESP_IDF_VERSION"] = major_version
 extra_cmake_args = [
     "-DIDF_TARGET=" + idf_variant,
     "-DPYTHON_DEPS_CHECKED=1",
+    "-DEXTRA_COMPONENT_DIRS:PATH=" + ";".join(extra_components),
     "-DPYTHON=" + get_python_exe(),
     "-DSDKCONFIG=" + SDKCONFIG_PATH,
     f"-DESP_IDF_VERSION={major_version}",
