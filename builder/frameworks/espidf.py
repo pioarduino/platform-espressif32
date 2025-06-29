@@ -20,24 +20,6 @@ Espressif IoT Development Framework for ESP32 MCU
 https://github.com/espressif/esp-idf
 """
 
-"""
-ESP-IDF Managed Components Integration for PlatformIO
-
-This module provides clean, robust integration of ESP-IDF managed components
-into PlatformIO's build system, ensuring that Kconfig files from managed
-components are properly processed and their configuration options appear
-in the generated sdkconfig files.
-
-Key Features:
-- Automatic detection and integration of managed components
-- Proper Kconfig processing for component configuration options
-- Clean cache management to ensure fresh configuration when needed
-- Seamless integration with ESP-IDF's component manager system
-
-The integration ensures that PlatformIO builds behave identically to 
-native ESP-IDF builds when using managed components.
-"""
-
 import copy
 import json
 import subprocess
@@ -461,7 +443,7 @@ def get_project_lib_includes(env):
 
     return paths
 
-def is_cmake_reconfigure_required(cmake_api_reply_dir):
+def is_cmake_reconfigure_required(cmake_api_reply_dir, managed_components_before=None):
     cmake_cache_file = os.path.join(BUILD_DIR, "CMakeCache.txt")
     cmake_txt_files = [
         os.path.join(PROJECT_DIR, "CMakeLists.txt"),
@@ -485,6 +467,13 @@ def is_cmake_reconfigure_required(cmake_api_reply_dir):
                     kconfig_path = os.path.join(root, file)
                     if os.path.getmtime(kconfig_path) > os.path.getmtime(cmake_cache_file):
                         return True
+        
+        # Check for new managed components if we have the before state
+        if managed_components_before is not None:
+            managed_components_after = set(os.listdir(managed_components_dir))
+            new_components = managed_components_after - managed_components_before
+            if new_components:
+                return True
         
         # Critical: Check if sdkconfig exists but managed components were added after it
         # This handles the first-run case where managed components are downloaded
@@ -581,7 +570,7 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
 
     managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
     
-    # Check if managed components exist but haven't been processed
+    # Track managed components state before first cmake run
     managed_components_exist_before = os.path.isdir(managed_components_dir)
     managed_components_before = set()
     if managed_components_exist_before:
@@ -592,20 +581,9 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
     if initial_reconfigure_needed:
         run_cmake(src_dir, build_dir, extra_args)
 
-    # After first cmake run, check if managed components were downloaded
-    managed_components_exist_after = os.path.isdir(managed_components_dir)
-    need_additional_reconfigure = False
-    
-    if not managed_components_exist_before and managed_components_exist_after:
-        need_additional_reconfigure = True
-    elif managed_components_exist_after:
-        managed_components_after = set(os.listdir(managed_components_dir))
-        new_components = managed_components_after - managed_components_before
-        
-        if new_components:
-            need_additional_reconfigure = True
-    
-    if need_additional_reconfigure:
+    # Check if managed components were downloaded after first cmake run and need additional reconfiguration
+    additional_reconfigure_needed = is_cmake_reconfigure_required(cmake_api_reply_dir, managed_components_before)
+    if additional_reconfigure_needed and not initial_reconfigure_needed:
         # Remove all sdkconfig files to force complete regeneration
         for sdkconfig_pattern in ["sdkconfig", "sdkconfig.*"]:
             sdkconfig_files = glob.glob(os.path.join(PROJECT_DIR, sdkconfig_pattern))
