@@ -1832,11 +1832,6 @@ extra_cmake_args = [
     f"-DESP_IDF_VERSION_MINOR={framework_version.split('.')[1]}",
 ]
 
-# Check for managed_components directory and add to extra components if present
-managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
-if os.path.isdir(managed_components_dir):
-    extra_components.append(managed_components_dir)
-
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     print(
         "Warning! Arduino framework as an ESP-IDF component doesn't handle "
@@ -1847,12 +1842,6 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
     env.Append(
         LIBSOURCE_DIRS=[os.path.join(ARDUINO_FRAMEWORK_DIR, "libraries")]
     )
-
-# Add ESP-IDF's components directory to ensure standard components are available
-framework_components_dir = os.path.join(FRAMEWORK_DIR, "components")
-extra_components.append(framework_components_dir)
-
-extra_cmake_args.append("-DEXTRA_COMPONENT_DIRS:PATH=" + ";".join(extra_components))
 
 # This will add the linker flag for the map file
 extra_cmake_args.append(
