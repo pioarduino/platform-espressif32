@@ -1922,8 +1922,7 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
 
 # Add ESP-IDF's components directory to ensure standard components are available
 framework_components_dir = os.path.join(FRAMEWORK_DIR, "components")
-if framework_components_dir not in extra_components:
-    extra_components.append(framework_components_dir)
+extra_components.append(framework_components_dir)
 
 extra_cmake_args.append("-DEXTRA_COMPONENT_DIRS:PATH=" + ";".join(extra_components))
 
