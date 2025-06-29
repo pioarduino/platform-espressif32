@@ -120,6 +120,7 @@ install_standard_python_deps()
 
 # Allow changes in folders of managed components
 os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
+
 platform = env.PioPlatform()
 config = env.GetProjectConfig()
 board = env.BoardConfig()
@@ -539,7 +540,6 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
     if not is_proper_idf_project():
         create_default_project_files()
 
-    # Check if initial CMake configuration is needed
     if is_cmake_reconfigure_required(cmake_api_reply_dir):
         run_cmake(src_dir, build_dir, extra_args)
 
@@ -1821,7 +1821,7 @@ framework_version = get_framework_version()
 major_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
 os.environ["ESP_IDF_VERSION"] = major_version
 
-# Configure CMake arguments with ESP-IDF version and component manager (enabled by default)
+# Configure CMake arguments with ESP-IDF version and component manager
 extra_cmake_args = [
     "-DIDF_TARGET=" + idf_variant,
     "-DPYTHON_DEPS_CHECKED=1",
@@ -1839,7 +1839,6 @@ managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
 if os.path.isdir(managed_components_dir):
     extra_components.append(managed_components_dir)
 
-# Configure Arduino framework if needed
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     print(
         "Warning! Arduino framework as an ESP-IDF component doesn't handle "
@@ -2343,4 +2342,3 @@ env.Replace(ESP32_APP_OFFSET=str(hex(bound)))
 env["INTEGRATION_EXTRA_DATA"].update(
     {"application_offset": env.subst("$ESP32_APP_OFFSET")}
 )
-
