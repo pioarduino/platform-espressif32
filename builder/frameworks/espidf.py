@@ -44,7 +44,6 @@ import subprocess
 import sys
 import shutil
 import os
-import time
 from os.path import join
 import re
 import requests
@@ -60,18 +59,13 @@ from SCons.Script import (
     DefaultEnvironment,
 )
 
-from platformio import fs, __version__
+from platformio import fs
 from platformio.compat import IS_WINDOWS
 from platformio.proc import exec_command
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.project.config import ProjectConfig
 from platformio.package.version import get_original_version, pepver_to_semver
 
-# Added to avoid conflicts between installed Python packages from
-# the IDF virtual environment and PlatformIO Core
-# Note: This workaround can be safely deleted when PlatformIO 6.1.7 is released
-if os.environ.get("PYTHONPATH"):
-    del os.environ["PYTHONPATH"]
 
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
@@ -207,9 +201,6 @@ SDKCONFIG_PATH = os.path.expandvars(board.get(
         "build.esp-idf.sdkconfig_path",
         os.path.join(PROJECT_DIR, "sdkconfig.%s" % env.subst("$PIOENV")),
 ))
-
-# Enable ESP-IDF Component Manager by default (ESP-IDF 5.x standard)
-os.environ["IDF_COMPONENT_MANAGER"] = "1"
 
 def contains_path_traversal(url):
     """Check for Path Traversal patterns"""
@@ -540,14 +531,6 @@ def is_proper_idf_project():
     )
 
 
-def collect_src_files():
-    return [
-        f
-        for f in env.MatchSourceFiles("$PROJECT_SRC_DIR", env.get("SRC_FILTER"))
-        if not f.endswith((".h", ".hpp"))
-    ]
-
-
 def normalize_path(path):
     if PROJECT_DIR in path:
         path = path.replace(PROJECT_DIR, "${CMAKE_SOURCE_DIR}")
@@ -581,26 +564,6 @@ idf_component_register(SRCS ${app_sources})
     if not os.path.isfile(os.path.join(project_src_dir, "CMakeLists.txt")):
         with open(os.path.join(project_src_dir, "CMakeLists.txt"), "w") as fp:
             fp.write(prj_cmake_tpl % normalize_path(PROJECT_SRC_DIR))
-
-
-def populate_idf_env_vars(idf_env):
-    idf_env["IDF_PATH"] = fs.to_unix_path(FRAMEWORK_DIR)
-    additional_packages = [
-        os.path.join(TOOLCHAIN_DIR, "bin"),
-        platform.get_package_dir("tool-ninja"),
-        os.path.join(platform.get_package_dir("tool-cmake"), "bin"),
-        os.path.dirname(get_python_exe()),
-    ]
-
-    idf_env["PATH"] = os.pathsep.join(additional_packages + [idf_env["PATH"]])
-
-    # Some users reported that the `IDF_TOOLS_PATH` var can seep into the
-    # underlying build system. Unsetting it is a safe workaround.
-    if "IDF_TOOLS_PATH" in idf_env:
-        del idf_env["IDF_TOOLS_PATH"]
-
-    idf_env["ESP_ROM_ELF_DIR"] = platform.get_package_dir("tool-esp-rom-elfs")
-
 
 
 def get_cmake_code_model(src_dir, build_dir, extra_args=None):
@@ -678,7 +641,23 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
     return codemodel
 
 
+def populate_idf_env_vars(idf_env):
+    idf_env["IDF_PATH"] = fs.to_unix_path(FRAMEWORK_DIR)
+    additional_packages = [
+        os.path.join(TOOLCHAIN_DIR, "bin"),
+        platform.get_package_dir("tool-ninja"),
+        os.path.join(platform.get_package_dir("tool-cmake"), "bin"),
+        os.path.dirname(get_python_exe()),
+    ]
 
+    idf_env["PATH"] = os.pathsep.join(additional_packages + [idf_env["PATH"]])
+
+    # Some users reported that the `IDF_TOOLS_PATH` var can seep into the
+    # underlying build system. Unsetting it is a safe workaround.
+    if "IDF_TOOLS_PATH" in idf_env:
+        del idf_env["IDF_TOOLS_PATH"]
+
+    idf_env["ESP_ROM_ELF_DIR"] = platform.get_package_dir("tool-esp-rom-elfs")
 
 
 def get_target_config(project_configs, target_index, cmake_api_reply_dir):
