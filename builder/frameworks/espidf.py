@@ -1130,13 +1130,6 @@ def RunMenuconfig(target, source, env):
 
 
 def run_cmake(src_dir, build_dir, extra_args=None):
-    # Set ESP_IDF_VERSION environment variable for managed components
-    managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
-    if os.path.isdir(managed_components_dir):
-        framework_version = get_framework_version()
-        major_minor_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
-        os.environ["ESP_IDF_VERSION"] = major_minor_version
-    
     cmd = [
         os.path.join(platform.get_package_dir("tool-cmake") or "", "bin", "cmake"),
         "-S",
