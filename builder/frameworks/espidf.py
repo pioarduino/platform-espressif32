@@ -1770,7 +1770,7 @@ if not board.get("build.ldscript", ""):
             % os.path.join(FRAMEWORK_DIR, "components", "esp_system", "ld"),
             "Generating LD script $TARGET",
         ),
-       )
+    )
 
     env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", linker_script)
     env.Replace(LDSCRIPT_PATH="memory.ld")
@@ -1935,14 +1935,8 @@ app_includes = get_app_includes(elf_config)
 # Compile bootloader
 #
 
-bootloader_bin = None
 if flag_custom_sdkonfig == False:
-    bootloader_bin = build_bootloader(sdk_config)
-    env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", bootloader_bin)
-
-# Add explicit bootloader target
-if bootloader_bin:
-    env.Alias("bootloader", bootloader_bin)
+    env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", build_bootloader(sdk_config))
 
 #
 # Target: ESP-IDF menuconfig
