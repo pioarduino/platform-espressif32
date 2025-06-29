@@ -1816,6 +1816,17 @@ extra_components = []
 if PROJECT_SRC_DIR != os.path.join(PROJECT_DIR, "main"):
     extra_components.append(PROJECT_SRC_DIR)
 
+if "arduino" in env.subst("$PIOFRAMEWORK"):
+    print(
+        "Warning! Arduino framework as an ESP-IDF component doesn't handle "
+        "the `variant` field! The default `esp32` variant will be used."
+    )
+    extra_components.append(ARDUINO_FRAMEWORK_DIR)
+    # Add path to internal Arduino libraries so that the LDF will be able to find them
+    env.Append(
+        LIBSOURCE_DIRS=[os.path.join(ARDUINO_FRAMEWORK_DIR, "libraries")]
+    )
+
 # Set ESP-IDF version environment variables (needed for proper Kconfig processing)
 framework_version = get_framework_version()
 major_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
@@ -1831,17 +1842,6 @@ extra_cmake_args = [
     f"-DESP_IDF_VERSION_MAJOR={framework_version.split('.')[0]}",
     f"-DESP_IDF_VERSION_MINOR={framework_version.split('.')[1]}",
 ]
-
-if "arduino" in env.subst("$PIOFRAMEWORK"):
-    print(
-        "Warning! Arduino framework as an ESP-IDF component doesn't handle "
-        "the `variant` field! The default `esp32` variant will be used."
-    )
-    extra_components.append(ARDUINO_FRAMEWORK_DIR)
-    # Add path to internal Arduino libraries so that the LDF will be able to find them
-    env.Append(
-        LIBSOURCE_DIRS=[os.path.join(ARDUINO_FRAMEWORK_DIR, "libraries")]
-    )
 
 # This will add the linker flag for the map file
 extra_cmake_args.append(
