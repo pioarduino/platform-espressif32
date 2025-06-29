@@ -21,7 +21,6 @@ https://github.com/espressif/esp-idf
 """
 
 import copy
-import glob
 import json
 import subprocess
 import sys
@@ -31,7 +30,6 @@ from os.path import join
 import re
 import requests
 import platform as sys_platform
-import glob
 
 import click
 import semantic_version
@@ -444,15 +442,8 @@ def get_project_lib_includes(env):
 
     return paths
 
-def get_managed_components_state():
-    """Get current state of managed components directory."""
-    managed_components_dir = os.path.join(PROJECT_DIR, "managed_components")
-    if not os.path.isdir(managed_components_dir):
-        return None, set()
-    return managed_components_dir, set(os.listdir(managed_components_dir))
-
-def is_cmake_reconfigure_required(cmake_api_reply_dir, managed_components_before=None):
-    """Check if CMake reconfiguration is required based on file timestamps and managed components state."""
+def is_cmake_reconfigure_required(cmake_api_reply_dir):
+    """Check if CMake reconfiguration is required based on file timestamps."""
     cmake_cache_file = os.path.join(BUILD_DIR, "CMakeCache.txt")
     cmake_txt_files = [
         os.path.join(PROJECT_DIR, "CMakeLists.txt"),
@@ -483,52 +474,7 @@ def is_cmake_reconfigure_required(cmake_api_reply_dir, managed_components_before
     if any(os.path.getmtime(f) > os.path.getmtime(cmake_cache_file) for f in cmake_txt_files + [cmake_preconf_dir, FRAMEWORK_DIR]):
         return True
     
-    # Check managed components state
-    managed_components_dir, current_components = get_managed_components_state()
-    if managed_components_dir:
-        # Check if any Kconfig files in managed components are newer than CMake cache
-        for root, dirs, files in os.walk(managed_components_dir):
-            for file in files:
-                if file.startswith("Kconfig"):
-                    kconfig_path = os.path.join(root, file)
-                    if os.path.getmtime(kconfig_path) > os.path.getmtime(cmake_cache_file):
-                        return True
-        
-        # Check for new managed components if we have the before state
-        if managed_components_before is not None:
-            new_components = current_components - managed_components_before
-            if new_components:
-                return True
-        
-        # Check if any managed component directory is newer than the sdkconfig
-        if os.path.isfile(SDKCONFIG_PATH):
-            for item in current_components:
-                item_path = os.path.join(managed_components_dir, item)
-                if os.path.isdir(item_path) and os.path.getmtime(item_path) > os.path.getmtime(SDKCONFIG_PATH):
-                    return True
-
     return False
-
-def force_cmake_reconfiguration(build_dir):
-    """Force a complete CMake reconfiguration by removing cache and config files."""
-    # Remove all sdkconfig files to force complete regeneration
-    for sdkconfig_pattern in ["sdkconfig", "sdkconfig.*"]:
-        sdkconfig_files = glob.glob(os.path.join(PROJECT_DIR, sdkconfig_pattern))
-        for sdkconfig_file in sdkconfig_files:
-            if os.path.isfile(sdkconfig_file) and not sdkconfig_file.endswith('.defaults'):
-                os.remove(sdkconfig_file)
-    
-    # Remove CMake cache to force complete reconfiguration
-    cmake_cache_file = os.path.join(build_dir, "CMakeCache.txt")
-    if os.path.isfile(cmake_cache_file):
-        os.remove(cmake_cache_file)
-    
-    # Remove build configuration directory
-    config_dir = os.path.join(build_dir, "config")
-    if os.path.isdir(config_dir):
-        import shutil
-        shutil.rmtree(config_dir)
-
 
 def is_proper_idf_project():
     return all(
@@ -588,19 +534,8 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
     if not is_proper_idf_project():
         create_default_project_files()
 
-    # Track managed components state before first cmake run
-    managed_components_dir, managed_components_before = get_managed_components_state()
-
-    # Initial cmake run or reconfiguration check
-    initial_reconfigure_needed = is_cmake_reconfigure_required(cmake_api_reply_dir)
-    if initial_reconfigure_needed:
-        run_cmake(src_dir, build_dir, extra_args)
-
-    # Check if managed components were downloaded after first cmake run and need additional reconfiguration
-    additional_reconfigure_needed = is_cmake_reconfigure_required(cmake_api_reply_dir, managed_components_before)
-    if additional_reconfigure_needed and not initial_reconfigure_needed:
-        force_cmake_reconfiguration(build_dir)
-        # Force another cmake run to ensure Kconfig files from managed components are processed
+    # Check if initial CMake configuration is needed
+    if is_cmake_reconfigure_required(cmake_api_reply_dir):
         run_cmake(src_dir, build_dir, extra_args)
 
     if not os.path.isdir(cmake_api_reply_dir) or not os.listdir(cmake_api_reply_dir):
