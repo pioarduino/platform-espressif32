@@ -320,15 +320,14 @@ class Espressif32Platform(PlatformBase):
         # Wrong version, reinstall - remove similar paths too
         logger.info(f"Reinstalling {tool_name} due to version mismatch")
     
-        # Remove the main tool directory
-        safe_remove_directory(paths['tool_path'])
-    
-        # Also remove similar directories with version suffixes (e.g., xtensa.12232)
         tool_base_name = os.path.basename(paths['tool_path'])
         packages_dir = os.path.dirname(paths['tool_path'])
     
-        # Remove directories matching pattern like "toolname.*"
+        # Remove similar directories with version suffixes FIRST (e.g., xtensa.12232)
         safe_remove_directory_pattern(packages_dir, f"{tool_base_name}.*")
+    
+        # Then remove the main tool directory (if it still exists)
+        safe_remove_directory(paths['tool_path'])
     
         return self.install_tool(tool_name, retry_count + 1)
 
