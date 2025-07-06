@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import fnmatch
 import os
 import contextlib
 import json
@@ -114,6 +115,25 @@ def safe_remove_directory(path: str) -> bool:
     if os.path.exists(path) and os.path.isdir(path):
         shutil.rmtree(path)
         logger.debug(f"Directory removed: {path}")
+    return True
+
+
+@safe_file_operation
+def safe_remove_directory_pattern(base_path: str, pattern: str) -> bool:
+    """Safely remove directories matching a pattern with error handling."""
+    if not os.path.exists(base_path):
+        return True
+        
+    try:
+        # Find all directories matching the pattern in the base directory
+        for item in os.listdir(base_path):
+            item_path = os.path.join(base_path, item)
+            if os.path.isdir(item_path) and fnmatch.fnmatch(item, pattern):
+                shutil.rmtree(item_path)
+                logger.debug(f"Directory removed: {item_path}")
+    except OSError as e:
+        logger.error(f"Error removing directories with pattern {pattern}: {e}")
+        return False
     return True
 
 
@@ -297,9 +317,19 @@ class Espressif32Platform(PlatformBase):
             logger.debug(f"Tool {tool_name} found with correct version")
             return True
 
-        # Wrong version, reinstall
+        # Wrong version, reinstall - remove similar paths too
         logger.info(f"Reinstalling {tool_name} due to version mismatch")
+    
+        # Remove the main tool directory
         safe_remove_directory(paths['tool_path'])
+    
+        # Also remove similar directories with version suffixes (e.g., xtensa.12232)
+        tool_base_name = os.path.basename(paths['tool_path'])
+        packages_dir = os.path.dirname(paths['tool_path'])
+    
+        # Remove directories matching pattern like "toolname.*"
+        safe_remove_directory_pattern(packages_dir, f"{tool_base_name}.*")
+    
         return self.install_tool(tool_name, retry_count + 1)
 
     def _configure_arduino_framework(self, frameworks: List[str]) -> None:
