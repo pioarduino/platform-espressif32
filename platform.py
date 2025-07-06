@@ -123,17 +123,12 @@ def safe_remove_directory_pattern(base_path: str, pattern: str) -> bool:
     """Safely remove directories matching a pattern with error handling."""
     if not os.path.exists(base_path):
         return True
-        
-    try:
-        # Find all directories matching the pattern in the base directory
-        for item in os.listdir(base_path):
-            item_path = os.path.join(base_path, item)
-            if os.path.isdir(item_path) and fnmatch.fnmatch(item, pattern):
-                shutil.rmtree(item_path)
-                logger.debug(f"Directory removed: {item_path}")
-    except OSError as e:
-        logger.error(f"Error removing directories with pattern {pattern}: {e}")
-        return False
+    # Find all directories matching the pattern in the base directory
+    for item in os.listdir(base_path):
+        item_path = os.path.join(base_path, item)
+        if os.path.isdir(item_path) and fnmatch.fnmatch(item, pattern):
+            shutil.rmtree(item_path)
+            logger.debug(f"Directory removed: {item_path}")
     return True
 
 
