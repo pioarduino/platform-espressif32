@@ -323,7 +323,8 @@ class Espressif32Platform(PlatformBase):
         tool_base_name = os.path.basename(paths['tool_path'])
         packages_dir = os.path.dirname(paths['tool_path'])
     
-        # Remove similar directories with version suffixes FIRST (e.g., xtensa.12232)
+        # Remove similar directories with version suffixes FIRST (e.g., xtensa@src, xtensa.12232)
+        safe_remove_directory_pattern(packages_dir, f"{tool_base_name}@*")
         safe_remove_directory_pattern(packages_dir, f"{tool_base_name}.*")
     
         # Then remove the main tool directory (if it still exists)
