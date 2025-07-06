@@ -168,6 +168,17 @@ class Espressif32Platform(PlatformBase):
         """Get centralized path calculation for tools with caching."""
         if tool_name not in self._tools_cache:
             tool_path = os.path.join(self.packages_dir, tool_name)
+            # Remove all directories containing '@' in their name
+            try:
+                for item in os.listdir(self.packages_dir):
+                    if '@' in item and item.startswith(tool_name):
+                        item_path = os.path.join(self.packages_dir, item)
+                        if os.path.isdir(item_path):
+                            safe_remove_directory(item_path)
+                            logger.debug(f"Removed directory with '@' in name: {item_path}")
+            except OSError as e:
+                logger.error(f"Error scanning packages directory for '@' directories: {e}")
+            
             self._tools_cache[tool_name] = {
                 'tool_path': tool_path,
                 'package_path': os.path.join(tool_path, "package.json"),
