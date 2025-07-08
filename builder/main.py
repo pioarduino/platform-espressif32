@@ -69,7 +69,8 @@ def add_to_pythonpath(path):
     # Add to PYTHONPATH environment variable
     if "PYTHONPATH" in os.environ:
         current_paths = os.environ["PYTHONPATH"].split(os.pathsep)
-        if normalized_path not in current_paths:
+        normalized_current_paths = [os.path.normpath(p) for p in current_paths]
+        if normalized_path not in normalized_current_paths:
             os.environ["PYTHONPATH"] = normalized_path + os.pathsep + os.environ.get("PYTHONPATH", "")
     else:
         os.environ["PYTHONPATH"] = normalized_path
