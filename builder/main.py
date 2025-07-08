@@ -68,11 +68,49 @@ terminal_cp = locale.getpreferredencoding().lower()
 # Framework directory path
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
 
-# Add framework Python tools to path if available
-if FRAMEWORK_DIR:
-    framework_python_path = os.path.join(FRAMEWORK_DIR, "tools", "python")
-    if os.path.isdir(framework_python_path):
-        add_to_pythonpath(framework_python_path)
+def setup_python_paths(env):
+    """
+    Setup Python paths based on the actual Python executable being used.
+    
+    Args:
+        env: SCons environment object
+    """
+    python_exe = env.subst('$PYTHONEXE')
+    if not python_exe or not os.path.isfile(python_exe):
+        return
+    
+    # Get the directory containing the Python executable
+    python_dir = os.path.dirname(python_exe)
+    add_to_pythonpath(python_dir)
+    
+    # Try to find site-packages directory using the actual Python executable
+    try:
+        result = subprocess.run(
+            [python_exe, "-c", "import site; print(site.getsitepackages()[0])"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            site_packages = result.stdout.strip()
+            if os.path.isdir(site_packages):
+                add_to_pythonpath(site_packages)
+    except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+        # Fallback: try common site-packages locations
+        possible_paths = [
+            os.path.join(python_dir, "Lib", "site-packages"),  # Windows
+            os.path.join(python_dir, "..", "lib", f"python{sys.version_info.major}.{sys.version_info.minor}", "site-packages"),  # Unix
+        ]
+        
+        for path in possible_paths:
+            normalized_path = os.path.normpath(path)
+            if os.path.isdir(normalized_path):
+                add_to_pythonpath(normalized_path)
+                break
+
+# Setup Python paths based on the actual Python executable
+setup_python_paths(env)
+
 
 # Python dependencies required for the build process
 python_deps = {
