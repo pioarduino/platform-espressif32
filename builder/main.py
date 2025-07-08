@@ -35,6 +35,26 @@ from platformio.project.helpers import get_project_dir
 from platformio.package.version import pepver_to_semver
 from platformio.util import get_serial_ports
 
+# Python dependencies required for the build process
+python_deps = {
+    "uv": ">=0.1.0",
+    "pyyaml": ">=6.0.2",
+    "rich-click": ">=1.8.6",
+    "zopfli": ">=0.2.2",
+    "intelhex": ">=2.3.0",
+    "rich": ">=14.0.0",
+    "esp-idf-size": ">=1.6.1"
+}
+
+# Initialize environment and configuration
+env = DefaultEnvironment()
+platform = env.PioPlatform()
+projectconfig = env.GetProjectConfig()
+terminal_cp = locale.getpreferredencoding().lower()
+
+# Framework directory path
+FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
+
 
 def add_to_pythonpath(path):
     """
@@ -58,15 +78,6 @@ def add_to_pythonpath(path):
     if normalized_path not in sys.path:
         sys.path.insert(0, normalized_path)
 
-
-# Initialize environment and configuration
-env = DefaultEnvironment()
-platform = env.PioPlatform()
-projectconfig = env.GetProjectConfig()
-terminal_cp = locale.getpreferredencoding().lower()
-
-# Framework directory path
-FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
 
 def setup_python_paths(env):
     """
@@ -110,18 +121,6 @@ def setup_python_paths(env):
 
 # Setup Python paths based on the actual Python executable
 setup_python_paths(env)
-
-
-# Python dependencies required for the build process
-python_deps = {
-    "uv": ">=0.1.0",
-    "pyyaml": ">=6.0.2",
-    "rich-click": ">=1.8.6",
-    "zopfli": ">=0.2.2",
-    "intelhex": ">=2.3.0",
-    "rich": ">=14.0.0",
-    "esp-idf-size": ">=1.6.1"
-}
 
 
 def get_packages_to_install(deps, installed_packages):
