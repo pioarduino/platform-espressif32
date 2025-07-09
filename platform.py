@@ -36,7 +36,7 @@ MKLITTLEFS_VERSION_320 = "3.2.0"
 MKLITTLEFS_VERSION_400 = "4.0.0"
 DEFAULT_DEBUG_SPEED = "5000"
 DEFAULT_APP_OFFSET = "0x10000"
-ARDUINO_ESP32_PACKAGE_URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
+ARDUINO_ESP32_PACKAGE_URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/release/v3.3.x/package/package_esp32_index.template.json"
 
 # MCUs that support ESP-builtin debug
 ESP_BUILTIN_DEBUG_MCUS = frozenset([

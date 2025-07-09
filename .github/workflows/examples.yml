@@ -1,4 +1,4 @@
-name: CI Examples Arduino IDF 5.4.x based
+name: CI Examples Arduino IDF 5.5.x based
 
 on:
   workflow_dispatch:      # Manually start a workflow
