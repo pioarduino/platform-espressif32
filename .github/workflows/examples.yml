@@ -26,6 +26,7 @@ jobs:
           - "examples/espidf-arduino-matter-light"
           - "examples/espidf-arduino-blink"
           - "examples/espidf-arduino-littlefs"
+          - "examples/espidf-arduino-C6-ULP-blink"
           - "examples/espidf-blink"
           - "examples/espidf-coap-server"
           - "examples/espidf-exceptions"
@@ -44,6 +45,8 @@ jobs:
             example: "examples/espidf-ulp-lp"
           - os: windows-latest
             example: "examples/espidf-ulp-riscv"
+          - os: windows-latest
+            example: "examples/espidf-arduino-C6-ULP-blink"
           - os: windows-latest
             example: "examples/espidf-arduino-matter-light"
     runs-on: ${{ matrix.os }}
