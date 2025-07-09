@@ -7,6 +7,7 @@
     "core": "esp32",
     "extra_flags": [
       "-DARDUINO_YB_ESP32S3_AMP_V3",
+      "-DARDUINO_USB_MODE=1",
       "-DARDUINO_USB_CDC_ON_BOOT=1",
       "-DARDUINO_RUNNING_CORE=1",
       "-DARDUINO_EVENT_RUNNING_CORE=1",
@@ -43,6 +44,6 @@
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://github.com/yellobyte/ESP32-DevBoards-Getting-Started/tree/main/boards/YB-ESP32-S3-AMP",
+  "url": "https://github.com/yellobyte/YB-ESP32-S3-AMP",
   "vendor": "YelloByte"
 }
