@@ -26,7 +26,6 @@ The Wiki is AI generated and insane detailed and accurate.
 
 ### Stable Arduino
 currently espressif Arduino 3.2.1 and IDF 5.4.2
-
 ```ini
 [env:stable]
 platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
