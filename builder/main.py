@@ -96,29 +96,16 @@ def setup_python_paths(env):
     add_to_pythonpath(python_dir)
     
     # Try to find site-packages directory using the actual Python executable
-    try:
-        result = subprocess.run(
-            [python_exe, "-c", "import site; print(site.getsitepackages()[0])"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        if result.returncode == 0:
-            site_packages = result.stdout.strip()
-            if os.path.isdir(site_packages):
-                add_to_pythonpath(site_packages)
-    except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
-        # Fallback: try common site-packages locations
-        possible_paths = [
-            os.path.join(python_dir, "Lib", "site-packages"),  # Windows
-            os.path.join(python_dir, "..", "lib", f"python{sys.version_info.major}.{sys.version_info.minor}", "site-packages"),  # Unix
-        ]
-        
-        for path in possible_paths:
-            normalized_path = os.path.normpath(path)
-            if os.path.isdir(normalized_path):
-                add_to_pythonpath(normalized_path)
-                break
+    result = subprocess.run(
+        [python_exe, "-c", "import site; print(site.getsitepackages()[0])"],
+        capture_output=True,
+        text=True,
+        timeout=5
+    )
+    if result.returncode == 0:
+        site_packages = result.stdout.strip()
+        if os.path.isdir(site_packages):
+            add_to_pythonpath(site_packages)
 
 # Setup Python paths based on the actual Python executable
 setup_python_paths(env)
@@ -658,6 +645,22 @@ def check_lib_archive_exists():
     return False
 
 
+def switch_off_ldf():
+    """
+    Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, and buildfs targets.
+
+    This optimization prevents unnecessary library dependency scanning and compilation
+    when only filesystem operations are performed.
+    """
+    fs_targets = {"uploadfs", "uploadfsota", "buildfs"}
+    if fs_targets & set(COMMAND_LINE_TARGETS):
+        # Disable LDF by modifying project configuration directly
+        env_section = "env:" + env["PIOENV"]
+        if not projectconfig.has_section(env_section):
+            projectconfig.add_section(env_section)
+        projectconfig.set(env_section, "lib_ldf_mode", "off")
+
+
 # Initialize board configuration and MCU settings
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
@@ -799,6 +802,10 @@ env.Append(
 # Load framework-specific configuration
 if not env.get("PIOFRAMEWORK"):
     env.SConscript("frameworks/_bare.py", exports="env")
+
+
+# Disable LDF for filesystem operations
+switch_off_ldf()
 
 
 def firmware_metrics(target, source, env):
