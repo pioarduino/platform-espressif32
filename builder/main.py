@@ -111,6 +111,67 @@ def setup_python_paths(env):
 setup_python_paths(env)
 
 
+def _get_executable_path(python_exe, executable_name):
+    """
+    Get the path to an executable binary (esptool, uv, etc.) based on the Python executable path.
+    
+    Args:
+        python_exe (str): Path to Python executable
+        executable_name (str): Name of the executable to find (e.g., 'esptool', 'uv')
+        
+    Returns:
+        str: Path to executable or fallback to executable name
+    """
+    if not python_exe or not os.path.isfile(python_exe):
+        return executable_name  # Fallback to command name
+    
+    python_dir = os.path.dirname(python_exe)
+    
+    if sys.platform == "win32":
+        scripts_dir = os.path.join(python_dir, "Scripts")
+        executable_path = os.path.join(scripts_dir, f"{executable_name}.exe")
+    else:
+        # For Unix-like systems, executables are typically in the same directory as python
+        # or in a bin subdirectory
+        executable_path = os.path.join(python_dir, executable_name)
+        
+        # If not found in python directory, try bin subdirectory
+        if not os.path.isfile(executable_path):
+            bin_dir = os.path.join(python_dir, "bin")
+            executable_path = os.path.join(bin_dir, executable_name)
+    
+    if os.path.isfile(executable_path):
+        return executable_path
+    
+    return executable_name  # Fallback to command name
+
+
+def _get_esptool_executable_path(python_exe):
+    """
+    Get the path to the esptool executable binary.
+    
+    Args:
+        python_exe (str): Path to Python executable
+        
+    Returns:
+        str: Path to esptool executable
+    """
+    return _get_executable_path(python_exe, "esptool")
+
+
+def _get_uv_executable_path(python_exe):
+    """
+    Get the path to the uv executable binary.
+    
+    Args:
+        python_exe (str): Path to Python executable
+        
+    Returns:
+        str: Path to uv executable
+    """
+    return _get_executable_path(python_exe, "uv")
+
+
 def get_packages_to_install(deps, installed_packages):
     """
     Generator for Python packages that need to be installed.
@@ -138,9 +199,12 @@ def install_python_deps():
     Returns:
         bool: True if successful, False otherwise
     """
+    # Get uv executable path
+    uv_executable = _get_uv_executable_path(env.subst("$PYTHONEXE"))
+    
     try:
         result = subprocess.run(
-            ["uv", "--version"],
+            [uv_executable, "--version"],
             capture_output=True,
             text=True,
             timeout=3
@@ -162,6 +226,17 @@ def install_python_deps():
                 if result.stderr:
                     print(f"Error output: {result.stderr.strip()}")
                 return False
+            
+            # Update uv executable path after installation
+            uv_executable = _get_uv_executable_path(env.subst("$PYTHONEXE"))
+            
+            # Add Scripts directory to PATH for Windows
+            if sys.platform == "win32":
+                python_dir = os.path.dirname(env.subst("$PYTHONEXE"))
+                scripts_dir = os.path.join(python_dir, "Scripts")
+                if os.path.isdir(scripts_dir):
+                    os.environ["PATH"] = scripts_dir + os.pathsep + os.environ.get("PATH", "")
+                    
         except subprocess.TimeoutExpired:
             print("Error: uv installation timed out")
             return False
@@ -182,7 +257,7 @@ def install_python_deps():
         """
         result = {}
         try:
-            cmd = ["uv", "pip", "list", "--format=json"]
+            cmd = [uv_executable, "pip", "list", "--format=json"]
             result_obj = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -221,7 +296,7 @@ def install_python_deps():
         packages_list = [f"{p}{python_deps[p]}" for p in packages_to_install]
         
         cmd = [
-            "uv", "pip", "install",
+            uv_executable, "pip", "install",
             f"--python={env.subst('$PYTHONEXE')}",
             "--quiet", "--upgrade"
         ] + packages_list
@@ -265,41 +340,15 @@ def install_esptool(env):
     Returns:
         str: Path to esptool executable, or 'esptool' as fallback
     """
-    def _get_esptool_executable_path(python_exe):
-        """
-        Get the path to the esptool executable binary.
-        
-        Args:
-            python_exe (str): Path to Python executable
-            
-        Returns:
-            str: Path to esptool executable
-        """
-        if not python_exe or not os.path.isfile(python_exe):
-            return 'esptool'  # Fallback
-
-        python_dir = os.path.dirname(python_exe)
-
-        if sys.platform == "win32":
-            scripts_dir = os.path.join(python_dir, "Scripts")
-            esptool_exe = os.path.join(scripts_dir, "esptool.exe")
-        else:
-            scripts_dir = os.path.join(python_dir)
-            esptool_exe = os.path.join(scripts_dir, "esptool")
-
-        if os.path.isfile(esptool_exe):
-            return esptool_exe
-
-        return 'esptool'
-
+    python_exe = env.subst("$PYTHONEXE")
+    
     try:
         subprocess.check_call(
-            [env.subst("$PYTHONEXE"), "-c", "import esptool"], 
+            [python_exe, "-c", "import esptool"], 
             stdout=subprocess.DEVNULL, 
             stderr=subprocess.DEVNULL,
             env=os.environ
         )
-        python_exe = env.subst("$PYTHONEXE")
         esptool_binary_path = _get_esptool_executable_path(python_exe)
         return esptool_binary_path
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -307,14 +356,14 @@ def install_esptool(env):
 
     esptool_repo_path = env.subst(platform.get_package_dir("tool-esptoolpy") or "")
     if esptool_repo_path and os.path.isdir(esptool_repo_path):
+        uv_executable = _get_uv_executable_path(python_exe)
         try:
             subprocess.check_call([
-                "uv", "pip", "install", "--quiet",
-                f"--python={env.subst('$PYTHONEXE')}",
+                uv_executable, "pip", "install", "--quiet",
+                f"--python={python_exe}",
                 "-e", esptool_repo_path
             ], env=os.environ)
 
-            python_exe = env.subst("$PYTHONEXE")
             esptool_binary_path = _get_esptool_executable_path(python_exe)
             return esptool_binary_path
             
