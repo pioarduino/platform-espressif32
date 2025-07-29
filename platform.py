@@ -269,21 +269,22 @@ class Espressif32Platform(PlatformBase):
             if os.path.exists(tl_install_path):
                 logger.info(f"Removing old {tl_install_name} installation")
                 safe_remove_directory(tl_install_path)
-            
-            # Remove versioned directories as well
-            safe_remove_directory_pattern(self.packages_dir, f"{tl_install_name}@*")
-            safe_remove_directory_pattern(self.packages_dir, f"{tl_install_name}.*")
-            
+
+            # Remove maybe old existing version of tl-install too
+            old_tl_install_path = os.path.join(self.packages_dir, "tl-install")
+            if os.path.exists(old_tl_install_path):
+                safe_remove_directory(old_tl_install_path)
+
             # Install new version
             logger.info(f"Installing {tl_install_name} version {version}")
-            
+
             # Set package configuration
             self.packages[tl_install_name]["optional"] = False
             self.packages[tl_install_name]["version"] = version
-            
+
             # Install via package manager
             pm.install(version)
-            
+
             # Verify installation
             if os.path.exists(os.path.join(tl_install_path, "package.json")):
                 logger.info(f"{tl_install_name} successfully installed and verified")
