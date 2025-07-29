@@ -228,7 +228,7 @@ class Espressif32Platform(PlatformBase):
             self.packages[tl_install_name]["version"] = version
         
             # Verwende den Package Manager für die Installation
-            pm.install(f"{tl_install_name}@{version}")
+            pm.install(version)
         
             logger.info(f"{tl_install_name} Version {version} erfolgreich installiert")
             return True
