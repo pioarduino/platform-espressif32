@@ -160,50 +160,50 @@ class Espressif32Platform(PlatformBase):
         return self._packages_dir
 
     def _check_tl_install_version(self) -> bool:
-    """
-    Prüft ob tl-install in der korrekten Version installiert ist.
-    Installiert die korrekte Version falls erforderlich.
-    """
-    tl_install_name = "tl-install"
+        """
+        Prüft ob tl-install in der korrekten Version installiert ist.
+        Installiert die korrekte Version falls erforderlich.
+        """
+        tl_install_name = "tl-install"
     
-    # Hole die erforderliche Version aus platform.json
-    required_version = self.packages.get(tl_install_name, {}).get("version")
-    if not required_version:
-        logger.debug(f"Keine Versionsprüfung für {tl_install_name} erforderlich")
-        return True
+        # Hole die erforderliche Version aus platform.json
+        required_version = self.packages.get(tl_install_name, {}).get("version")
+        if not required_version:
+            logger.debug(f"Keine Versionsprüfung für {tl_install_name} erforderlich")
+            return True
     
-    # Prüfe ob das Tool bereits installiert ist
-    tl_install_path = os.path.join(self.packages_dir, tl_install_name)
-    package_json_path = os.path.join(tl_install_path, "package.json")
+        # Prüfe ob das Tool bereits installiert ist
+        tl_install_path = os.path.join(self.packages_dir, tl_install_name)
+        package_json_path = os.path.join(tl_install_path, "package.json")
     
-    if not os.path.exists(package_json_path):
-        logger.info(f"{tl_install_name} nicht installiert, installiere Version {required_version}")
-        return self._install_tl_install(required_version)
-    
-    # Lese die installierte Version
-    try:
-        with open(package_json_path, 'r', encoding='utf-8') as f:
-            package_data = json.load(f)
-        
-        installed_version = package_data.get("version")
-        if not installed_version:
-            logger.warning(f"Installierte Version für {tl_install_name} unbekannt")
+        if not os.path.exists(package_json_path):
+            logger.info(f"{tl_install_name} nicht installiert, installiere Version {required_version}")
             return self._install_tl_install(required_version)
+    
+        # Lese die installierte Version
+        try:
+            with open(package_json_path, 'r', encoding='utf-8') as f:
+                package_data = json.load(f)
         
-        # Vergleiche Versionen
-        if installed_version != required_version:
-            logger.info(
-                f"Versionsfehler für {tl_install_name}: "
-                f"{installed_version} != {required_version}, installiere korrekte Version"
-            )
+            installed_version = package_data.get("version")
+            if not installed_version:
+                logger.warning(f"Installierte Version für {tl_install_name} unbekannt")
+                return self._install_tl_install(required_version)
+        
+            # Vergleiche Versionen
+            if installed_version != required_version:
+                logger.info(
+                    f"Versionsfehler für {tl_install_name}: "
+                    f"{installed_version} != {required_version}, installiere korrekte Version"
+                )
+                return self._install_tl_install(required_version)
+        
+            logger.debug(f"{tl_install_name} Version {installed_version} ist korrekt")
+            return True
+        
+        except (json.JSONDecodeError, FileNotFoundError) as e:
+            logger.error(f"Fehler beim Lesen der Paketdaten für {tl_install_name}: {e}")
             return self._install_tl_install(required_version)
-        
-        logger.debug(f"{tl_install_name} Version {installed_version} ist korrekt")
-        return True
-        
-    except (json.JSONDecodeError, FileNotFoundError) as e:
-        logger.error(f"Fehler beim Lesen der Paketdaten für {tl_install_name}: {e}")
-        return self._install_tl_install(required_version)
 
     def _install_tl_install(self, version: str) -> bool:
         """
