@@ -159,6 +159,84 @@ class Espressif32Platform(PlatformBase):
             self._packages_dir = config.get("platformio", "packages_dir")
         return self._packages_dir
 
+    def _check_tl_install_version(self) -> bool:
+    """
+    Prüft ob tl-install in der korrekten Version installiert ist.
+    Installiert die korrekte Version falls erforderlich.
+    """
+    tl_install_name = "tl-install"
+    
+    # Hole die erforderliche Version aus platform.json
+    required_version = self.packages.get(tl_install_name, {}).get("version")
+    if not required_version:
+        logger.debug(f"Keine Versionsprüfung für {tl_install_name} erforderlich")
+        return True
+    
+    # Prüfe ob das Tool bereits installiert ist
+    tl_install_path = os.path.join(self.packages_dir, tl_install_name)
+    package_json_path = os.path.join(tl_install_path, "package.json")
+    
+    if not os.path.exists(package_json_path):
+        logger.info(f"{tl_install_name} nicht installiert, installiere Version {required_version}")
+        return self._install_tl_install(required_version)
+    
+    # Lese die installierte Version
+    try:
+        with open(package_json_path, 'r', encoding='utf-8') as f:
+            package_data = json.load(f)
+        
+        installed_version = package_data.get("version")
+        if not installed_version:
+            logger.warning(f"Installierte Version für {tl_install_name} unbekannt")
+            return self._install_tl_install(required_version)
+        
+        # Vergleiche Versionen
+        if installed_version != required_version:
+            logger.info(
+                f"Versionsfehler für {tl_install_name}: "
+                f"{installed_version} != {required_version}, installiere korrekte Version"
+            )
+            return self._install_tl_install(required_version)
+        
+        logger.debug(f"{tl_install_name} Version {installed_version} ist korrekt")
+        return True
+        
+    except (json.JSONDecodeError, FileNotFoundError) as e:
+        logger.error(f"Fehler beim Lesen der Paketdaten für {tl_install_name}: {e}")
+        return self._install_tl_install(required_version)
+
+    def _install_tl_install(self, version: str) -> bool:
+        """
+        Installiert tl-install in der angegebenen Version.
+        """
+        tl_install_name = "tl-install"
+        tl_install_path = os.path.join(self.packages_dir, tl_install_name)
+    
+        try:
+            # Entferne alte Installation
+            if os.path.exists(tl_install_path):
+                logger.info(f"Entferne alte {tl_install_name} Installation")
+                safe_remove_directory(tl_install_path)
+        
+            # Entferne auch versionierte Verzeichnisse
+            safe_remove_directory_pattern(self.packages_dir, f"{tl_install_name}@*")
+            safe_remove_directory_pattern(self.packages_dir, f"{tl_install_name}.*")
+        
+            # Installiere neue Version
+            logger.info(f"Installiere {tl_install_name} Version {version}")
+            self.packages[tl_install_name]["optional"] = False
+            self.packages[tl_install_name]["version"] = version
+        
+            # Verwende den Package Manager für die Installation
+            pm.install(f"{tl_install_name}@{version}")
+        
+            logger.info(f"{tl_install_name} Version {version} erfolgreich installiert")
+            return True
+        
+        except Exception as e:
+            logger.error(f"Fehler bei der Installation von {tl_install_name}: {e}")
+            return False
+
     def _get_tool_paths(self, tool_name: str) -> Dict[str, str]:
         """Get centralized path calculation for tools with caching."""
         if tool_name not in self._tools_cache:
@@ -424,6 +502,11 @@ class Espressif32Platform(PlatformBase):
 
     def _configure_installer(self) -> None:
         """Configure the ESP-IDF tools installer."""
+
+        if not self._check_tl_install_version():
+            logger.error("Error during tl-install version check / installation")
+            return
+
         installer_path = os.path.join(
             self.packages_dir, "tl-install", "tools", "idf_tools.py"
         )
