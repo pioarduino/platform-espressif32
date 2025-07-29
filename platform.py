@@ -260,7 +260,7 @@ class Espressif32Platform(PlatformBase):
                 'tools_json_path': os.path.join(tool_path, "tools.json"),
                 'piopm_path': os.path.join(tool_path, ".piopm"),
                 'idf_tools_path': os.path.join(
-                    self.packages_dir, "tl-install", "tools", "idf_tools.py"
+                    self.packages_dir, "tool-esp_install", "tools", "idf_tools.py"
                 )
             }
         return self._tools_cache[tool_name]
