@@ -33,6 +33,7 @@ RETRY_LIMIT = 3
 SUBPROCESS_TIMEOUT = 300
 DEFAULT_DEBUG_SPEED = "5000"
 DEFAULT_APP_OFFSET = "0x10000"
+tl_install_name = "tool-esp_install"
 ARDUINO_ESP32_PACKAGE_URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
 
 # MCUs that support ESP-builtin debug
@@ -161,10 +162,9 @@ class Espressif32Platform(PlatformBase):
 
     def _check_tl_install_version(self) -> bool:
         """
-        Prüft ob tl-install in der korrekten Version installiert ist.
+        Prüft ob tool-esp_install in der korrekten Version installiert ist.
         Installiert die korrekte Version falls erforderlich.
         """
-        tl_install_name = "tool-esp_install"
     
         # Hole die erforderliche Version aus platform.json
         required_version = self.packages.get(tl_install_name, {}).get("version")
@@ -207,9 +207,8 @@ class Espressif32Platform(PlatformBase):
 
     def _install_tl_install(self, version: str) -> bool:
         """
-        Installiert tl-install in der angegebenen Version.
+        Installiert tool-esp_install in der angegebenen Version.
         """
-        tl_install_name = "tool-esp_install"
         tl_install_path = os.path.join(self.packages_dir, tl_install_name)
     
         try:
@@ -260,7 +259,7 @@ class Espressif32Platform(PlatformBase):
                 'tools_json_path': os.path.join(tool_path, "tools.json"),
                 'piopm_path': os.path.join(tool_path, ".piopm"),
                 'idf_tools_path': os.path.join(
-                    self.packages_dir, "tool-esp_install", "tools", "idf_tools.py"
+                    self.packages_dir, tl_install_name, "tools", "idf_tools.py"
                 )
             }
         return self._tools_cache[tool_name]
@@ -504,14 +503,14 @@ class Espressif32Platform(PlatformBase):
         """Configure the ESP-IDF tools installer."""
 
         if not self._check_tl_install_version():
-            logger.error("Error during tl-install version check / installation")
+            logger.error("Error during tool-esp_install version check / installation")
             return
 
         installer_path = os.path.join(
-            self.packages_dir, "tl-install", "tools", "idf_tools.py"
+            self.packages_dir, tl_install_name, "tools", "idf_tools.py"
         )
         if os.path.exists(installer_path):
-            self.packages["tl-install"]["optional"] = True
+            self.packages[tl_install_name]["optional"] = True
 
     def _install_esptool_package(self) -> None:
         """Install esptool package required for all builds."""
