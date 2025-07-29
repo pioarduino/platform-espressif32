@@ -164,7 +164,7 @@ class Espressif32Platform(PlatformBase):
         Prüft ob tl-install in der korrekten Version installiert ist.
         Installiert die korrekte Version falls erforderlich.
         """
-        tl_install_name = "tl-install"
+        tl_install_name = "tool-esp_install"
     
         # Hole die erforderliche Version aus platform.json
         required_version = self.packages.get(tl_install_name, {}).get("version")
@@ -209,7 +209,7 @@ class Espressif32Platform(PlatformBase):
         """
         Installiert tl-install in der angegebenen Version.
         """
-        tl_install_name = "tl-install"
+        tl_install_name = "tool-esp_install"
         tl_install_path = os.path.join(self.packages_dir, tl_install_name)
     
         try:
