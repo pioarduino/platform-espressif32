@@ -111,6 +111,15 @@ def safe_file_operation(operation_func):
 
 
 @safe_file_operation
+def safe_remove_file(path: str) -> bool:
+    """Safely remove a file with error handling."""
+    if os.path.exists(path) and os.path.isfile(path):
+        os.remove(path)
+        logger.debug(f"File removed: {path}")
+    return True
+
+
+@safe_file_operation
 def safe_remove_directory(path: str) -> bool:
     """Safely remove directories with error handling."""
     if os.path.exists(path) and os.path.isdir(path):
@@ -299,6 +308,8 @@ class Espressif32Platform(PlatformBase):
                     # Copy tool-esp_install content to tl-install location
                     if safe_copy_directory(tl_install_path, old_tl_install_path):
                         logger.info(f"Content copied from {tl_install_name} to old tl-install location")
+                        tl_piopm_path = os.path.join(old_tl_install_path, ".piopm")
+                        safe_remove_file(tl_piopm_path)
                     else:
                         logger.warning(f"Failed to copy content to old tl-install location")
                 return True
