@@ -895,4 +895,3 @@ class Espressif32Platform(PlatformBase):
             f'{build_extra_data.get("application_offset", DEFAULT_APP_OFFSET)} verify'
         )
         debug_config.load_cmds = load_cmds
-
