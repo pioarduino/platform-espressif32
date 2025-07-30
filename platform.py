@@ -263,49 +263,53 @@ class Espressif32Platform(PlatformBase):
 
     def _install_tl_install(self, version: str) -> bool:
         """
-        Install tool-esp_install ONLY when necessary.
-        
+        Install tool-esp_install ONLY when necessary
+        and handles backwards compability for tl-install.
+
         Args:
             version: Version string or URL to install
-            
+   
         Returns:
             bool: True if installation successful, False otherwise
         """
         tl_install_path = os.path.join(self.packages_dir, tl_install_name)
-        
+        old_tl_install_path = os.path.join(self.packages_dir, "tl-install")
+
         try:
-            # Remove old installation completely
+            old_tl_install_exists = os.path.exists(old_tl_install_path)
+            if old_tl_install_exists:
+                # remove outdated tl-install
+                safe_remove_directory(old_tl_install_path)
+
             if os.path.exists(tl_install_path):
                 logger.info(f"Removing old {tl_install_name} installation")
                 safe_remove_directory(tl_install_path)
 
-            # Remove maybe old existing version of tl-install too
-            old_tl_install_path = os.path.join(self.packages_dir, "tl-install")
-            if os.path.exists(old_tl_install_path):
-                safe_remove_directory(old_tl_install_path)
-
-            # Install new version
             logger.info(f"Installing {tl_install_name} version {version}")
-
-            # Set package configuration
             self.packages[tl_install_name]["optional"] = False
             self.packages[tl_install_name]["version"] = version
-
-            # Install via package manager
             pm.install(version)
 
-            # Verify installation
             if os.path.exists(os.path.join(tl_install_path, "package.json")):
                 logger.info(f"{tl_install_name} successfully installed and verified")
                 self.packages[tl_install_name]["optional"] = True
+            
+                # Handle old tl-install to keep backwards compability
+                if old_tl_install_exists:
+                    # Copy tool-esp_install content to tl-install location
+                    if safe_copy_directory(tl_install_path, old_tl_install_path):
+                        logger.info(f"Content copied from {tl_install_name} to old tl-install location")
+                    else:
+                        logger.warning(f"Failed to copy content to old tl-install location")
                 return True
             else:
                 logger.error(f"{tl_install_name} installation failed - package.json not found")
                 return False
-            
+        
         except Exception as e:
             logger.error(f"Error installing {tl_install_name}: {e}")
             return False
+
 
     def _get_tool_paths(self, tool_name: str) -> Dict[str, str]:
         """Get centralized path calculation for tools with caching."""
