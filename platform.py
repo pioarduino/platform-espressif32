@@ -312,7 +312,7 @@ class Espressif32Platform(PlatformBase):
                     if safe_copy_directory(tl_install_path, old_tl_install_path):
                         logger.info(f"Content copied from {tl_install_name} to old tl-install location")
                     else:
-                        logger.warning(f"Failed to copy content to old tl-install location")
+                        logger.warning("Failed to copy content to old tl-install location")
                 return True
             else:
                 logger.error(f"{tl_install_name} installation failed - package.json not found")
