@@ -594,6 +594,11 @@ class Espressif32Platform(PlatformBase):
             logger.error("Error during tool-esp_install version check / installation")
             return
 
+        # Remove pio install marker to avoid issues when switching versions
+        old_tl_piopm_path = os.path.join(self.packages_dir, "tl-install", ".piopm")
+        if os.path.exists(old_tl_piopm_path):
+            safe_remove_file(old_tl_piopm_path)
+        
         # Check if idf_tools.py is available
         installer_path = os.path.join(
             self.packages_dir, tl_install_name, "tools", "idf_tools.py"
