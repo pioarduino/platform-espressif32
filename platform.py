@@ -142,6 +142,15 @@ def safe_copy_file(src: str, dst: str) -> bool:
     return True
 
 
+@safe_file_operation
+def safe_copy_directory(src: str, dst: str) -> bool:
+    """Safely copy directories with error handling."""
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.copytree(src, dst, dirs_exist_ok=True)
+    logger.debug(f"Directory copied: {src} -> {dst}")
+    return True
+
+
 class Espressif32Platform(PlatformBase):
     """ESP32 platform implementation for PlatformIO with optimized toolchain management."""
 
