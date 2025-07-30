@@ -298,6 +298,9 @@ class Espressif32Platform(PlatformBase):
             self.packages[tl_install_name]["optional"] = False
             self.packages[tl_install_name]["version"] = version
             pm.install(version)
+            # Ensure backward compability by removing pio install status indicator
+            tl_piopm_path = os.path.join(tl_install_path, ".piopm")
+            safe_remove_file(tl_piopm_path)
 
             if os.path.exists(os.path.join(tl_install_path, "package.json")):
                 logger.info(f"{tl_install_name} successfully installed and verified")
@@ -308,10 +311,6 @@ class Espressif32Platform(PlatformBase):
                     # Copy tool-esp_install content to tl-install location
                     if safe_copy_directory(tl_install_path, old_tl_install_path):
                         logger.info(f"Content copied from {tl_install_name} to old tl-install location")
-                        old_tl_piopm_path = os.path.join(old_tl_install_path, ".piopm")
-                        safe_remove_file(old_tl_piopm_path)
-                        tl_piopm_path = os.path.join(tl_install_path, ".piopm")
-                        safe_remove_file(tl_piopm_path)
                     else:
                         logger.warning(f"Failed to copy content to old tl-install location")
                 return True
