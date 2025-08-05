@@ -109,24 +109,18 @@ assert os.path.isfile(PYTHON_EXE), f"Python executable not found: {PYTHON_EXE}"
 
 
 def setup_python_paths():
-    """
-    Setup Python module search paths using the penv_dir.
-    """    
+    """Setup Python module search paths using the penv_dir."""    
     # Add penv_dir to module search path
     site.addsitedir(penv_dir)
     
     # Add site-packages directory
+    python_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
     site_packages = (
         os.path.join(penv_dir, "Lib", "site-packages") if IS_WINDOWS
-        else next(
-            (os.path.join(penv_dir, "lib", d, "site-packages") 
-             for d in os.listdir(os.path.join(penv_dir, "lib")) 
-             if d.startswith("python")), 
-            None
-        ) if os.path.isdir(os.path.join(penv_dir, "lib")) else None
+        else os.path.join(penv_dir, "lib", python_ver, "site-packages")
     )
     
-    if site_packages and os.path.isdir(site_packages):
+    if os.path.isdir(site_packages):
         site.addsitedir(site_packages)
 
 
@@ -313,9 +307,9 @@ def install_esptool():
             f"--python={PYTHON_EXE}",
             "-e", esptool_repo_path
         ], env=os.environ)
-        
+
         return
-        
+
     except subprocess.CalledProcessError as e:
         print(f"Error: Failed to install esptool: {e}")
         sys.exit(1)
