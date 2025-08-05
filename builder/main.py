@@ -176,7 +176,7 @@ def install_python_deps():
                 capture_output=True,
                 text=True,
                 timeout=30,  # 30 second timeout
-                env=os.environ  # Use modified environment with venv Python
+                env=os.environ  # Use current environment with venv Python
             )
             if result.returncode != 0:
                 if result.stderr:
@@ -210,7 +210,7 @@ def install_python_deps():
                 text=True,
                 encoding='utf-8',
                 timeout=30,  # 30 second timeout
-                env=os.environ  # Use modified environment with venv Python
+                env=os.environ  # Use current environment with venv Python
             )
             
             if result_obj.returncode == 0:
@@ -253,7 +253,7 @@ def install_python_deps():
                 capture_output=True,
                 text=True,
                 timeout=30,  # 30 second timeout for package installation
-                env=os.environ  # Use modified environment with venv Python
+                env=os.environ  # Use current environment with venv Python
             )
             
             if result.returncode != 0:
@@ -278,9 +278,6 @@ def install_python_deps():
 def install_esptool():
     """
     Install esptool from package folder "tool-esptoolpy" using uv package manager.
-    
-    Returns:
-        str: Path to esptool executable
 
     Raises:
         SystemExit: If esptool installation fails
