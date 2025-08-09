@@ -200,7 +200,7 @@ def install_python_deps():
     
     def _get_installed_uv_packages():
         """
-        Get list of installed packages using uv.
+        Get list of installed packages in virtual env 'penv' using uv.
         
         Returns:
             dict: Dictionary of installed packages with versions
@@ -240,13 +240,12 @@ def install_python_deps():
 
     installed_packages = _get_installed_uv_packages()
     packages_to_install = list(get_packages_to_install(python_deps, installed_packages))
-    print("Packages to install:", packages_to_install) 
     
     if packages_to_install:
         packages_list = [f"{p}{python_deps[p]}" for p in packages_to_install]
         
         cmd = [
-            uv_executable, "pip", "install",
+            uv_executable, "pip", "install", "--quiet",
             f"--python={PYTHON_EXE}",
             "--upgrade"
         ] + packages_list
@@ -264,8 +263,6 @@ def install_python_deps():
                 if result.stderr:
                     print(f"Error output: {result.stderr.strip()}")
                 return False
-            else:
-                print("All Python dependencies installed / statisfied")
                 
         except subprocess.TimeoutExpired:
             print("Error: Python dependencies installation timed out")
