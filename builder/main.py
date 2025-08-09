@@ -207,7 +207,7 @@ def install_python_deps():
         """
         result = {}
         try:
-            cmd = [uv_executable, "pip", "list", "--format=json"]
+            cmd = [uv_executable, "pip", "list", f"--python={PYTHON_EXE}", "--format=json"]
             result_obj = subprocess.run(
                 cmd,
                 capture_output=True,
