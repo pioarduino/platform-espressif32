@@ -245,9 +245,9 @@ def install_python_deps():
         packages_list = [f"{p}{python_deps[p]}" for p in packages_to_install]
         
         cmd = [
-            uv_executable, "pip", "install", "--quiet",
+            uv_executable, "pip", "install",
             f"--python={PYTHON_EXE}",
-            "--upgrade"
+            "--quiet", "--upgrade"
         ] + packages_list
         
         try:
