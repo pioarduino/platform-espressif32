@@ -180,8 +180,7 @@ def install_python_deps():
                 [PYTHON_EXE, "-m", "pip", "install", "uv>=0.1.0", "-q", "-q", "-q"],
                 capture_output=True,
                 text=True,
-                timeout=30,  # 30 second timeout
-                env=os.environ  # Use current environment with venv Python
+                timeout=30  # 30 second timeout
             )
             if result.returncode != 0:
                 if result.stderr:
@@ -214,8 +213,7 @@ def install_python_deps():
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
-                timeout=30,  # 30 second timeout
-                env=os.environ  # Use current environment with venv Python
+                timeout=30  # 30 second timeout
             )
             
             if result_obj.returncode == 0:
