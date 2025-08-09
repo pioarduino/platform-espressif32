@@ -49,6 +49,7 @@ if sys.version_info < (3, 10):
 # Python dependencies required for the build process
 python_deps = {
     "uv": ">=0.1.0",
+    "platformio": ">=6.1.18",
     "pyyaml": ">=6.0.2",
     "rich-click": ">=1.8.6",
     "zopfli": ">=0.2.2",
