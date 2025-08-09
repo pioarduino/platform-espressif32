@@ -2107,7 +2107,7 @@ def get_executable_path(executable_name):
     """
     Get the path to an executable based on the Platformio main penv directory.
     """
-    platformio_dir = projectconfig.get("platformio", "core_dir")
+    platformio_dir = config.get("platformio", "core_dir")
     penv_dir = os.path.join(platformio_dir, "penv")
     exe_suffix = ".exe" if IS_WINDOWS else ""
     scripts_dir = "Scripts" if IS_WINDOWS else "bin"
