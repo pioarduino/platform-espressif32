@@ -2144,7 +2144,7 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
 
         PYTHON_EXE = env.subst("$PYTHONEXE")
         pio_exe_dir = os.path.dirname(PYTHON_EXE)
-        pio_exe_path = os.path.join(pio_exe_dir, "pio" + (".exe" if IS_WINDOWS else ""))
+        pio_exe_path = os.path.join(pio_exe_dir, "platformio" + (".exe" if IS_WINDOWS else ""))
         if not os.path.isfile(pio_exe_path):
             pio_exe_path = shutil.which("platformio"+(".exe" if IS_WINDOWS else ""))
             if not os.path.isfile(pio_exe_path):
