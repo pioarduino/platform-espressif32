@@ -249,7 +249,7 @@ def install_python_deps():
         cmd = [
             uv_executable, "pip", "install",
             f"--python={PYTHON_EXE}",
-            "--quiet", "--upgrade"
+            "--upgrade"
         ] + packages_list
         
         try:
@@ -257,8 +257,7 @@ def install_python_deps():
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=30,  # 30 second timeout for package installation
-                env=os.environ  # Use current environment with venv Python
+                timeout=30  # 30 second timeout for package installation
             )
             
             if result.returncode != 0:
@@ -291,8 +290,7 @@ def install_esptool():
         subprocess.check_call(
             [PYTHON_EXE, "-c", "import esptool"], 
             stdout=subprocess.DEVNULL, 
-            stderr=subprocess.DEVNULL,
-            env=os.environ
+            stderr=subprocess.DEVNULL
         )
         return
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -308,7 +306,7 @@ def install_esptool():
             uv_executable, "pip", "install", "--quiet",
             f"--python={PYTHON_EXE}",
             "-e", esptool_repo_path
-        ], env=os.environ)
+        ])
 
         return
 
