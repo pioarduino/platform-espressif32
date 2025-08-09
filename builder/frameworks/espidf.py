@@ -2103,6 +2103,17 @@ if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "es
 # Compile Arduino IDF sources
 #
 
+def get_executable_path(executable_name):
+    """
+    Get the path to an executable based on the Platformio main penv directory.
+    """
+    platformio_dir = projectconfig.get("platformio", "core_dir")
+    penv_dir = os.path.join(platformio_dir, "penv")
+    exe_suffix = ".exe" if IS_WINDOWS else ""
+    scripts_dir = "Scripts" if IS_WINDOWS else "bin"
+    
+    return os.path.join(penv_dir, scripts_dir, f"{executable_name}{exe_suffix}")
+
 if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PIOFRAMEWORK")):
     def idf_lib_copy(source, target, env):
         env_build = join(env["PROJECT_BUILD_DIR"],env["PIOENV"])
@@ -2142,14 +2153,7 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
             pass
         print("*** Copied compiled %s IDF libraries to Arduino framework ***" % idf_variant)
 
-        PYTHON_EXE = env.subst("$PYTHONEXE")
-        pio_exe_dir = os.path.dirname(PYTHON_EXE)
-        pio_exe_path = os.path.join(pio_exe_dir, "platformio" + (".exe" if IS_WINDOWS else ""))
-        if not os.path.isfile(pio_exe_path):
-            pio_exe_path = shutil.which("platformio"+(".exe" if IS_WINDOWS else ""))
-            if not os.path.isfile(pio_exe_path):
-                print(f"Error: Could not locate PlatformIO CLI near venv {PYTHON_EXE} or in PATH")
-                env.Exit(1)
+        pio_exe_path = get_executable_path("platformio")
         pio_cmd = env["PIOENV"]
         env.Execute(
             env.VerboseAction(
