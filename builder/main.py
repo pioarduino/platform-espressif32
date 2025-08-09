@@ -240,6 +240,7 @@ def install_python_deps():
 
     installed_packages = _get_installed_uv_packages()
     packages_to_install = list(get_packages_to_install(python_deps, installed_packages))
+    print("Packages to install:", packages_to_install) 
     
     if packages_to_install:
         packages_list = [f"{p}{python_deps[p]}" for p in packages_to_install]
@@ -263,6 +264,8 @@ def install_python_deps():
                 if result.stderr:
                     print(f"Error output: {result.stderr.strip()}")
                 return False
+            else:
+                print("All Python dependencies installed / statisfied")
                 
         except subprocess.TimeoutExpired:
             print("Error: Python dependencies installation timed out")
