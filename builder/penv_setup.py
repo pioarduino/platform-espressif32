@@ -270,6 +270,7 @@ def install_esptool(env, platform, python_exe, uv_executable):
              "actual_path = os.path.normpath(os.path.dirname(esptool.__file__)); "
              "print('MATCH' if expected_path in actual_path else 'MISMATCH')"],
             capture_output=True,
+            check=True,
             text=True,
             timeout=5
         )
