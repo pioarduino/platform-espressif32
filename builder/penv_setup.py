@@ -23,6 +23,11 @@ import sys
 from platformio.package.version import pepver_to_semver
 from platformio.compat import IS_WINDOWS
 
+PLATFORMIO_URL_VERSION_RE = re.compile(
+    r'/v?(\d+\.\d+\.\d+(?:[.-]\w+)?(?:\.\d+)?)(?:\.(?:zip|tar\.gz|tar\.bz2))?$',
+    re.IGNORECASE,
+)
+
 # Python dependencies required for the build process
 python_deps = {
     "uv": ">=0.1.0",
@@ -101,7 +106,7 @@ def get_packages_to_install(deps, installed_packages):
         elif name == "platformio":
             # Enforce the version from the direct URL if it looks like one.
             # If version can't be parsed, fall back to accepting any installed version.
-            m = re.search(r'/v?(\d+\.\d+\.\d+(?:[.-]\w+)?(?:\.\d+)?)(?:\.(?:zip|tar\.gz|tar\.bz2))?$', spec)
+            m = PLATFORMIO_URL_VERSION_RE.search(spec)
             if m:
                 expected_ver = pepver_to_semver(m.group(1))
                 if installed_packages.get(name) != expected_ver:
