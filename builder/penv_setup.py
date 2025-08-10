@@ -101,7 +101,7 @@ def get_packages_to_install(deps, installed_packages):
         elif name == "platformio":
             # Enforce the version from the direct URL if it looks like one.
             # If version can't be parsed, fall back to accepting any installed version.
-            m = re.search(r'/v?(\d+\.\d+\.\d+(?:\.\d+)?)(?:\.(?:zip|tar\.gz|tar\.bz2))?$', spec)
+            m = re.search(r'/v?(\d+\.\d+\.\d+(?:[.-]\w+)?(?:\.\d+)?)(?:\.(?:zip|tar\.gz|tar\.bz2))?$', spec)
             if m:
                 expected_ver = pepver_to_semver(m.group(1))
                 if installed_packages.get(name) != expected_ver:
