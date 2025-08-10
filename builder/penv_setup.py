@@ -258,6 +258,9 @@ def install_esptool(env, platform, python_exe, uv_executable):
     """
     esptool_repo_path = env.subst(platform.get_package_dir("tool-esptoolpy") or "")
     if not esptool_repo_path or not os.path.isdir(esptool_repo_path):
+        sys.stderr.write(
+            f"Error: 'tool-esptoolpy' package directory not found: {esptool_repo_path!r}\n"
+        )
         sys.exit(1)
 
     # Check if esptool is already installed from the correct path
@@ -293,7 +296,10 @@ def install_esptool(env, platform, python_exe, uv_executable):
             "-e", esptool_repo_path
         ])
 
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(
+            f"Error: Failed to install esptool from {esptool_repo_path} (exit {e.returncode})\n"
+        )
         sys.exit(1)
 
 
