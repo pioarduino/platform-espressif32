@@ -55,7 +55,7 @@ def get_executable_path(penv_dir, executable_name):
     return os.path.join(penv_dir, scripts_dir, f"{executable_name}{exe_suffix}")
 
 
-def setup_env_in_package(env, penv_dir):
+def setup_pipenv_in_package(env, penv_dir):
     """
     Checks if 'penv' folder exists in platformio dir and creates virtual environment if not.
     """
@@ -335,7 +335,7 @@ def setup_python_environment(env, platform, platformio_dir):
     penv_dir = os.path.join(platformio_dir, "penv")
     
     # Setup virtual environment if needed
-    setup_env_in_package(env, penv_dir)
+    setup_pipenv_in_package(env, penv_dir)
     
     # Set Python Scons Var to env Python
     penv_python = get_executable_path(penv_dir, "python")
@@ -347,17 +347,15 @@ def setup_python_environment(env, platform, platformio_dir):
     # Setup Python module search paths
     setup_python_paths(penv_dir)
     
-    # Set executable path from tool uv
+    # Set executable paths from tools
+    esptool_binary_path = get_executable_path(penv_dir, "esptool")
     uv_executable = get_executable_path(penv_dir, "uv")
     
     # Install espressif32 Python dependencies
     if not install_python_deps(penv_python, uv_executable):
         sys.stderr.write("Error: Failed to install Python dependencies into penv\n")
         sys.exit(1)
-
     # Install esptool after dependencies
     install_esptool(env, platform, penv_python, uv_executable)
-    # Set executable path from tool esptool
-    esptool_binary_path = get_executable_path(penv_dir, "esptool")
-
+    
     return penv_python, esptool_binary_path
