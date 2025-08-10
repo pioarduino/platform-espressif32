@@ -45,7 +45,7 @@ def prepare_ulp_env_vars(env):
     toolchain_path_ulp = platform.get_package_dir(
         "toolchain-esp32ulp"
         if sdk_config.get("ULP_COPROC_TYPE_FSM", False)
-        else ""
+        else None
     )
 
     python_dir = os.path.dirname(ulp_env.subst("$PYTHONEXE")) or ""
