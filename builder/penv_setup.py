@@ -263,12 +263,17 @@ def install_esptool(env, platform, python_exe, uv_executable):
     # Check if esptool is already installed from the correct path
     try:
         result = subprocess.run(
-            [python_exe, "-c", 
-             "import esptool; "
-             "import os; "
-             f"expected_path = os.path.normpath(r'{esptool_repo_path}'); "
-             "actual_path = os.path.normpath(os.path.dirname(esptool.__file__)); "
-             "print('MATCH' if expected_path in actual_path else 'MISMATCH')"],
+            [
+                python_exe,
+                "-c",
+                (
+                    "import esptool, os, sys; "
+                    "expected_path = os.path.normcase(os.path.realpath(sys.argv[1])); "
+                    "actual_path = os.path.normcase(os.path.realpath(os.path.dirname(esptool.__file__))); "
+                    "print('MATCH' if actual_path.startswith(expected_path) else 'MISMATCH')"
+                ),
+                esptool_repo_path,
+            ],
             capture_output=True,
             check=True,
             text=True,
