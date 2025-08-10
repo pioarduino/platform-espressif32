@@ -22,7 +22,7 @@ Import("env")
 
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
-is_xtensa = mcu in ("esp32","esp32s2","esp32s3")
+is_xtensa = mcu in ("esp32", "esp32s2", "esp32s3")
 
 #
 # Embedded files helpers
@@ -112,7 +112,7 @@ env.Append(
                     [
                         "riscv32-esp-elf-objcopy"
                         if not is_xtensa
-                        else "xtensa-%s-elf-objcopy" % mcu,
+                        else f"xtensa-{mcu}-elf-objcopy",
                         "--input-target",
                         "binary",
                         "--output-target",
