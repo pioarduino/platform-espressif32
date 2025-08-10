@@ -274,7 +274,7 @@ def install_esptool(env, platform, python_exe, uv_executable):
             timeout=5
         )
         
-        if result.returncode == 0 and "MATCH" in result.stdout:
+        if result.returncode == 0 and result.stdout.strip() == "MATCH":
             return
             
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
