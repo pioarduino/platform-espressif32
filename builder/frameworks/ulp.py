@@ -31,13 +31,14 @@ ULP_BUILD_DIR = os.path.join(
     BUILD_DIR, "esp-idf", project_config["name"].replace("__idf_", ""), "ulp_main"
 )
 
+is_xtensa = idf_variant in ("esp32", "esp32s2", "esp32s3")
 
 def prepare_ulp_env_vars(env):
     ulp_env.PrependENVPath("IDF_PATH", FRAMEWORK_DIR)
 
     toolchain_path = platform.get_package_dir(
         "toolchain-xtensa-esp-elf"
-        if idf_variant in ("esp32","esp32s2","esp32s3")
+        if is_xtensa
         else "toolchain-riscv32-esp"
     )
 
@@ -47,12 +48,13 @@ def prepare_ulp_env_vars(env):
         else ""
     )
 
+    python_dir = os.path.dirname(ulp_env.subst("$PYTHONEXE")) or ""
     additional_packages = [
         toolchain_path,
         toolchain_path_ulp,
         platform.get_package_dir("tool-ninja"),
         os.path.join(platform.get_package_dir("tool-cmake"), "bin"),
-        os.path.dirname(where_is_program("python")),
+        python_dir,
     ]
 
     for package in additional_packages:
@@ -85,7 +87,7 @@ def generate_ulp_config(target_config):
         riscv_ulp_enabled = sdk_config.get("ULP_COPROC_TYPE_RISCV", False)
         lp_core_ulp_enabled = sdk_config.get("ULP_COPROC_TYPE_LP_CORE", False)
 
-        if lp_core_ulp_enabled == False:
+        if not lp_core_ulp_enabled:
             ulp_toolchain = "toolchain-%sulp%s.cmake"% (
                 "" if riscv_ulp_enabled else idf_variant + "-",
                 "-riscv" if riscv_ulp_enabled else "",
@@ -93,9 +95,9 @@ def generate_ulp_config(target_config):
         else:
             ulp_toolchain = "toolchain-lp-core-riscv.cmake"
 
-        comp_includes = ";".join(get_component_includes(target_config))
-        plain_includes = ";".join(app_includes["plain_includes"])
-        comp_includes = comp_includes + plain_includes
+        comp_includes_list = get_component_includes(target_config)
+        plain_includes_list = app_includes["plain_includes"]
+        comp_includes = ";".join(comp_includes_list + plain_includes_list)
 
         cmd = (
             os.path.join(platform.get_package_dir("tool-cmake"), "bin", "cmake"),
