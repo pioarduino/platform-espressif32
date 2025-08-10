@@ -58,7 +58,8 @@ def prepare_ulp_env_vars(env):
     ]
 
     for package in additional_packages:
-        ulp_env.PrependENVPath("PATH", package)
+        if package:
+            ulp_env.PrependENVPath("PATH", package)
 
 
 def collect_ulp_sources():
