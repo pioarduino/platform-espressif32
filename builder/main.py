@@ -414,11 +414,12 @@ def switch_off_ldf():
 # Initialize board configuration and MCU settings
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
+is_xtensa = mcu in ("esp32","esp32s2","esp32s3")
 toolchain_arch = "xtensa-%s" % mcu
 filesystem = board.get("build.filesystem", "littlefs")
 
 # Set toolchain architecture for RISC-V based ESP32 variants
-if mcu not in ("esp32", "esp32s2", "esp32s3"):
+if not is_xtensa:
     toolchain_arch = "riscv32-esp"
 
 # Initialize integration extra data if not present
@@ -426,7 +427,7 @@ if "INTEGRATION_EXTRA_DATA" not in env:
     env["INTEGRATION_EXTRA_DATA"] = {}
 
 # Take care of possible whitespaces in path
-objcopy_value = (
+uploader_path = (
     f'"{esptool_binary_path}"' 
     if ' ' in esptool_binary_path 
     else esptool_binary_path
@@ -446,18 +447,14 @@ env.Replace(
     GDB=join(
         platform.get_package_dir(
             "tool-riscv32-esp-elf-gdb"
-            if mcu not in (
-                "esp32",
-                "esp32s2",
-                "esp32s3",
-            )
+            if not is_xtensa
             else "tool-xtensa-esp-elf-gdb"
         )
         or "",
         "bin",
         "%s-elf-gdb" % toolchain_arch,
     ),
-    OBJCOPY=objcopy_value,
+    OBJCOPY=uploader_path,
     RANLIB="%s-elf-gcc-ranlib" % toolchain_arch,
     SIZETOOL="%s-elf-size" % toolchain_arch,
     ARFLAGS=["rc"],
@@ -467,7 +464,7 @@ env.Replace(
     SIZECHECKCMD="$SIZETOOL -A -d $SOURCES",
     SIZEPRINTCMD="$SIZETOOL -B -d $SOURCES",
     ERASEFLAGS=["--chip", mcu, "--port", '"$UPLOAD_PORT"'],
-    ERASECMD='"$OBJCOPY" $ERASEFLAGS erase-flash',
+    ERASECMD='$OBJCOPY $ERASEFLAGS erase-flash',
     # mkspiffs package contains two different binaries for IDF and Arduino
     MKFSTOOL="mk%s" % filesystem
     + (
@@ -719,7 +716,7 @@ if upload_protocol == "espota":
 # Configure upload protocol: esptool
 elif upload_protocol == "esptool":
     env.Replace(
-        UPLOADER=objcopy_value,
+        UPLOADER=uploader_path,
         UPLOADERFLAGS=[
             "--chip",
             mcu,
@@ -794,7 +791,7 @@ elif upload_protocol == "dfu":
             "-Q",
             "-D",
         ],
-        UPLOADCMD='"$UPLOADER" $UPLOADERFLAGS "$SOURCE"',
+        UPLOADCMD='$UPLOADER $UPLOADERFLAGS "$SOURCE"',
     )
 
 # Configure upload protocol: Debug tools (OpenOCD)
