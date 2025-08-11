@@ -58,7 +58,7 @@ def prepare_ulp_env_vars(env):
     ]
 
     for package in additional_packages:
-        if package:
+        if package and os.path.isdir(package):
             ulp_env.PrependENVPath("PATH", package)
 
 
