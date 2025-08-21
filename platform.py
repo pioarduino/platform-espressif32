@@ -469,7 +469,6 @@ class Espressif32Platform(PlatformBase):
             return False
 
         # Copy tool files
-        )
         target_package_path = os.path.join(
             IDF_TOOLS_PATH, "tools", tool_name, "package.json"
         )
