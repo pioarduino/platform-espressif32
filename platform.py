@@ -71,12 +71,13 @@ CHECK_PACKAGES = [
 IS_WINDOWS = sys.platform.startswith("win")
 # Set Platformio env var to use windows_amd64 for all windows architectures
 # only windows_amd64 native espressif toolchains are available
-# needs platformio/pioarduino core >= 6.1.17
 if IS_WINDOWS:
     os.environ["PLATFORMIO_SYSTEM_TYPE"] = "windows_amd64"
 
-# Clear IDF_TOOLS_PATH, if set tools may be installed in the wrong place
-os.environ["IDF_TOOLS_PATH"] = ""
+# Set IDF_TOOLS_PATH to Pio core_dir
+PROJECT_CORE_DIR=ProjectConfig.get_instance().get("platformio", "core_dir")
+IDF_TOOLS_PATH=os.path.join(PROJECT_CORE_DIR)
+os.environ["IDF_TOOLS_PATH"] = IDF_TOOLS_PATH
 
 # Global variables
 python_exe = get_pythonexe_path()
@@ -468,11 +469,9 @@ class Espressif32Platform(PlatformBase):
             return False
 
         # Copy tool files
-        tools_path_default = os.path.join(
-            os.path.expanduser("~"), ".platformio"
         )
         target_package_path = os.path.join(
-            tools_path_default, "tools", tool_name, "package.json"
+            IDF_TOOLS_PATH, "tools", tool_name, "package.json"
         )
 
         if not safe_copy_file(paths['package_path'], target_package_path):
@@ -480,7 +479,7 @@ class Espressif32Platform(PlatformBase):
 
         safe_remove_directory(paths['tool_path'])
 
-        tl_path = f"file://{os.path.join(tools_path_default, 'tools', tool_name)}"
+        tl_path = f"file://{os.path.join(IDF_TOOLS_PATH, 'tools', tool_name)}"
         pm.install(tl_path)
 
         logger.info(f"Tool {tool_name} successfully installed")
