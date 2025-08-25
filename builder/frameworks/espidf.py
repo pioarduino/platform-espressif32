@@ -21,6 +21,7 @@ https://github.com/espressif/esp-idf
 """
 
 import copy
+import importlib.util
 import json
 import subprocess
 import sys
@@ -49,6 +50,13 @@ from platformio.package.version import get_original_version, pepver_to_semver
 
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
+platform = env.PioPlatform()
+
+_penv_setup_file = os.path.join(platform.get_dir(), "builder", "penv_setup.py")
+_spec = importlib.util.spec_from_file_location("penv_setup", _penv_setup_file)
+_penv_setup = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_penv_setup)  # type: ignore[attr-defined]
+get_executable_path = _penv_setup.get_executable_path
 
 # remove maybe existing old map file in project root
 map_file = os.path.join(env.subst("$PROJECT_DIR"), env.subst("$PROGNAME") + ".map")
@@ -58,7 +66,6 @@ if os.path.exists(map_file):
 # Allow changes in folders of managed components
 os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 
-platform = env.PioPlatform()
 config = env.GetProjectConfig()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
@@ -86,6 +93,7 @@ PLATFORMIO_DIR = env.subst("$PROJECT_CORE_DIR")
 
 assert os.path.isdir(FRAMEWORK_DIR)
 assert os.path.isdir(TOOLCHAIN_DIR)
+
 
 def create_silent_action(action_func):
     """Create a silent SCons action that suppresses output"""
@@ -1487,13 +1495,13 @@ def generate_mbedtls_bundle(sdk_config):
     )
 
 
-def install_python_deps():
-    penv_setup_path = os.path.join(platform.get_dir(), "builder")
-    sys.path.insert(0, penv_setup_path)
-    from penv_setup import get_executable_path
+def _get_uv_exe():
+    return get_executable_path(os.path.join(PLATFORMIO_DIR, "penv"), "uv")
 
-    penv_dir = os.path.join(PLATFORMIO_DIR, "penv")
-    UV_EXE = get_executable_path(penv_dir, "uv")
+
+def install_python_deps():
+    UV_EXE = _get_uv_exe()
+
     def _get_installed_uv_packages(python_exe_path):
         result = {}
         try:
@@ -1607,13 +1615,7 @@ def ensure_python_venv_available():
             return True
 
     def _create_venv(venv_dir):
-        penv_setup_path = os.path.join(platform.get_dir(), "builder")
-        sys.path.insert(0, penv_setup_path)
-
-        from penv_setup import get_executable_path
-
-        penv_dir = os.path.join(PLATFORMIO_DIR, "penv")
-        uv_path = get_executable_path(penv_dir, "uv")
+        uv_path = _get_uv_exe()
 
         if os.path.isdir(venv_dir):
             try:
