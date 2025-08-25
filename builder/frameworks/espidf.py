@@ -21,6 +21,7 @@ https://github.com/espressif/esp-idf
 """
 
 import copy
+import importlib.util
 import json
 import subprocess
 import sys
@@ -44,12 +45,18 @@ from platformio import fs
 from platformio.compat import IS_WINDOWS
 from platformio.proc import exec_command
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
-from platformio.project.config import ProjectConfig
 from platformio.package.version import get_original_version, pepver_to_semver
 
 
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
+platform = env.PioPlatform()
+
+_penv_setup_file = os.path.join(platform.get_dir(), "builder", "penv_setup.py")
+_spec = importlib.util.spec_from_file_location("penv_setup", _penv_setup_file)
+_penv_setup = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_penv_setup)  # type: ignore[attr-defined]
+get_executable_path = _penv_setup.get_executable_path
 
 # remove maybe existing old map file in project root
 map_file = os.path.join(env.subst("$PROJECT_DIR"), env.subst("$PROGNAME") + ".map")
@@ -59,7 +66,6 @@ if os.path.exists(map_file):
 # Allow changes in folders of managed components
 os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 
-platform = env.PioPlatform()
 config = env.GetProjectConfig()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
@@ -83,10 +89,11 @@ TOOLCHAIN_DIR = platform.get_package_dir(
     if mcu in ("esp32", "esp32s2", "esp32s3")
     else "toolchain-riscv32-esp"
 )
-
+PLATFORMIO_DIR = env.subst("$PROJECT_CORE_DIR")
 
 assert os.path.isdir(FRAMEWORK_DIR)
 assert os.path.isdir(TOOLCHAIN_DIR)
+
 
 def create_silent_action(action_func):
     """Create a silent SCons action that suppresses output"""
@@ -351,7 +358,7 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
 
 if flag_custom_sdkonfig == True and "arduino" in env.subst("$PIOFRAMEWORK") and "espidf" not in env.subst("$PIOFRAMEWORK"):
     HandleArduinoIDFsettings(env)
-    LIB_SOURCE = os.path.join(ProjectConfig.get_instance().get("platformio", "platforms_dir"), "espressif32", "builder", "build_lib")
+    LIB_SOURCE = os.path.join(platform.get_dir(), "builder", "build_lib")
     if not bool(os.path.exists(os.path.join(PROJECT_DIR, ".dummy"))):
         shutil.copytree(LIB_SOURCE, os.path.join(PROJECT_DIR, ".dummy"))
     PROJECT_SRC_DIR = os.path.join(PROJECT_DIR, ".dummy")
@@ -1488,9 +1495,13 @@ def generate_mbedtls_bundle(sdk_config):
     )
 
 
+def _get_uv_exe():
+    return get_executable_path(os.path.join(PLATFORMIO_DIR, "penv"), "uv")
+
+
 def install_python_deps():
-    PYTHON_EXE = env.subst("$PYTHONEXE")
-    UV_EXE = os.path.join(os.path.dirname(PYTHON_EXE), "uv" + (".exe" if IS_WINDOWS else ""))
+    UV_EXE = _get_uv_exe()
+
     def _get_installed_uv_packages(python_exe_path):
         result = {}
         try:
@@ -1512,7 +1523,6 @@ def install_python_deps():
         return
 
     deps = {
-        "uv": ">=0.1.0",
         # https://github.com/platformio/platformio-core/issues/4614
         "urllib3": "<2",
         # https://github.com/platformio/platform-espressif32/issues/635
@@ -1563,9 +1573,7 @@ def get_idf_venv_dir():
     # as an IDF component requires a different version of the IDF package and
     # hence a different set of Python deps or their versions
     idf_version = get_framework_version()
-    return os.path.join(
-        env.subst("$PROJECT_CORE_DIR"), "penv", ".espidf-" + idf_version
-    )
+    return os.path.join(PLATFORMIO_DIR, "penv", f".espidf-{idf_version}")
 
 
 def ensure_python_venv_available():
@@ -1607,11 +1615,7 @@ def ensure_python_venv_available():
             return True
 
     def _create_venv(venv_dir):
-        pip_path = os.path.join(
-            venv_dir,
-            "Scripts" if IS_WINDOWS else "bin",
-            "pip" + (".exe" if IS_WINDOWS else ""),
-        )
+        uv_path = _get_uv_exe()
 
         if os.path.isdir(venv_dir):
             try:
@@ -1624,17 +1628,20 @@ def ensure_python_venv_available():
                 )
                 env.Exit(1)
 
-        # Use the built-in PlatformIO Python to create a standalone IDF virtual env
+        # Use uv to create a standalone IDF virtual env
         env.Execute(
             env.VerboseAction(
-                '"$PYTHONEXE" -m venv --clear "%s"' % venv_dir,
-                "Creating a new virtual environment for IDF Python dependencies",
+                '"%s" venv --clear --quiet --python "%s" "%s"' % (uv_path, env.subst("$PYTHONEXE"), venv_dir),
+                "Creating a new virtual environment for IDF Python dependencies using uv",
             )
         )
 
+        # Verify that the venv was created successfully by checking for Python executable
+        python_path = get_executable_path(venv_dir, "python")
+        
         assert os.path.isfile(
-            pip_path
-        ), "Error: Failed to create a proper virtual environment. Missing the `pip` binary!"
+            python_path
+        ), "Error: Failed to create a proper virtual environment. Missing the Python executable!"
 
     venv_dir = get_idf_venv_dir()
     venv_data_file = os.path.join(venv_dir, "pio-idf-venv.json")
