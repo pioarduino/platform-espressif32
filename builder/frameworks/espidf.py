@@ -1488,8 +1488,12 @@ def generate_mbedtls_bundle(sdk_config):
 
 
 def install_python_deps():
-    PYTHON_EXE = env.subst("$PYTHONEXE")
-    UV_EXE = os.path.join(os.path.dirname(PYTHON_EXE), "uv" + (".exe" if IS_WINDOWS else ""))
+    penv_setup_path = os.path.join(platform.get_dir(), "builder")
+    sys.path.insert(0, penv_setup_path)
+    from penv_setup import get_executable_path
+
+    penv_dir = os.path.join(PLATFORMIO_DIR, "penv")
+    UV_EXE = get_executable_path(penv_dir, "uv")
     def _get_installed_uv_packages(python_exe_path):
         result = {}
         try:
@@ -1511,7 +1515,6 @@ def install_python_deps():
         return
 
     deps = {
-        "uv": ">=0.1.0",
         # https://github.com/platformio/platformio-core/issues/4614
         "urllib3": "<2",
         # https://github.com/platformio/platform-espressif32/issues/635
@@ -1562,9 +1565,7 @@ def get_idf_venv_dir():
     # as an IDF component requires a different version of the IDF package and
     # hence a different set of Python deps or their versions
     idf_version = get_framework_version()
-    return os.path.join(
-        env.subst("$PROJECT_CORE_DIR"), "penv", ".espidf-" + idf_version
-    )
+    return os.path.join(PLATFORMIO_DIR, "penv", f".espidf-{idf_version}")
 
 
 def ensure_python_venv_available():
