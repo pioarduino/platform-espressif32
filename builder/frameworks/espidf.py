@@ -1628,7 +1628,7 @@ def ensure_python_venv_available():
         # Use uv to create a standalone IDF virtual env
         env.Execute(
             env.VerboseAction(
-                '"%s" venv --clear --quiet "%s"' % (uv_path, venv_dir),
+                '"%s" venv --clear --quiet --python "%s" "%s"' % (uv_path, env.subst("$PYTHONEXE"), venv_dir),
                 "Creating a new virtual environment for IDF Python dependencies using uv",
             )
         )
