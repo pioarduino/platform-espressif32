@@ -350,7 +350,7 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
 
 if flag_custom_sdkonfig == True and "arduino" in env.subst("$PIOFRAMEWORK") and "espidf" not in env.subst("$PIOFRAMEWORK"):
     HandleArduinoIDFsettings(env)
-    LIB_SOURCE = os.path.join(PLATFORMIO_DIR, "platforms", "espressif32", "builder", "build_lib")
+    LIB_SOURCE = os.path.join(platform.get_dir(), "builder", "build_lib")
     if not bool(os.path.exists(os.path.join(PROJECT_DIR, ".dummy"))):
         shutil.copytree(LIB_SOURCE, os.path.join(PROJECT_DIR, ".dummy"))
     PROJECT_SRC_DIR = os.path.join(PROJECT_DIR, ".dummy")
@@ -1606,7 +1606,7 @@ def ensure_python_venv_available():
             return True
 
     def _create_venv(venv_dir):
-        penv_setup_path = os.path.join(PLATFORMIO_DIR, "platforms", "espressif32", "builder")
+        penv_setup_path = os.path.join(platform.get_dir(), "builder")
         sys.path.insert(0, penv_setup_path)
 
         from penv_setup import get_executable_path
