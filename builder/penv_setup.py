@@ -129,9 +129,6 @@ def setup_pipenv_in_package(env, penv_dir):
 
 def setup_python_paths(penv_dir):
     """Setup Python module search paths using the penv_dir."""    
-    # Add penv_dir to module search path
-    site.addsitedir(penv_dir)
-    
     # Add site-packages directory
     python_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
     site_packages = (
@@ -459,6 +456,15 @@ def setup_python_environment(env, platform, platformio_dir):
         os.environ["SSL_CERT_FILE"] = cert_path
         os.environ["REQUESTS_CA_BUNDLE"] = cert_path
         os.environ["CURL_CA_BUNDLE"] = cert_path
+        # Also propagate to SCons environment for future env.Execute calls
+        env_vars = dict(env.get("ENV", {}))
+        env_vars.update({
+            "CERTIFI_PATH": cert_path,
+            "SSL_CERT_FILE": cert_path,
+            "REQUESTS_CA_BUNDLE": cert_path,
+            "CURL_CA_BUNDLE": cert_path,
+        })
+        env.Replace(ENV=env_vars)
 
     setup_certifi_env()
 
