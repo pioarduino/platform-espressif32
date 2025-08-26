@@ -30,8 +30,12 @@ from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
 
 # Constants
+try:
+    with open('/proc/device-tree/model') as f:
+        SUBPROCESS_TIMEOUT = 900 if 'raspberry pi' in f.read().lower() else 300
+except:
+    SUBPROCESS_TIMEOUT = 300
 RETRY_LIMIT = 3
-SUBPROCESS_TIMEOUT = 300
 DEFAULT_DEBUG_SPEED = "5000"
 DEFAULT_APP_OFFSET = "0x10000"
 tl_install_name = "tool-esp_install"
