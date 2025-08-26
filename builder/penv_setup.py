@@ -94,15 +94,14 @@ def setup_pipenv_in_package(env, penv_dir):
             if not os.path.isfile(uv_cmd):
                 uv_cmd = "uv"
                 
-            result = subprocess.run(
+            subprocess.check_call(
                 [uv_cmd, "venv", "--clear", f"--python={python_exe}", penv_dir],
-                capture_output=True,
-                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 timeout=90
             )
-            if result.returncode == 0:
-                uv_success = True
-                print(f"Created pioarduino Python virtual environment using uv: {penv_dir}")
+            uv_success = True
+            print(f"Created pioarduino Python virtual environment using uv: {penv_dir}")
 
         except Exception:
             pass
@@ -210,16 +209,15 @@ def install_python_deps(python_exe, external_uv_executable):
         if external_uv_executable:
             # Use external uv to install uv into the penv
             try:
-                result = subprocess.run(
+                subprocess.check_call(
                     [external_uv_executable, "pip", "install", "uv>=0.1.0", f"--python={python_exe}", "--quiet"],
-                    capture_output=True,
-                    text=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.STDOUT,
                     timeout=120
                 )
-                if result.returncode != 0:
-                    if result.stderr:
-                        print(f"Error output: {result.stderr.strip()}")
-                    return False
+            except subprocess.CalledProcessError as e:
+                print(f"Error: uv installation failed with exit code {e.returncode}")
+                return False
             except subprocess.TimeoutExpired:
                 print("Error: uv installation timed out")
                 return False
@@ -232,16 +230,15 @@ def install_python_deps(python_exe, external_uv_executable):
         else:
             # No external uv available, use pip to install uv into penv
             try:
-                result = subprocess.run(
+                subprocess.check_call(
                     [python_exe, "-m", "pip", "install", "uv>=0.1.0", "--quiet"],
-                    capture_output=True,
-                    text=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.STDOUT,
                     timeout=120
                 )
-                if result.returncode != 0:
-                    if result.stderr:
-                        print(f"Error output: {result.stderr.strip()}")
-                    return False
+            except subprocess.CalledProcessError as e:
+                print(f"Error: uv installation via pip failed with exit code {e.returncode}")
+                return False
             except subprocess.TimeoutExpired:
                 print("Error: uv installation via pip timed out")
                 return False
@@ -312,19 +309,16 @@ def install_python_deps(python_exe, external_uv_executable):
         ] + packages_list
         
         try:
-            result = subprocess.run(
+            subprocess.check_call(
                 cmd,
-                capture_output=True,
-                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
                 timeout=120
             )
-            
-            if result.returncode != 0:
-                print(f"Error: Failed to install Python dependencies (exit code: {result.returncode})")
-                if result.stderr:
-                    print(f"Error output: {result.stderr.strip()}")
-                return False
                 
+        except subprocess.CalledProcessError as e:
+            print(f"Error: Failed to install Python dependencies (exit code: {e.returncode})")
+            return False
         except subprocess.TimeoutExpired:
             print("Error: Python dependencies installation timed out")
             return False
@@ -452,5 +446,20 @@ def setup_python_environment(env, platform, platformio_dir):
 
     # Install esptool after dependencies
     install_esptool(env, platform, penv_python, uv_executable)
+
+    # Setup certifi environment variables
+    def setup_certifi_env():
+        try:
+            import certifi
+        except ImportError:
+            print("Info: certifi not available; skipping CA environment setup.")
+            return
+        cert_path = certifi.where()
+        os.environ["CERTIFI_PATH"] = cert_path
+        os.environ["SSL_CERT_FILE"] = cert_path
+        os.environ["REQUESTS_CA_BUNDLE"] = cert_path
+        os.environ["CURL_CA_BUNDLE"] = cert_path
+
+    setup_certifi_env()
 
     return penv_python, esptool_binary_path
