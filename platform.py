@@ -12,6 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# LZMA support check
+try:
+    import lzma as _lzma
+except ImportError:
+    import sys
+    print("ERROR: Python's lzma module is unavailable or broken in this interpreter.", file=sys.stderr)
+    print("LZMA (liblzma) support is required for tool/toolchain installation.", file=sys.stderr)
+    print("Please install Python built with LZMA support.", file=sys.stderr)
+    raise SystemExit(1)
+else:
+    # Keep namespace clean
+    del _lzma
+
 import fnmatch
 import os
 import json
@@ -21,14 +34,19 @@ import shutil
 import logging
 from typing import Optional, Dict, List, Any
 
+from platformio.compat import IS_WINDOWS
 from platformio.public import PlatformBase, to_unix_path
 from platformio.proc import get_pythonexe_path
 from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
 
 # Constants
+try:
+    with open('/proc/device-tree/model') as f:
+        SUBPROCESS_TIMEOUT = 900 if 'raspberry pi' in f.read().lower() else 300
+except:
+    SUBPROCESS_TIMEOUT = 300
 RETRY_LIMIT = 3
-SUBPROCESS_TIMEOUT = 300
 DEFAULT_DEBUG_SPEED = "5000"
 DEFAULT_APP_OFFSET = "0x10000"
 tl_install_name = "tool-esp_install"
@@ -68,7 +86,6 @@ CHECK_PACKAGES = [
 ]
 
 # System-specific configuration
-IS_WINDOWS = sys.platform.startswith("win")
 # Set Platformio env var to use windows_amd64 for all windows architectures
 # only windows_amd64 native espressif toolchains are available
 if IS_WINDOWS:
@@ -850,7 +867,7 @@ class Espressif32Platform(PlatformBase):
         return [
             "-s", "$PACKAGE_DIR/share/openocd/scripts",
             "-f", f"interface/{openocd_interface}.cfg",
-            "-f", f"{config_type}/{config_name}.cfg"
+            "-f", f"{config_type}/{config_name}"
         ]
 
     def configure_debug_session(self, debug_config):
