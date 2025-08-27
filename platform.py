@@ -14,13 +14,16 @@
 
 # LZMA support check
 try:
-    import lzma
+    import lzma as _lzma
 except ImportError:
-    print("ERROR: LZMA module is not available in this Python installation.")
-    print("LZMA support is required for tool / toolchain installation.")
-    print("Please install Python with LZMA support.")
     import sys
-    sys.exit(1)
+    print("ERROR: Python's lzma module is unavailable or broken in this interpreter.", file=sys.stderr)
+    print("LZMA (liblzma) support is required for tool/toolchain installation.", file=sys.stderr)
+    print("Please install Python built with LZMA support.", file=sys.stderr)
+    raise SystemExit(1)
+else:
+    # Keep namespace clean
+    del _lzma
 
 import fnmatch
 import os
