@@ -12,6 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# LZMA support check
+try:
+    import lzma
+except ImportError:
+    print("ERROR: LZMA module is not available in this Python installation.")
+    print("LZMA support is required for tool / toolchain installation.")
+    print("Please install Python with LZMA support.")
+    import sys
+    sys.exit(1)
+
 import fnmatch
 import os
 import json
