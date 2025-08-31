@@ -94,13 +94,12 @@ if not shutil.which("git"):
     print("Git is needed for Platform espressif32 to work.", file=sys.stderr)
     raise SystemExit(1)
 
-# set IDF env vars, avoid issues with existing IDF installs
 PROJECT_CORE_DIR = ProjectConfig.get_instance().get("platformio", "core_dir")
 PROJECT_PACKAGES_DIR = ProjectConfig.get_instance().get("platformio", "packages_dir")
-os.environ['IDF_PATH'] = os.path.join(PROJECT_PACKAGES_DIR, tl_install_name)
-print("IDF_PATH is set to:", os.path.join(PROJECT_PACKAGES_DIR, tl_install_name))
+# set IDF env vars to avoid issues with IDF installs
 IDF_TOOLS_PATH = PROJECT_CORE_DIR
 os.environ["IDF_TOOLS_PATH"] = IDF_TOOLS_PATH
+os.environ['IDF_PATH'] = os.path.join(PROJECT_PACKAGES_DIR, tl_install_name)
 
 # Global variables
 python_exe = get_pythonexe_path()
