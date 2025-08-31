@@ -102,7 +102,7 @@ if not shutil.which("git"):
 
 # Set IDF_TOOLS_PATH to Pio core_dir
 PROJECT_CORE_DIR=ProjectConfig.get_instance().get("platformio", "core_dir")
-IDF_TOOLS_PATH=os.path.join(PROJECT_CORE_DIR)
+IDF_TOOLS_PATH=PROJECT_CORE_DIR
 os.environ["IDF_TOOLS_PATH"] = IDF_TOOLS_PATH
 
 # Global variables
@@ -522,10 +522,13 @@ class Espressif32Platform(PlatformBase):
         Returns:
             bool: True if installation successful, False otherwise
         """
-        max_retries = 3
 
-        for attempt in range(max_retries):
-            if self._run_idf_tools_install(paths['tools_json_path'], paths['idf_tools_path'], attempt):
+        max_retries = RETRY_LIMIT
+        start = retry_count
+        max_timeout = int(os.environ.get("ESP32_INSTALL_MAX_TIMEOUT", "1200"))
+
+        for attempt in range(start, max_retries):
+            if self._run_idf_tools_install(paths['tools_json_path'], paths['idf_tools_path'], attempt - start):
                 # Installation successful, perform remaining steps
                 target_package_path = os.path.join(
                     IDF_TOOLS_PATH, "tools", tool_name, "package.json"
@@ -543,7 +546,7 @@ class Espressif32Platform(PlatformBase):
                 return True
             else:
                 if attempt < max_retries - 1:
-                    next_timeout = SUBPROCESS_TIMEOUT * (3 ** (attempt + 1))
+                    next_timeout = min(max_timeout, SUBPROCESS_TIMEOUT * (2 ** ((attempt - start) + 1)))
                     logger.warning(
                         f"Installation attempt {attempt + 1} failed for {tool_name}, "
                         f"retrying with timeout {next_timeout}s"
