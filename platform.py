@@ -214,6 +214,10 @@ class Espressif32Platform(PlatformBase):
         # Check if tool is already installed
         tl_install_path = os.path.join(self.packages_dir, tl_install_name)
         package_json_path = os.path.join(tl_install_path, "package.json")
+        # set IDF env var, avoid issues with existing IDF installs
+        os.environ['IDF_PATH'] = tl_install_path
+        print("IDF_PATH is set to:", tl_install_path)
+
         
         if not os.path.exists(package_json_path):
             logger.info(f"{tl_install_name} not installed, installing version {required_version}")
@@ -301,9 +305,6 @@ class Espressif32Platform(PlatformBase):
         """
         tl_install_path = os.path.join(self.packages_dir, tl_install_name)
         old_tl_install_path = os.path.join(self.packages_dir, "tl-install")
-        # set IDF env var, avoid issues with existing IDF installs
-        os.environ['IDF_PATH'] = tl_install_path
-        print("IDF_PATH is set to:", tl_install_path)
 
         try:
             old_tl_install_exists = os.path.exists(old_tl_install_path)
