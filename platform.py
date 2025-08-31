@@ -206,35 +206,35 @@ class Espressif32Platform(PlatformBase):
         """
         Check if tool-esp_install is installed in the correct version.
         Install the correct version only if version differs.
-        
+
         Returns:
             bool: True if correct version is available, False on error
         """
-        
+
         # Get required version from platform.json
         required_version = self.packages.get(tl_install_name, {}).get("version")
         if not required_version:
             logger.debug(f"No version check required for {tl_install_name}")
             return True
-        
+
         # Check if tool is already installed
         tl_install_path = os.path.join(self.packages_dir, tl_install_name)
         package_json_path = os.path.join(tl_install_path, "package.json")
-        
+
         if not os.path.exists(package_json_path):
             logger.info(f"{tl_install_name} not installed, installing version {required_version}")
             return self._install_tl_install(required_version)
-        
+
         # Read installed version
         try:
             with open(package_json_path, 'r', encoding='utf-8') as f:
                 package_data = json.load(f)
-            
+
             installed_version = package_data.get("version")
             if not installed_version:
                 logger.warning(f"Installed version for {tl_install_name} unknown, installing {required_version}")
                 return self._install_tl_install(required_version)
-            
+
             # IMPORTANT: Compare versions correctly
             if self._compare_tl_install_versions(installed_version, required_version):
                 logger.debug(f"{tl_install_name} version {installed_version} is already correctly installed")
@@ -247,7 +247,7 @@ class Espressif32Platform(PlatformBase):
                     f"installed={installed_version}, required={required_version}, installing correct version"
                 )
                 return self._install_tl_install(required_version)
-            
+
         except (json.JSONDecodeError, FileNotFoundError) as e:
             logger.error(f"Error reading package data for {tl_install_name}: {e}")
             return self._install_tl_install(required_version)
@@ -255,29 +255,29 @@ class Espressif32Platform(PlatformBase):
     def _compare_tl_install_versions(self, installed: str, required: str) -> bool:
         """
         Compare installed and required version of tool-esp_install.
-        
+
         Args:
             installed: Currently installed version string
             required: Required version string from platform.json
-            
+
         Returns:
             bool: True if versions match, False otherwise
         """
         # For URL-based versions: Extract version string from URL
         installed_clean = self._extract_version_from_url(installed)
         required_clean = self._extract_version_from_url(required)
-        
+
         logger.debug(f"Version comparison: installed='{installed_clean}' vs required='{required_clean}'")
-        
+
         return installed_clean == required_clean
 
     def _extract_version_from_url(self, version_string: str) -> str:
         """
         Extract version information from URL or return version directly.
-        
+
         Args:
             version_string: Version string or URL containing version
-            
+
         Returns:
             str: Extracted version string
         """
@@ -301,7 +301,7 @@ class Espressif32Platform(PlatformBase):
 
         Args:
             version: Version string or URL to install
-   
+
         Returns:
             bool: True if installation successful, False otherwise
         """
@@ -329,7 +329,7 @@ class Espressif32Platform(PlatformBase):
             if os.path.exists(os.path.join(tl_install_path, "package.json")):
                 logger.info(f"{tl_install_name} successfully installed and verified")
                 self.packages[tl_install_name]["optional"] = True
-            
+
                 # Handle old tl-install to keep backwards compatibility
                 if old_tl_install_exists:
                     # Copy tool-esp_install content to tl-install location
@@ -341,7 +341,7 @@ class Espressif32Platform(PlatformBase):
             else:
                 logger.error(f"{tl_install_name} installation failed - package.json not found")
                 return False
-        
+
         except Exception as e:
             logger.error(f"Error installing {tl_install_name}: {e}")
             return False
@@ -350,20 +350,20 @@ class Espressif32Platform(PlatformBase):
         """
         Clean up versioned tool directories containing '@' or version suffixes.
         This function should be called during every tool version check.
-        
+
         Args:
             tool_name: Name of the tool to clean up
         """
         if not os.path.exists(self.packages_dir) or not os.path.isdir(self.packages_dir):
             return
-            
+
         try:
             # Remove directories with '@' in their name (e.g., tool-name@version, tool-name@src)
             safe_remove_directory_pattern(self.packages_dir, f"{tool_name}@*")
-            
+
             # Remove directories with version suffixes (e.g., tool-name.12345)
             safe_remove_directory_pattern(self.packages_dir, f"{tool_name}.*")
-            
+
             # Also check for any directory that starts with tool_name and contains '@'
             for item in os.listdir(self.packages_dir):
                 if item.startswith(tool_name) and '@' in item:
@@ -371,7 +371,7 @@ class Espressif32Platform(PlatformBase):
                     if os.path.isdir(item_path):
                         safe_remove_directory(item_path)
                         logger.debug(f"Removed versioned directory: {item_path}")
-                        
+
         except OSError as e:
             logger.error(f"Error cleaning up versioned directories for {tool_name}: {e}")
 
@@ -379,7 +379,7 @@ class Espressif32Platform(PlatformBase):
         """Get centralized path calculation for tools with caching."""
         if tool_name not in self._tools_cache:
             tool_path = os.path.join(self.packages_dir, tool_name)
-            
+
             self._tools_cache[tool_name] = {
                 'tool_path': tool_path,
                 'package_path': os.path.join(tool_path, "package.json"),
@@ -401,8 +401,21 @@ class Espressif32Platform(PlatformBase):
             'tool_exists': os.path.exists(paths['tool_path'])
         }
 
-    def _run_idf_tools_install(self, tools_json_path: str, idf_tools_path: str) -> bool:
-        """Execute idf_tools.py install command with timeout and error handling."""
+    def _run_idf_tools_install(self, tools_json_path: str, idf_tools_path: str, retry_count: int = 0) -> bool:
+        """
+        Execute idf_tools.py install command with dynamic timeout and error handling.
+
+        Args:
+            tools_json_path: Path to tools.json configuration file
+            idf_tools_path: Path to idf_tools.py script
+            retry_count: Current retry attempt (0-based)
+
+        Returns:
+            bool: True if installation successful, False otherwise
+        """
+        # Dynamic timeout based on retry count (multiply by factor 3 for each retry)
+        current_timeout = SUBPROCESS_TIMEOUT * (3 ** retry_count)
+
         cmd = [
             python_exe,
             idf_tools_path,
@@ -414,33 +427,35 @@ class Espressif32Platform(PlatformBase):
         ]
 
         try:
+            logger.debug(f"Executing idf_tools.py with timeout {current_timeout}s (attempt {retry_count + 1})")
+
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                timeout=SUBPROCESS_TIMEOUT,
+                timeout=current_timeout,
                 check=False
             )
 
             if result.returncode != 0:
-                logger.error("idf_tools.py installation failed")
+                logger.error(f"idf_tools.py installation failed (attempt {retry_count + 1})")
                 return False
 
             logger.debug("idf_tools.py executed successfully")
             return True
 
         except subprocess.TimeoutExpired:
-            logger.error(f"Timeout in idf_tools.py after {SUBPROCESS_TIMEOUT}s")
+            logger.error(f"Timeout in idf_tools.py after {current_timeout}s (attempt {retry_count + 1})")
             return False
         except (subprocess.SubprocessError, OSError) as e:
-            logger.error(f"Error in idf_tools.py: {e}")
+            logger.error(f"Error in idf_tools.py (attempt {retry_count + 1}): {e}")
             return False
 
     def _check_tool_version(self, tool_name: str) -> bool:
         """Check if the installed tool version matches the required version."""
         # Clean up versioned directories FIRST, before any version checks
         self._cleanup_versioned_tool_directories(tool_name)
-        
+
         paths = self._get_tool_paths(tool_name)
 
         try:
@@ -472,7 +487,7 @@ class Espressif32Platform(PlatformBase):
             return False
 
     def install_tool(self, tool_name: str, retry_count: int = 0) -> bool:
-        """Install a tool with optimized retry mechanism."""
+        """Install a tool with optimized retry mechanism and dynamic timeout."""
         if retry_count >= RETRY_LIMIT:
             logger.error(
                 f"Installation of {tool_name} failed after {RETRY_LIMIT} attempts"
@@ -485,7 +500,7 @@ class Espressif32Platform(PlatformBase):
 
         # Case 1: New installation with idf_tools
         if status['has_idf_tools'] and status['has_tools_json']:
-            return self._install_with_idf_tools(tool_name, paths)
+            return self._install_with_idf_tools(tool_name, paths, retry_count)
 
         # Case 2: Tool already installed, version check
         if (status['has_idf_tools'] and status['has_piopm'] and
@@ -495,28 +510,48 @@ class Espressif32Platform(PlatformBase):
         logger.debug(f"Tool {tool_name} already configured")
         return True
 
-    def _install_with_idf_tools(self, tool_name: str, paths: Dict[str, str]) -> bool:
-        """Install tool using idf_tools.py installation method."""
-        if not self._run_idf_tools_install(
-            paths['tools_json_path'], paths['idf_tools_path']
-        ):
-            return False
+    def _install_with_idf_tools(self, tool_name: str, paths: Dict[str, str], retry_count: int = 0) -> bool:
+        """
+        Install tool using idf_tools.py installation method with retry mechanism.
 
-        # Copy tool files
-        target_package_path = os.path.join(
-            IDF_TOOLS_PATH, "tools", tool_name, "package.json"
-        )
+        Args:
+            tool_name: Name of the tool to install
+            paths: Dictionary containing tool paths
+            retry_count: Current retry attempt (0-based)
 
-        if not safe_copy_file(paths['package_path'], target_package_path):
-            return False
+        Returns:
+            bool: True if installation successful, False otherwise
+        """
+        max_retries = 3
 
-        safe_remove_directory(paths['tool_path'])
+        for attempt in range(max_retries):
+            if self._run_idf_tools_install(paths['tools_json_path'], paths['idf_tools_path'], attempt):
+                # Installation successful, perform remaining steps
+                target_package_path = os.path.join(
+                    IDF_TOOLS_PATH, "tools", tool_name, "package.json"
+                )
 
-        tl_path = f"file://{os.path.join(IDF_TOOLS_PATH, 'tools', tool_name)}"
-        pm.install(tl_path)
+                if not safe_copy_file(paths['package_path'], target_package_path):
+                    return False
 
-        logger.info(f"Tool {tool_name} successfully installed")
-        return True
+                safe_remove_directory(paths['tool_path'])
+
+                tl_path = f"file://{os.path.join(IDF_TOOLS_PATH, 'tools', tool_name)}"
+                pm.install(tl_path)
+
+                logger.info(f"Tool {tool_name} successfully installed on attempt {attempt + 1}")
+                return True
+            else:
+                if attempt < max_retries - 1:
+                    next_timeout = SUBPROCESS_TIMEOUT * (3 ** (attempt + 1))
+                    logger.warning(
+                        f"Installation attempt {attempt + 1} failed for {tool_name}, "
+                        f"retrying with timeout {next_timeout}s"
+                    )
+                else:
+                    logger.error(f"All {max_retries} installation attempts failed for {tool_name}")
+
+        return False
 
     def _handle_existing_tool(
         self, tool_name: str, paths: Dict[str, str], retry_count: int
@@ -621,7 +656,7 @@ class Espressif32Platform(PlatformBase):
 
     def _configure_installer(self) -> None:
         """Configure the ESP-IDF tools installer with proper version checking."""
-        
+
         # Check version - installs only when needed
         if not self._check_tl_install_version():
             logger.error("Error during tool-esp_install version check / installation")
@@ -631,12 +666,12 @@ class Espressif32Platform(PlatformBase):
         old_tl_piopm_path = os.path.join(self.packages_dir, "tl-install", ".piopm")
         if os.path.exists(old_tl_piopm_path):
             safe_remove_file(old_tl_piopm_path)
-        
+
         # Check if idf_tools.py is available
         installer_path = os.path.join(
             self.packages_dir, tl_install_name, "tools", "idf_tools.py"
         )
-        
+
         if os.path.exists(installer_path):
             logger.debug(f"{tl_install_name} is available and ready")
             self.packages[tl_install_name]["optional"] = True
