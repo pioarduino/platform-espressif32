@@ -94,6 +94,12 @@ CHECK_PACKAGES = [
 if IS_WINDOWS:
     os.environ["PLATFORMIO_SYSTEM_TYPE"] = "windows_amd64"
 
+# exit without git
+if not shutil.which("git"):
+    print("Git not found in PATH, please install Git.", file=sys.stderr)
+    print("Git is needed for Platform espressif32 to work.", file=sys.stderr)
+    raise SystemExit(1)
+
 # Set IDF_TOOLS_PATH to Pio core_dir
 PROJECT_CORE_DIR=ProjectConfig.get_instance().get("platformio", "core_dir")
 IDF_TOOLS_PATH=os.path.join(PROJECT_CORE_DIR)
