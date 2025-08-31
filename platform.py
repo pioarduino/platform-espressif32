@@ -94,8 +94,11 @@ if not shutil.which("git"):
     print("Git is needed for Platform espressif32 to work.", file=sys.stderr)
     raise SystemExit(1)
 
-# Set IDF PATH to Pio core_dir
+# set IDF env vars, avoid issues with existing IDF installs
 PROJECT_CORE_DIR = ProjectConfig.get_instance().get("platformio", "core_dir")
+PROJECT_PACKAGES_DIR = ProjectConfig.get_instance().get("platformio", "packages_dir")
+os.environ['IDF_PATH'] = os.path.join(PROJECT_PACKAGES_DIR, tl_install_name)
+print("IDF_PATH is set to:", os.path.join(PROJECT_PACKAGES_DIR, tl_install_name))
 IDF_TOOLS_PATH = PROJECT_CORE_DIR
 os.environ["IDF_TOOLS_PATH"] = IDF_TOOLS_PATH
 
@@ -214,10 +217,6 @@ class Espressif32Platform(PlatformBase):
         # Check if tool is already installed
         tl_install_path = os.path.join(self.packages_dir, tl_install_name)
         package_json_path = os.path.join(tl_install_path, "package.json")
-        # set IDF env var, avoid issues with existing IDF installs
-        os.environ['IDF_PATH'] = tl_install_path
-        print("IDF_PATH is set to:", tl_install_path)
-
         
         if not os.path.exists(package_json_path):
             logger.info(f"{tl_install_name} not installed, installing version {required_version}")
