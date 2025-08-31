@@ -396,7 +396,11 @@ class Espressif32Platform(PlatformBase):
         }
 
     def _run_idf_tools_install(self, tools_json_path: str, idf_tools_path: str) -> bool:
-        """Execute idf_tools.py install command."""
+        """
+        Execute idf_tools.py install command.
+        Note: No timeout is set to allow installations to complete on slow networks.
+        The tool-esp_install handles the retry logic.
+        """
         cmd = [
             python_exe,
             idf_tools_path,
@@ -408,6 +412,7 @@ class Espressif32Platform(PlatformBase):
         ]
 
         try:
+            logger.info(f"Installing tools via idf_tools.py (this may take several minutes)...")
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.DEVNULL,
