@@ -98,7 +98,7 @@ if not shutil.which("git"):
 PROJECT_CORE_DIR = ProjectConfig.get_instance().get("platformio", "core_dir")
 IDF_TOOLS_PATH = PROJECT_CORE_DIR
 os.environ["IDF_TOOLS_PATH"] = IDF_TOOLS_PATH
-os.environ['IDF_PATH'] = IDF_TOOLS_PATH
+os.environ['IDF_PATH'] = ""
 
 # Global variables
 python_exe = get_pythonexe_path()
