@@ -98,7 +98,7 @@ if not shutil.which("git"):
 PROJECT_CORE_DIR = ProjectConfig.get_instance().get("platformio", "core_dir")
 IDF_TOOLS_PATH = PROJECT_CORE_DIR
 os.environ["IDF_TOOLS_PATH"] = IDF_TOOLS_PATH
-os.environ['IDF_PATH'] = ""
+# os.environ['IDF_PATH'] = ""
 
 # Global variables
 python_exe = get_pythonexe_path()
@@ -317,6 +317,8 @@ class Espressif32Platform(PlatformBase):
             self.packages[tl_install_name]["optional"] = False
             self.packages[tl_install_name]["version"] = version
             pm.install(version)
+            # set IDF env var, avoid issues with existing IDF installs
+            os.environ['IDF_PATH'] = tl_install_path
             # Ensure backward compatibility by removing pio install status indicator
             tl_piopm_path = os.path.join(tl_install_path, ".piopm")
             safe_remove_file(tl_piopm_path)
