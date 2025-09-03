@@ -134,7 +134,7 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
             arduino_c2_dir = _arduino_c2_dir.resolve()
             ARDUINO_C2_DIR = str(Path(arduino_c2_dir / mcu))
             shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
-    arduino_libs_mcu = ARDUINO_FRMWRK_C2_LIB_DIR
+    arduino_libs_mcu = str(Path(ARDUINO_FRMWRK_LIB_DIR / mcu))
 
 BUILD_DIR = env.subst("$BUILD_DIR")
 PROJECT_DIR = env.subst("$PROJECT_DIR")
