@@ -2048,7 +2048,7 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
                 shutil.move(src, dst)
         env_build = str(Path(env["PROJECT_BUILD_DIR"]) / env["PIOENV"])
         sdkconfig_h_path = str(Path(env_build) / "config" / "sdkconfig.h")
-        arduino_libs = str(Path(ARDUINO_FRMWRK_LIB_DIR)
+        arduino_libs = str(Path(ARDUINO_FRMWRK_LIB_DIR))
         lib_src = str(Path(env_build) / "esp-idf")
         lib_dst = str(Path(arduino_libs) / mcu / "lib")
         ld_dst = str(Path(arduino_libs) / mcu / "ld")
