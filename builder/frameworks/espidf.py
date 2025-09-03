@@ -124,11 +124,15 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
         env.Exit(1)
 
     _arduino_lib_dir = platform.get_package_dir("framework-arduinoespressif32-libs")
+    if not _arduino_lib_dir:
+        sys.stderr.write("Error: Missing framework-arduinoespressif32-libs package\n")
+        env.Exit(1)
     arduino_lib_dir = Path(_arduino_lib_dir)
     ARDUINO_FRMWRK_LIB_DIR_PATH = arduino_lib_dir.resolve()
     ARDUINO_FRMWRK_LIB_DIR = str(ARDUINO_FRMWRK_LIB_DIR_PATH)
+    
     if mcu == "esp32c2":
-        ARDUINO_FRMWRK_C2_LIB_DIR = str(Path(ARDUINO_FRMWRK_LIB_DIR / mcu))
+        ARDUINO_FRMWRK_C2_LIB_DIR = str(ARDUINO_FRMWRK_LIB_DIR_PATH / mcu)
         if not os.path.exists(ARDUINO_FRMWRK_C2_LIB_DIR):
             _arduino_c2_dir = platform.get_package_dir("framework-arduino-c2-skeleton-lib")
             if not _arduino_c2_dir:
@@ -137,8 +141,8 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
             arduino_c2_dir = Path(_arduino_c2_dir)
             ARDUINO_C2_DIR = str(arduino_c2_dir / mcu)
             shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
+    arduino_libs_mcu = str(ARDUINO_FRMWRK_LIB_DIR_PATH / mcu)
 
-    arduino_libs_mcu = str(Path(ARDUINO_FRMWRK_LIB_DIR / mcu))
 
 BUILD_DIR = env.subst("$BUILD_DIR")
 PROJECT_DIR = env.subst("$PROJECT_DIR")
