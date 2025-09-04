@@ -552,12 +552,6 @@ def populate_idf_env_vars(idf_env):
     ]
 
     idf_env["PATH"] = os.pathsep.join(additional_packages + [idf_env["PATH"]])
-
-    # Some users reported that the `IDF_TOOLS_PATH` var can seep into the
-    # underlying build system. Unsetting it is a safe workaround.
-    if "IDF_TOOLS_PATH" in idf_env:
-        del idf_env["IDF_TOOLS_PATH"]
-
     idf_env["ESP_ROM_ELF_DIR"] = platform.get_package_dir("tool-esp-rom-elfs")
 
 
