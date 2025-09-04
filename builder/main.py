@@ -728,7 +728,6 @@ elif upload_protocol == "esptool":
             "--before",
             board.get("upload.before_reset", "default-reset"),
             "--after",
-            
             board.get("upload.after_reset", "hard-reset"),
             "write-flash",
             "-z",
