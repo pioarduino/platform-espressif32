@@ -784,7 +784,7 @@ elif upload_protocol == "dfu":
 
     env.Replace(
         UPLOADER=str(
-            Path(platform.get_package_dir("tool-dfuutil-arduino")).resolve() / "dfu-util")
+            Path(platform.get_package_dir("tool-dfuutil-arduino")).resolve() / "dfu-util"
         ),
         UPLOADERFLAGS=[
             "-d",
