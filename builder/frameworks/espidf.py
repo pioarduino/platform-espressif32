@@ -1132,19 +1132,23 @@ def get_lib_ignore_components():
 
 def find_lib_deps(components_map, elf_config, link_args, ignore_components=None):
     ignore_components = ignore_components or []
-    result = [
-        components_map[d["id"]]["lib"]
-        for d in elf_config.get("dependencies", [])
-        if components_map.get(d["id"], {})
-        and not d["id"].startswith(tuple(ignore_components))
-    ]
+    ignore_set = set(ignore_components)
+    result = []
+    for d in elf_config.get("dependencies", []):
+        comp = components_map.get(d["id"])
+        if not comp:
+            continue
+        comp_name = comp["config"]["name"]
+        if comp_name in ignore_set:
+            continue
+        result.append(comp["lib"])
 
     implicit_lib_deps = link_args.get("__LIB_DEPS", [])
     for component in components_map.values():
         component_config = component["config"]
         if (
             component_config["type"] not in ("STATIC_LIBRARY", "OBJECT_LIBRARY")
-            or component_config["name"] in ignore_components
+            or component_config["name"] in ignore_set
         ):
             continue
         if (
