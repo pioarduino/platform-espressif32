@@ -50,7 +50,12 @@ class ComponentManagerConfig:
         # Get Arduino framework installation directory
         self.arduino_framework_dir = self.platform.get_package_dir("framework-arduinoespressif32")
         # Get MCU-specific Arduino libraries directory
-        self.arduino_libs_mcu = join(self.platform.get_package_dir("framework-arduinoespressif32-libs"), self.mcu)
+        afd = self.platform.get_package_dir("framework-arduinoespressif32")
+        self.arduino_framework_dir = afd
+        # Get MCU-specific Arduino libraries directory
+        self.arduino_libs_mcu = (
+            str(Path(afd) / "tools" / "esp32-arduino-libs" / self.mcu) if afd else ""
+        )
 
 
 class ComponentLogger:
@@ -228,8 +233,9 @@ class ComponentHandler:
             Absolute path to the component YAML file
         """
         # Try Arduino framework first
-        framework_yml = join(self.config.arduino_framework_dir, "idf_component.yml")
-        if os.path.exists(framework_yml):
+        afd = self.config.arduino_framework_dir
+        framework_yml = str(Path(afd) / "idf_component.yml") if afd else ""
+        if framework_yml and os.path.exists(framework_yml):
             self._create_backup(framework_yml)
             return framework_yml
         
