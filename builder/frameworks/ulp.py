@@ -14,6 +14,7 @@
 
 import os
 import sys
+from pathlib import Path
 
 from platformio import fs
 from platformio.util import get_systype
@@ -27,9 +28,7 @@ ulp_env = env.Clone()
 platform = ulp_env.PioPlatform()
 FRAMEWORK_DIR = platform.get_package_dir("framework-espidf")
 BUILD_DIR = ulp_env.subst("$BUILD_DIR")
-ULP_BUILD_DIR = os.path.join(
-    BUILD_DIR, "esp-idf", project_config["name"].replace("__idf_", ""), "ulp_main"
-)
+ULP_BUILD_DIR = str(Path(BUILD_DIR) / "esp-idf" / project_config["name"].replace("__idf_", "") / "ulp_main")
 
 is_xtensa = idf_variant in ("esp32", "esp32s2", "esp32s3")
 
@@ -52,7 +51,7 @@ def prepare_ulp_env_vars(env):
         toolchain_path,
         toolchain_path_ulp,
         platform.get_package_dir("tool-ninja"),
-        os.path.join(platform.get_package_dir("tool-cmake"), "bin"),
+        str(Path(platform.get_package_dir("tool-cmake")) / "bin"),
     ]
 
     for package in additional_packages:
@@ -62,8 +61,8 @@ def prepare_ulp_env_vars(env):
 
 def collect_ulp_sources():
     return [
-        os.path.join(ulp_env.subst("$PROJECT_DIR"), "ulp", f)
-        for f in os.listdir(os.path.join(ulp_env.subst("$PROJECT_DIR"), "ulp"))
+        str(Path(ulp_env.subst("$PROJECT_DIR")) / "ulp" / f)
+        for f in os.listdir(str(Path(ulp_env.subst("$PROJECT_DIR")) / "ulp"))
         if f.endswith((".c", ".S", ".s"))
     ]
 
@@ -78,7 +77,7 @@ def get_component_includes(target_config):
                 ]
             ]
 
-    return [os.path.join(BUILD_DIR, "config")]
+    return [str(Path(BUILD_DIR) / "config")]
 
 
 def generate_ulp_config(target_config):
@@ -99,31 +98,25 @@ def generate_ulp_config(target_config):
         comp_includes = ";".join(comp_includes_list + plain_includes_list)
 
         cmd = (
-            os.path.join(platform.get_package_dir("tool-cmake"), "bin", "cmake"),
+            str(Path(platform.get_package_dir("tool-cmake")) / "bin" / "cmake"),
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
             "-DCMAKE_GENERATOR=Ninja",
             "-DCMAKE_TOOLCHAIN_FILE="
-            + os.path.join(
-                FRAMEWORK_DIR,
-                "components",
-                "ulp",
-                "cmake",
-                ulp_toolchain,
-            ),
+            + str(Path(FRAMEWORK_DIR) / "components" / "ulp" / "cmake" / ulp_toolchain),
             "-DULP_S_SOURCES=%s" % ";".join([fs.to_unix_path(s.get_abspath()) for s in source]),
             "-DULP_APP_NAME=ulp_main",
-            "-DCOMPONENT_DIR=" + os.path.join(ulp_env.subst("$PROJECT_DIR"), "ulp"),
+            "-DCOMPONENT_DIR=" + str(Path(ulp_env.subst("$PROJECT_DIR")) / "ulp"),
             "-DCOMPONENT_INCLUDES=%s" % comp_includes,
             "-DIDF_TARGET=%s" % idf_variant,
             "-DIDF_PATH=" + fs.to_unix_path(FRAMEWORK_DIR),
-            "-DSDKCONFIG_HEADER=" + os.path.join(BUILD_DIR, "config", "sdkconfig.h"),
+            "-DSDKCONFIG_HEADER=" + str(Path(BUILD_DIR) / "config" / "sdkconfig.h"),
             "-DPYTHON=" + env.subst("$PYTHONEXE"),
-            "-DSDKCONFIG_CMAKE=" + os.path.join(BUILD_DIR, "config", "sdkconfig.cmake"),
-            "-DCMAKE_MODULE_PATH=" + fs.to_unix_path(os.path.join(FRAMEWORK_DIR, "components", "ulp", "cmake")),
+            "-DSDKCONFIG_CMAKE=" + str(Path(BUILD_DIR) / "config" / "sdkconfig.cmake"),
+            "-DCMAKE_MODULE_PATH=" + fs.to_unix_path(str(Path(FRAMEWORK_DIR) / "components" / "ulp" / "cmake")),
             "-GNinja",
             "-B",
             ULP_BUILD_DIR,
-            os.path.join(FRAMEWORK_DIR, "components", "ulp", "cmake"),
+            str(Path(FRAMEWORK_DIR) / "components" / "ulp" / "cmake"),
         )
 
         result = exec_command(cmd)
@@ -135,7 +128,7 @@ def generate_ulp_config(target_config):
     ulp_sources.sort()
 
     return ulp_env.Command(
-        os.path.join(ULP_BUILD_DIR, "build.ninja"),
+        str(Path(ULP_BUILD_DIR) / "build.ninja"),
         ulp_sources,
         ulp_env.VerboseAction(
             _generate_ulp_configuration_action, "Generating ULP configuration"
@@ -145,7 +138,7 @@ def generate_ulp_config(target_config):
 
 def compile_ulp_binary():
     cmd = (
-        os.path.join(platform.get_package_dir("tool-cmake"), "bin", "cmake"),
+        str(Path(platform.get_package_dir("tool-cmake")) / "bin" / "cmake"),
         "--build",
         ULP_BUILD_DIR,
         "--target",
@@ -159,9 +152,9 @@ def compile_ulp_binary():
 
     return ulp_binary_env.Command(
         [
-            os.path.join(ULP_BUILD_DIR, "ulp_main.h"),
-            os.path.join(ULP_BUILD_DIR, "ulp_main.ld"),
-            os.path.join(ULP_BUILD_DIR, "ulp_main.bin"),
+            str(Path(ULP_BUILD_DIR) / "ulp_main.h"),
+            str(Path(ULP_BUILD_DIR) / "ulp_main.ld"),
+            str(Path(ULP_BUILD_DIR) / "ulp_main.bin"),
         ],
         None,
         ulp_binary_env.VerboseAction(" ".join(cmd), "Generating ULP project files $TARGETS"),
@@ -170,19 +163,17 @@ def compile_ulp_binary():
 
 def generate_ulp_assembly():
     cmd = (
-        os.path.join(platform.get_package_dir("tool-cmake"), "bin", "cmake"),
+        str(Path(platform.get_package_dir("tool-cmake")) / "bin" / "cmake"),
         "-DDATA_FILE=$SOURCE",
         "-DSOURCE_FILE=$TARGET",
         "-DFILE_TYPE=BINARY",
         "-P",
-        os.path.join(
-            FRAMEWORK_DIR, "tools", "cmake", "scripts", "data_file_embed_asm.cmake"
-        ),
+        str(Path(FRAMEWORK_DIR) / "tools" / "cmake" / "scripts" / "data_file_embed_asm.cmake"),
     )
 
     return ulp_env.Command(
-        os.path.join(BUILD_DIR, "ulp_main.bin.S"),
-        os.path.join(ULP_BUILD_DIR, "ulp_main.bin"),
+        str(Path(BUILD_DIR) / "ulp_main.bin.S"),
+        str(Path(ULP_BUILD_DIR) / "ulp_main.bin"),
         ulp_env.VerboseAction(" ".join(cmd), "Generating ULP assembly file $TARGET"),
     )
 
@@ -191,7 +182,7 @@ prepare_ulp_env_vars(ulp_env)
 ulp_assembly = generate_ulp_assembly()
 
 ulp_env.Depends(compile_ulp_binary(), generate_ulp_config(project_config))
-ulp_env.Depends(os.path.join("$BUILD_DIR", "${PROGNAME}.elf"), ulp_assembly)
-ulp_env.Requires(os.path.join("$BUILD_DIR", "${PROGNAME}.elf"), ulp_assembly)
+ulp_env.Depends(str(Path("$BUILD_DIR") / "${PROGNAME}.elf"), ulp_assembly)
+ulp_env.Requires(str(Path("$BUILD_DIR") / "${PROGNAME}.elf"), ulp_assembly)
 
 env.AppendUnique(CPPPATH=ULP_BUILD_DIR, LIBPATH=ULP_BUILD_DIR)
