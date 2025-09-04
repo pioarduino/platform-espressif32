@@ -54,10 +54,17 @@ env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
 platform = env.PioPlatform()
 
+_component_manager_file = Path(platform.get_dir()) / "builder" / "frameworks" / "component_manager.py"
+_cm_spec = importlib.util.spec_from_file_location("component_manager", _component_manager_file)
+_component_manager = importlib.util.module_from_spec(_cm_spec)
+_cm_spec.loader.exec_module(_component_manager)
+sys.modules["component_manager"] = _component_manager
+
 _penv_setup_file = str(Path(platform.get_dir()) / "builder" / "penv_setup.py")
 _spec = importlib.util.spec_from_file_location("penv_setup", _penv_setup_file)
 _penv_setup = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_penv_setup)  # type: ignore[attr-defined]
+sys.modules["penv_setup"] = _penv_setup
 get_executable_path = _penv_setup.get_executable_path
 
 # remove maybe existing old map file in project root
@@ -130,7 +137,7 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
     arduino_lib_dir = Path(_arduino_lib_dir)
     ARDUINO_FRMWRK_LIB_DIR_PATH = arduino_lib_dir.resolve()
     ARDUINO_FRMWRK_LIB_DIR = str(ARDUINO_FRMWRK_LIB_DIR_PATH)
-    
+
     if mcu == "esp32c2":
         ARDUINO_FRMWRK_C2_LIB_DIR = str(ARDUINO_FRMWRK_LIB_DIR_PATH / mcu)
         if not os.path.exists(ARDUINO_FRMWRK_C2_LIB_DIR):
@@ -142,7 +149,6 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
             ARDUINO_C2_DIR = str(arduino_c2_dir / mcu)
             shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
     arduino_libs_mcu = str(ARDUINO_FRMWRK_LIB_DIR_PATH / mcu)
-
 
 BUILD_DIR = env.subst("$BUILD_DIR")
 PROJECT_DIR = env.subst("$PROJECT_DIR")
@@ -210,8 +216,12 @@ def HandleArduinoIDFsettings(env):
             # Handle local files
             if "file://" in file_entry:
                 file_ref = file_entry[7:] if file_entry.startswith("file://") else file_entry
-                filename = os.path.basename(file_ref)
-                file_path = str(Path(PROJECT_DIR) / filename)
+
+                if os.path.isabs(file_ref):
+                    file_path = file_ref
+                else:
+                    # if it's a relative path, try relative to PROJECT_DIR
+                    file_path = str(Path(PROJECT_DIR) / file_ref)
                 if os.path.exists(file_path):
                     try:
                         with open(file_path, 'r') as f:
@@ -533,7 +543,7 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
             break
 
     if codemodel.get("version", {}).get("major") != 2:
-        sys.stderr.write("Error: Unsupported CMake codemodel major version\n")
+        sys.stderr.write("Error: Unsupported CMake codemodel version (need major=2)\n")
         env.Exit(1)
     return codemodel
 
@@ -1098,6 +1108,26 @@ def run_cmake(src_dir, build_dir, extra_args=None):
         cmd.extend(extra_args)
 
     run_tool(cmd)
+
+
+def get_lib_ignore_components():
+    """
+    Get components to ignore from lib_ignore project option using component_manager.
+    This ensures consistency with the Arduino framework's lib_ignore handling.
+    """
+    try:
+        # Create a LibraryIgnoreHandler instance to process lib_ignore
+        config = _component_manager.ComponentManagerConfig(env)
+        logger = _component_manager.ComponentLogger()
+        lib_handler = _component_manager.LibraryIgnoreHandler(config, logger)
+        
+        # Get the processed lib_ignore entries (already converted to component names)
+        lib_ignore_entries = lib_handler._get_lib_ignore_entries()
+        
+        return lib_ignore_entries
+    except Exception as e:
+        print(f"[ESP-IDF] Warning: Could not process lib_ignore: {e}")
+        return []
 
 
 def find_lib_deps(components_map, elf_config, link_args, ignore_components=None):
@@ -1824,8 +1854,14 @@ env.AddPlatformTarget(
 # Process main parts of the framework
 #
 
+# Get components to ignore from lib_ignore option
+lib_ignore_components = get_lib_ignore_components()
+if lib_ignore_components:
+    print(f"[ESP-IDF] Ignoring components based on lib_ignore: {', '.join(lib_ignore_components)}")
+ignore_components_list = [project_target_name, *lib_ignore_components]
+
 libs = find_lib_deps(
-    framework_components_map, elf_config, link_args, [project_target_name]
+    framework_components_map, elf_config, link_args, ignore_components_list
 )
 
 # Extra flags which need to be explicitly specified in LINKFLAGS section because SCons
