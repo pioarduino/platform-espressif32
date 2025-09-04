@@ -532,7 +532,9 @@ def get_cmake_code_model(src_dir, build_dir, extra_args=None):
                 codemodel = json.load(fp)
             break
 
-    assert codemodel["version"]["major"] == 2
+    if codemodel.get("version", {}).get("major") != 2:
+        sys.stderr.write("Error: Unsupported CMake codemodel major version\n")
+        env.Exit(1)
     return codemodel
 
 
@@ -1447,7 +1449,7 @@ def generate_mbedtls_bundle(sdk_config):
         env.VerboseAction(
             " ".join(
                 [
-                    CMAKE_DIR,
+                    f'"{CMAKE_DIR}"',
                     "-DDATA_FILE=" + bundle_path,
                     "-DSOURCE_FILE=%s.S" % bundle_path,
                     "-DFILE_TYPE=BINARY",
