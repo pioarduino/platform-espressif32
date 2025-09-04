@@ -13,7 +13,7 @@ import shutil
 import re
 import yaml
 from yaml import SafeLoader
-from os.path import join
+from pathlib import Path
 from typing import Set, Optional, Dict, Any, List, Tuple
 
 
@@ -49,8 +49,12 @@ class ComponentManagerConfig:
         self.project_src_dir = env.subst("$PROJECT_SRC_DIR")
         # Get Arduino framework installation directory
         self.arduino_framework_dir = self.platform.get_package_dir("framework-arduinoespressif32")
+        # Get Arduino libraries installation directory
+        ald = self.platform.get_package_dir("framework-arduinoespressif32-libs")
         # Get MCU-specific Arduino libraries directory
-        self.arduino_libs_mcu = join(self.platform.get_package_dir("framework-arduinoespressif32-libs"), self.mcu)
+        self.arduino_libs_mcu = (
+            str(Path(ald) / self.mcu) if ald else ""
+        )
 
 
 class ComponentLogger:
@@ -228,13 +232,14 @@ class ComponentHandler:
             Absolute path to the component YAML file
         """
         # Try Arduino framework first
-        framework_yml = join(self.config.arduino_framework_dir, "idf_component.yml")
-        if os.path.exists(framework_yml):
+        afd = self.config.arduino_framework_dir
+        framework_yml = str(Path(afd) / "idf_component.yml") if afd else ""
+        if framework_yml and os.path.exists(framework_yml):
             self._create_backup(framework_yml)
             return framework_yml
         
         # Try project source directory
-        project_yml = join(self.config.project_src_dir, "idf_component.yml")
+        project_yml = str(Path(self.config.project_src_dir) / "idf_component.yml")
         if os.path.exists(project_yml):
             self._create_backup(project_yml)
             return project_yml
@@ -416,9 +421,12 @@ class ComponentHandler:
         """
         if "arduino" not in self.config.env.subst("$PIOFRAMEWORK"):
             return
-        
-        build_py_path = join(self.config.arduino_libs_mcu, "pioarduino-build.py")
-        backup_path = join(self.config.arduino_libs_mcu, f"pioarduino-build.py.{self.config.mcu}")
+
+        if not self.config.arduino_libs_mcu:
+            return
+
+        build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
+        backup_path = str(Path(self.config.arduino_libs_mcu) / f"pioarduino-build.py.{self.config.mcu}")
         
         if os.path.exists(build_py_path) and not os.path.exists(backup_path):
             shutil.copy2(build_py_path, backup_path)
@@ -446,7 +454,7 @@ class ComponentHandler:
         Args:
             component: Component name in filesystem format
         """
-        include_path = join(self.config.arduino_libs_mcu, "include", component)
+        include_path = str(Path(self.config.arduino_libs_mcu) / "include" / component)
         
         if os.path.exists(include_path):
             shutil.rmtree(include_path)
@@ -459,7 +467,7 @@ class ComponentHandler:
         for all components that were removed from the project. Uses
         multiple regex patterns to catch different include path formats.
         """
-        build_py_path = join(self.config.arduino_libs_mcu, "pioarduino-build.py")
+        build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
         
         if not os.path.exists(build_py_path):
             return
@@ -667,14 +675,17 @@ class LibraryIgnoreHandler:
         libraries_mapping = {}
         
         # Path to Arduino Core Libraries
-        arduino_libs_dir = join(self.config.arduino_framework_dir, "libraries")
+        afd = self.config.arduino_framework_dir
+        if not afd:
+            return libraries_mapping
+        arduino_libs_dir = str(Path(afd).resolve() / "libraries")
         
         if not os.path.exists(arduino_libs_dir):
             return libraries_mapping
         
         try:
             for entry in os.listdir(arduino_libs_dir):
-                lib_path = join(arduino_libs_dir, entry)
+                lib_path = str(Path(arduino_libs_dir) / entry)
                 if os.path.isdir(lib_path):
                     lib_name = self._get_library_name_from_properties(lib_path)
                     if lib_name:
@@ -699,7 +710,7 @@ class LibraryIgnoreHandler:
         Returns:
             Official library name or None if not found or readable
         """
-        prop_path = join(lib_dir, "library.properties")
+        prop_path = str(Path(lib_dir) / "library.properties")
         if not os.path.isfile(prop_path):
             return None
         
@@ -891,7 +902,7 @@ class LibraryIgnoreHandler:
         components when dependencies are detected. Uses multiple regex
         patterns to catch different include path formats.
         """
-        build_py_path = join(self.config.arduino_libs_mcu, "pioarduino-build.py")
+        build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
         
         if not os.path.exists(build_py_path):
             self.logger.log_change("Build file not found")
@@ -930,7 +941,10 @@ class LibraryIgnoreHandler:
                     rf'.*"[^"]*{re.escape(lib_name)}[^"]*include[^"]*"[^,\n]*,?\n',
                     rf'.*join\([^)]*"include"[^)]*"{re.escape(lib_name)}"[^)]*\),?\n',
                     rf'.*"{re.escape(lib_name)}/include"[^,\n]*,?\n',
-                    rf'\s*"[^"]*/{re.escape(lib_name)}/[^"]*",?\n'
+                    rf'\s*"[^"]*[\\/]{re.escape(lib_name)}[\\/][^"]*",?\n',
+                    # pathlib-style: Path(...)/"include"/"<name>"
+                    rf'.*Path\([^)]*\)\s*/\s*"include"\s*/\s*"{re.escape(lib_name)}"[^,\n]*,?\n',
+                    rf'.*Path\([^)]*{re.escape(lib_name)}[^)]*\)\s*/\s*"include"[^,\n]*,?\n'
                 ]
                 
                 removed_count = 0
@@ -992,8 +1006,10 @@ class LibraryIgnoreHandler:
         if "arduino" not in self.config.env.subst("$PIOFRAMEWORK"):
             return
         
-        build_py_path = join(self.config.arduino_libs_mcu, "pioarduino-build.py")
-        backup_path = join(self.config.arduino_libs_mcu, f"pioarduino-build.py.{self.config.mcu}")
+        if not self.config.arduino_libs_mcu:
+            return
+        build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
+        backup_path = str(Path(self.config.arduino_libs_mcu) / f"pioarduino-build.py.{self.config.mcu}")
         
         if os.path.exists(build_py_path) and not os.path.exists(backup_path):
             shutil.copy2(build_py_path, backup_path)
@@ -1007,7 +1023,7 @@ class BackupManager:
     framework build scripts, ensuring that original files can be restored
     when needed or when builds are cleaned.
     """
-    
+
     def __init__(self, config: ComponentManagerConfig):
         """
         Initialize the backup manager with configuration access.
@@ -1019,7 +1035,7 @@ class BackupManager:
             config: Configuration manager instance providing access to paths
         """
         self.config = config
-    
+
     def backup_pioarduino_build_py(self) -> None:
         """
         Create backup of the original pioarduino-build.py file.
@@ -1030,13 +1046,13 @@ class BackupManager:
         """
         if "arduino" not in self.config.env.subst("$PIOFRAMEWORK"):
             return
-        
-        build_py_path = join(self.config.arduino_libs_mcu, "pioarduino-build.py")
-        backup_path = join(self.config.arduino_libs_mcu, f"pioarduino-build.py.{self.config.mcu}")
-        
+
+        build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
+        backup_path = str(Path(self.config.arduino_libs_mcu) / f"pioarduino-build.py.{self.config.mcu}")
+
         if os.path.exists(build_py_path) and not os.path.exists(backup_path):
             shutil.copy2(build_py_path, backup_path)
-    
+
     def restore_pioarduino_build_py(self, target=None, source=None, env=None) -> None:
         """
         Restore the original pioarduino-build.py from backup.
@@ -1050,9 +1066,9 @@ class BackupManager:
             source: Build source (unused, for PlatformIO compatibility)
             env: Environment (unused, for PlatformIO compatibility)
         """
-        build_py_path = join(self.config.arduino_libs_mcu, "pioarduino-build.py")
-        backup_path = join(self.config.arduino_libs_mcu, f"pioarduino-build.py.{self.config.mcu}")
-        
+        build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
+        backup_path = str(Path(self.config.arduino_libs_mcu) / f"pioarduino-build.py.{self.config.mcu}")
+
         if os.path.exists(backup_path):
             shutil.copy2(backup_path, build_py_path)
             os.remove(backup_path)
