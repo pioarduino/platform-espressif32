@@ -837,7 +837,7 @@ class LibraryIgnoreHandler:
             Converted include directory name for path removal
         """
         # Load Arduino Core Libraries on first call
-        if not hasattr(self, '_arduino_libraries_cache'):
+        if self._arduino_libraries_cache is None:
             self._arduino_libraries_cache = self._get_arduino_core_libraries()
         
         lib_name_lower = lib_name.lower()
