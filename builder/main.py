@@ -19,6 +19,7 @@ import shlex
 import subprocess
 import sys
 from os.path import isfile, join
+from pathlib import Path
 
 from SCons.Script import (
     ARGUMENTS,
@@ -464,8 +465,8 @@ env.Replace(
     SIZECHECKCMD="$SIZETOOL -A -d $SOURCES",
     SIZEPRINTCMD="$SIZETOOL -B -d $SOURCES",
     ERASEFLAGS=["--chip", mcu, "--port", '"$UPLOAD_PORT"'],
-    ERASECMD='$OBJCOPY $ERASEFLAGS erase-flash',
-    # mkspiffs package contains two different binaries for IDF and Arduino
+    ERASETOOL=uploader_path,
+    ERASECMD='$ERASETOOL $ERASEFLAGS erase-flash',
     MKFSTOOL="mk%s" % filesystem
     + (
         (
@@ -510,7 +511,7 @@ env.Append(
             action=env.VerboseAction(
                 " ".join(
                     [
-                        "$OBJCOPY",
+                        "$ERASETOOL",
                         "--chip",
                         mcu,
                         "elf2image",
@@ -521,8 +522,8 @@ env.Append(
                         "--flash-size",
                         board.get("upload.flash_size", "4MB"),
                         "-o",
-                        "$TARGET",
-                        "$SOURCES",
+                        "\"$TARGET\"",
+                        "\"$SOURCES\"",
                     ]
                 ),
                 "Building $TARGET",
@@ -572,12 +573,12 @@ def firmware_metrics(target, source, env):
         print("Firmware metrics can not be shown. Set the terminal codepage to \"utf-8\"")
         return
 
-    map_file = os.path.join(env.subst("$BUILD_DIR"), env.subst("$PROGNAME") + ".map")
-    if not os.path.isfile(map_file):
+    map_file = str(Path(env.subst("$BUILD_DIR")) / (env.subst("$PROGNAME") + ".map"))
+    if not Path(map_file).is_file():
         # map file can be in project dir
-        map_file = os.path.join(get_project_dir(), env.subst("$PROGNAME") + ".map")
+        map_file = str(Path(get_project_dir()) / (env.subst("$PROGNAME") + ".map"))
 
-    if not os.path.isfile(map_file):
+    if not Path(map_file).is_file():
         print(f"Error: Map file not found: {map_file}")
         print("Make sure the project is built first with 'pio run'")
         return
@@ -619,7 +620,7 @@ def firmware_metrics(target, source, env):
         print("Check your Python installation.")
     except Exception as e:
         print(f"Error: Failed to run firmware metrics: {e}")
-        print("Make sure esp-idf-size is installed: pip install esp-idf-size")
+        print(f'Make sure esp-idf-size is installed: uv pip install --python "{PYTHON_EXE}" esp-idf-size')
 
 
 #
@@ -628,12 +629,12 @@ def firmware_metrics(target, source, env):
 
 target_elf = None
 if "nobuild" in COMMAND_LINE_TARGETS:
-    target_elf = join("$BUILD_DIR", "${PROGNAME}.elf")
+    target_elf = str(Path("$BUILD_DIR") / "${PROGNAME}.elf")
     if set(["uploadfs", "uploadfsota"]) & set(COMMAND_LINE_TARGETS):
         fetch_fs_size(env)
-        target_firm = join("$BUILD_DIR", "${ESP32_FS_IMAGE_NAME}.bin")
+        target_firm = str(Path("$BUILD_DIR") / "${ESP32_FS_IMAGE_NAME}.bin")
     else:
-        target_firm = join("$BUILD_DIR", "${PROGNAME}.bin")
+        target_firm = str(Path("$BUILD_DIR") / "${PROGNAME}.bin")
 else:
     target_elf = env.BuildProgram()
     silent_action = env.Action(firmware_metrics)
@@ -642,12 +643,12 @@ else:
     env.AddPostAction(target_elf, silent_action)
     if set(["buildfs", "uploadfs", "uploadfsota"]) & set(COMMAND_LINE_TARGETS):
         target_firm = env.DataToBin(
-            join("$BUILD_DIR", "${ESP32_FS_IMAGE_NAME}"), "$PROJECT_DATA_DIR"
+            str(Path("$BUILD_DIR") / "${ESP32_FS_IMAGE_NAME}"), "$PROJECT_DATA_DIR"
         )
         env.NoCache(target_firm)
         AlwaysBuild(target_firm)
     else:
-        target_firm = env.ElfToBin(join("$BUILD_DIR", "${PROGNAME}"), target_elf)
+        target_firm = env.ElfToBin(str(Path("$BUILD_DIR") / "${PROGNAME}"), target_elf)
         env.Depends(target_firm, "checkprogsize")
 
 # Configure platform targets
@@ -705,7 +706,7 @@ if upload_protocol == "espota":
             "espressif32.html#over-the-air-ota-update\n"
         )
     env.Replace(
-        UPLOADER=join(FRAMEWORK_DIR, "tools", "espota.py"),
+        UPLOADER=str(Path(FRAMEWORK_DIR).resolve() / "tools" / "espota.py"),
         UPLOADERFLAGS=["--debug", "--progress", "-i", "$UPLOAD_PORT"],
         UPLOADCMD=f'"{PYTHON_EXE}" "$UPLOADER" $UPLOADERFLAGS -f $SOURCE',
     )
@@ -782,8 +783,8 @@ elif upload_protocol == "dfu":
     upload_actions = [env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE")]
 
     env.Replace(
-        UPLOADER=join(
-            platform.get_package_dir("tool-dfuutil-arduino") or "", "dfu-util"
+        UPLOADER=str(
+            Path(platform.get_package_dir("tool-dfuutil-arduino")).resolve() / "dfu-util"
         ),
         UPLOADERFLAGS=[
             "-d",
@@ -791,7 +792,7 @@ elif upload_protocol == "dfu":
             "-Q",
             "-D",
         ],
-        UPLOADCMD='$UPLOADER $UPLOADERFLAGS "$SOURCE"',
+        UPLOADCMD='"$UPLOADER" $UPLOADERFLAGS "$SOURCE"',
     )
 
 # Configure upload protocol: Debug tools (OpenOCD)

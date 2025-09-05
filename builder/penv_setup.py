@@ -20,6 +20,7 @@ import semantic_version
 import subprocess
 import sys
 import socket
+from pathlib import Path
 
 from platformio.package.version import pepver_to_semver
 from platformio.compat import IS_WINDOWS
@@ -77,7 +78,7 @@ def get_executable_path(penv_dir, executable_name):
     exe_suffix = ".exe" if IS_WINDOWS else ""
     scripts_dir = "Scripts" if IS_WINDOWS else "bin"
     
-    return os.path.join(penv_dir, scripts_dir, f"{executable_name}{exe_suffix}")
+    return str(Path(penv_dir) / scripts_dir / f"{executable_name}{exe_suffix}")
 
 
 def setup_pipenv_in_package(env, penv_dir):
@@ -97,7 +98,7 @@ def setup_pipenv_in_package(env, penv_dir):
             python_exe = env.subst("$PYTHONEXE")
             python_dir = os.path.dirname(python_exe)
             uv_exe_suffix = ".exe" if IS_WINDOWS else ""
-            uv_cmd = os.path.join(python_dir, f"uv{uv_exe_suffix}")
+            uv_cmd = str(Path(python_dir) / f"uv{uv_exe_suffix}")
             
             # Fall back to system uv if derived path doesn't exist
             if not os.path.isfile(uv_cmd):
@@ -141,8 +142,8 @@ def setup_python_paths(penv_dir):
     # Add site-packages directory
     python_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
     site_packages = (
-        os.path.join(penv_dir, "Lib", "site-packages") if IS_WINDOWS
-        else os.path.join(penv_dir, "lib", python_ver, "site-packages")
+        str(Path(penv_dir) / "Lib" / "site-packages") if IS_WINDOWS
+        else str(Path(penv_dir) / "lib" / python_ver / "site-packages")
     )
     
     if os.path.isdir(site_packages):
@@ -423,7 +424,7 @@ def setup_python_environment(env, platform, platformio_dir):
         )
         sys.exit(1)
 
-    penv_dir = os.path.join(platformio_dir, "penv")
+    penv_dir = str(Path(platformio_dir) / "penv")
     
     # Setup virtual environment if needed
     used_uv_executable = setup_pipenv_in_package(env, penv_dir)
