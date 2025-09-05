@@ -34,7 +34,7 @@ def extract_files(cppdefines, files_type):
     result = []
     files = env.GetProjectOption("board_build.%s" % files_type, "").splitlines()
     if files:
-        result.extend([str(Path("$PROJECT_DIR") / f.strip()) for f in files if f])
+        result.extend([str(Path("$PROJECT_DIR") / f.strip()) for f in files if f.strip()])
     else:
         files_define = "COMPONENT_" + files_type.upper()
         for define in cppdefines:
@@ -54,6 +54,7 @@ def extract_files(cppdefines, files_type):
                 return []
 
             for f in value.split(":"):
+                f = f.strip()
                 if not f:
                     continue
                 result.append(str(Path("$PROJECT_DIR") / f))
@@ -77,10 +78,14 @@ def prepare_file(source, target, env):
     shutil.copy(filepath, filepath + ".piobkp")
 
     with open(filepath, "rb+") as fp:
-        fp.seek(-1, SEEK_END)
-        if fp.read(1) != b"\0":
-            fp.seek(0, SEEK_CUR)
+        fp.seek(0, SEEK_END)
+        size = fp.tell()
+        if size == 0:
             fp.write(b"\0")
+        else:
+            fp.seek(-1, SEEK_END)
+            if fp.read(1) != b"\0":
+                fp.write(b"\0")
 
 
 def revert_original_file(source, target, env):
@@ -139,7 +144,7 @@ env.Append(
                         "-DSOURCE_FILE=$TARGET",
                         "-DFILE_TYPE=$FILE_TYPE",
                         "-P",
-                        f'"{str(Path(env.PioPlatform().get_package_dir("framework-espidf") or "") / "tools" / "cmake" / "scripts" / "data_file_embed_asm.cmake")}"',,
+                        f'"{str(Path(env.PioPlatform().get_package_dir("framework-espidf") or "") / "tools" / "cmake" / "scripts" / "data_file_embed_asm.cmake")}"',
                     ]
                 ),
                 "Generating assembly for $TARGET",
