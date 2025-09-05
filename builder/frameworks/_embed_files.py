@@ -25,6 +25,14 @@ board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 is_xtensa = mcu in ("esp32", "esp32s2", "esp32s3")
 
+cmake_dir = str(env.PioPlatform().get_package_dir("tool-cmake"))
+cmake_cmd = f'"{Path(cmake_dir) / "bin" / "cmake"}"'
+
+idf_dir = str(env.PioPlatform().get_package_dir("framework-espidf"))
+data_embed_script = (
+    f'"{Path(idf_dir) / "tools" / "cmake" / "scripts" / "data_file_embed_asm.cmake"}"'
+)
+
 #
 # Embedded files helpers
 #
@@ -106,8 +114,8 @@ def embed_files(files, files_type):
 
 
 def transform_to_asm(target, source, env):
-    files = [str(Path("$BUILD_DIR") / (s.name + ".S")) for s in source]
-    return files, source
+    asm_targets = [str(Path("$BUILD_DIR") / (s.name + ".S")) for s in source]
+    return asm_targets, source
 
     
 env.Append(
@@ -139,12 +147,12 @@ env.Append(
             action=env.VerboseAction(
                 " ".join(
                     [
-                        f'"{Path(env.PioPlatform().get_package_dir("tool-cmake") or "") / "bin" / "cmake"}"',
+                        cmake_cmd,
                         "-DDATA_FILE=$SOURCE",
                         "-DSOURCE_FILE=$TARGET",
                         "-DFILE_TYPE=$FILE_TYPE",
                         "-P",
-                        f'"{Path(env.PioPlatform().get_package_dir("framework-espidf") or "") / "tools" / "cmake" / "scripts" / "data_file_embed_asm.cmake"}"',
+                        data_embed_script,
                     ]
                 ),
                 "Generating assembly for $TARGET",
