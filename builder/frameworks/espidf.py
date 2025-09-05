@@ -1038,10 +1038,15 @@ def compile_source_files(
                 rel = src_path_obj.relative_to(components_dir_path)
                 obj_path = str(Path(obj_path) / str(rel))
             except ValueError:
-                if not os.path.isabs(source["path"]):
-                    obj_path = str(Path(obj_path) / source["path"])
-                else:
-                    obj_path = str(Path(obj_path) / os.path.basename(src_path))
+                # Preserve project substructure when possible
+                try:
+                    rel_prj = src_path_obj.relative_to(Path(project_src_dir).resolve())
+                    obj_path = str(Path(obj_path) / str(rel_prj))
+                except ValueError:
+                    if not os.path.isabs(source["path"]):
+                        obj_path = str(Path(obj_path) / source["path"])
+                    else:
+                        obj_path = str(Path(obj_path) / os.path.basename(src_path))
 
             preserve_source_file_extension = board.get(
                 "build.esp-idf.preserve_source_file_extension", "yes"
