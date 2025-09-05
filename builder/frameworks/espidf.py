@@ -1125,7 +1125,7 @@ def get_lib_ignore_components():
         lib_ignore_entries = lib_handler._get_lib_ignore_entries()
         
         return lib_ignore_entries
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError, KeyError) as e:
         print(f"[ESP-IDF] Warning: Could not process lib_ignore: {e}")
         return []
 
