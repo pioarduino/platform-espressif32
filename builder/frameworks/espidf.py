@@ -1475,7 +1475,6 @@ def generate_mbedtls_bundle(sdk_config):
 
     # Use exec_command to change working directory
     exec_command(cmd + crt_args, cwd=BUILD_DIR)
-    bundle_path = str(Path("$BUILD_DIR") / "x509_crt_bundle")
     env.Execute(
         env.VerboseAction(
             " ".join(
@@ -1809,10 +1808,10 @@ if project_target_name != "__idf_main" and "__idf_main" in target_configs:
     )
     env.Exit(1)
 
-project_ld_scipt = generate_project_ld_script(
+project_ld_script = generate_project_ld_script(
     sdk_config, [project_target_name, "__pio_env"]
 )
-env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", project_ld_scipt)
+env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", project_ld_script)
 
 elf_config = get_project_elf(target_configs)
 default_config_name = find_default_component(target_configs)
@@ -1829,7 +1828,7 @@ if not elf_config:
     env.Exit(1)
 
 for component_config in framework_components_map.values():
-    env.Depends(project_ld_scipt, component_config["lib"])
+    env.Depends(project_ld_script, component_config["lib"])
 
 project_config = target_configs.get(project_target_name, {})
 default_config = target_configs.get(default_config_name, {})
@@ -2214,12 +2213,12 @@ if ota_partition_params["size"] and ota_partition_params["offset"]:
             )
         ]
     )
-    EXTRA_IMG_DIR = str(Path(env.subst("$PROJECT_DIR")) / "variants" / "tasmota")
-    env.Append(
-        FLASH_EXTRA_IMAGES=[
-            (offset, str(Path(EXTRA_IMG_DIR) / img)) for offset, img in board.get("upload.arduino.flash_extra_images", [])
-        ]
-    )
+    extra_imgs = board.get("upload.arduino.flash_extra_images", [])
+    if extra_imgs:
+        extra_img_dir = Path(env.subst("$PROJECT_DIR")) / "variants" / "tasmota"
+        env.Append(
+             FLASH_EXTRA_IMAGES=[(offset, str(extra_img_dir / img)) for offset, img in extra_imgs]
+        )
 
 def _parse_size(value):
     if isinstance(value, int):
