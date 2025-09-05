@@ -1435,13 +1435,13 @@ def preprocess_linker_file(src_ld_script, target_ld_script):
             " ".join(
                 [
                     f'"{CMAKE_DIR}"',
-                    "-DCC=%s" % str(Path(TOOLCHAIN_DIR) / "bin" / "$CC"),
+                    f'-DCC="{str(Path(TOOLCHAIN_DIR) / "bin" / "$CC")}"',
                     "-DSOURCE=$SOURCE",
                     "-DTARGET=$TARGET",
-                    "-DCONFIG_DIR=%s" % str(Path(BUILD_DIR) / "config"),
-                    "-DLD_DIR=%s" % str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld"),
+                    f'-DCONFIG_DIR="{str(Path(BUILD_DIR) / "config")}"',
+                    f'-DLD_DIR="{str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld")}"',
                     "-P",
-                    str(Path("$BUILD_DIR") / "esp-idf" / "esp_system" / "ld" / "linker_script_generator.cmake"),
+                    f'"{str(Path("$BUILD_DIR") / "esp-idf" / "esp_system" / "ld" / "linker_script_generator.cmake")}"',
                 ]
             ),
             "Generating LD script $TARGET",
@@ -1485,11 +1485,11 @@ def generate_mbedtls_bundle(sdk_config):
             " ".join(
                 [
                     f'"{CMAKE_DIR}"',
-                    "-DDATA_FILE=" + bundle_path,
-                    "-DSOURCE_FILE=%s.S" % bundle_path,
+                    f'-DDATA_FILE="{bundle_path}"',
+                    f'-DSOURCE_FILE="{bundle_path}.S"',
                     "-DFILE_TYPE=BINARY",
                     "-P",
-                    str(Path(FRAMEWORK_DIR) / "tools" / "cmake" / "scripts" / "data_file_embed_asm.cmake"),
+                    f'"{str(Path(FRAMEWORK_DIR) / "tools" / "cmake" / "scripts" / "data_file_embed_asm.cmake")}"',
                 ]
             ),
             "Generating assembly for certificate bundle...",
