@@ -213,8 +213,8 @@ def HandleArduinoIDFsettings(env):
                         print(f"Error decoding response from {file_entry}: {e}")
                         return ""
             
-            # Treat as local file if explicitly file:// or a non-URL token that isn't a flag
-            if "file://" in file_entry or ("://" not in file_entry and "=" not in file_entry):
+            # Handle local files
+            if "file://" in file_entry:
                 file_ref = file_entry[7:] if file_entry.startswith("file://") else file_entry
 
                 if os.path.isabs(file_ref):
