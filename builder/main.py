@@ -522,8 +522,8 @@ env.Append(
                         "--flash-size",
                         board.get("upload.flash_size", "4MB"),
                         "-o",
-                        "$TARGET",
-                        "$SOURCES",
+                        "\"$TARGET\"",
+                        "\"$SOURCES\"",
                     ]
                 ),
                 "Building $TARGET",
@@ -792,7 +792,7 @@ elif upload_protocol == "dfu":
             "-Q",
             "-D",
         ],
-        UPLOADCMD='$UPLOADER $UPLOADERFLAGS "$SOURCE"',
+        UPLOADCMD='"$UPLOADER" $UPLOADERFLAGS "$SOURCE"',
     )
 
 # Configure upload protocol: Debug tools (OpenOCD)
