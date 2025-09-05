@@ -134,12 +134,12 @@ env.Append(
             action=env.VerboseAction(
                 " ".join(
                     [
-                        str(Path(env.PioPlatform().get_package_dir("tool-cmake") or "") / "bin" / "cmake"),
+                        f'"{str(Path(env.PioPlatform().get_package_dir("tool-cmake") or "") / "bin" / "cmake")}"',
                         "-DDATA_FILE=$SOURCE",
                         "-DSOURCE_FILE=$TARGET",
                         "-DFILE_TYPE=$FILE_TYPE",
                         "-P",
-                        str(Path(env.PioPlatform().get_package_dir("framework-espidf") or "") / "tools" / "cmake" / "scripts" / "data_file_embed_asm.cmake"),
+                        f'"{str(Path(env.PioPlatform().get_package_dir("framework-espidf") or "") / "tools" / "cmake" / "scripts" / "data_file_embed_asm.cmake")}"',,
                     ]
                 ),
                 "Generating assembly for $TARGET",
