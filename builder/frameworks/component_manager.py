@@ -52,8 +52,7 @@ class ComponentManagerConfig:
         # Get Arduino libraries installation directory
         ald = self.platform.get_package_dir("framework-arduinoespressif32-libs")
         # Get MCU-specific Arduino libraries directory
-        self.arduino_libs_mcu_path = (Path(ald) / self.mcu)
-        self.arduino_libs_mcu = str(self.arduino_libs_mcu_path)
+        self.arduino_libs_mcu = (str(Path(ald) / self.mcu))
 
 
 class ComponentLogger:
