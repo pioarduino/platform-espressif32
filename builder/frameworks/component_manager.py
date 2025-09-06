@@ -837,7 +837,17 @@ class LibraryIgnoreHandler:
         
         # Fallback: Use directory name as include path
         return dir_name_lower
-    
+
+    def _get_original_lib_ignore_entries(self) -> List[str]:
+    """Get original lib_ignore entries without conversion."""
+    try:
+        lib_ignore = self.config.env.GetProjectOption("lib_ignore", [])
+        if isinstance(lib_ignore, str):
+            lib_ignore = [lib_ignore]
+        return [str(entry).strip().lower() for entry in lib_ignore if str(entry).strip()]
+    except Exception:
+        return []
+
     def _convert_lib_name_to_include(self, lib_name: str) -> str:
         """
         Convert library name to potential include directory name.
