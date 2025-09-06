@@ -942,11 +942,11 @@ class LibraryIgnoreHandler:
                     self.logger.log_change(f"Protected BT library: {lib_name}")
                     continue
             
-                # Protection for DSP components - only remove if 'dsp' is explicitly in lib_ignore
-                if lib_name.lower() in ['dsp', 'esp_dsp', 'dsps', 'fft2r', 'dsps_fft2r', 'espressif__esp-dsp']:
-                    if 'dsp' not in original_lib_ignore:
-                        self.logger.log_change(f"Protected DSP component: {lib_name}")
-                        continue
+#                # Protection for DSP components - only remove if 'dsp' is explicitly in lib_ignore
+#                if lib_name.lower() in ['dsp', 'esp_dsp', 'dsps', 'fft2r', 'dsps_fft2r', 'espressif__esp-dsp']:
+#                    if 'dsp' not in original_lib_ignore:
+#                        self.logger.log_change(f"Protected DSP component: {lib_name}")
+#                        continue
             
                 # Multiple patterns to catch different include formats
                 patterns = [
