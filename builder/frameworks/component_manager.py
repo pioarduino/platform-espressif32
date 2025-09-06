@@ -885,7 +885,9 @@ class LibraryIgnoreHandler:
         direct_mapping = {
             'ble': 'bt',
             'bluetooth': 'bt',
-            'bluetoothserial': 'bt'
+            'bluetoothserial': 'bt',
+            'dsp': 'esp_dsp',
+            'esp-dsp': 'esp_dsp'
         }
         
         if cleaned_name in direct_mapping:
@@ -927,10 +929,11 @@ class LibraryIgnoreHandler:
                     self.logger.log_change(f"Protected BT library: {lib_name}")
                     continue
                 
-                # Protection for DSP components, remove DSP components only if 'dsp' is explicitly in lib_ignore
-                if lib_name.lower() in ['dsp', 'esp_dsp', 'dsps', 'fft2r', 'dsps_fft2r'] and 'dsp' not in [entry.lower() for entry in self.ignored_libs]:
-                    self.logger.log_change(f"Protected DSP component: {lib_name}")
-                    continue
+                for lib_name in self.ignored_libs:
+                    if lib_name.lower() in ['dsp', 'esp_dsp', 'dsps', 'fft2r', 'dsps_fft2r']:
+                        if 'dsp' not in [entry.lower() for entry in original_lib_ignore]:
+                            self.logger.log_change(f"Protected DSP component: {lib_name}")
+                            continue
                     
                 # Multiple patterns to catch different include formats
                 patterns = [
