@@ -770,6 +770,8 @@ class LibraryIgnoreHandler:
             # Arduino Core specific mappings (safe mappings that don't conflict with critical components)
             'esp32blearduino': 'bt',
             'esp32_ble_arduino': 'bt',
+            'simpleble': 'bt',
+            'esp-nimble-cpp': 'bt',
             'esp32': 'esp32',
             'wire': 'driver',
             'spi': 'driver',
@@ -841,17 +843,7 @@ class LibraryIgnoreHandler:
         
         # Fallback: Use directory name as include path
         return dir_name_lower
-
-    def _get_original_lib_ignore_entries(self) -> List[str]:
-        """Get original lib_ignore entries without conversion."""
-        try:
-            lib_ignore = self.config.env.GetProjectOption("lib_ignore", [])
-            if isinstance(lib_ignore, str):
-                lib_ignore = [lib_ignore]
-            return [str(entry).strip().lower() for entry in lib_ignore if str(entry).strip()]
-        except Exception:
-            return []
-
+    
     def _convert_lib_name_to_include(self, lib_name: str) -> str:
         """
         Convert library name to potential include directory name.
@@ -900,8 +892,13 @@ class LibraryIgnoreHandler:
             'ble': 'bt',
             'bluetooth': 'bt',
             'bluetoothserial': 'bt',
-            'dsp': 'esp_dsp',
-            'esp-dsp': 'esp_dsp'
+            'simpleble': 'bt',
+            'esp-nimble-cpp': 'bt',
+            'dsp': 'espressif__esp-dsp',
+            'esp_dsp': 'espressif__esp-dsp',
+            'dsps': 'espressif__esp-dsp',
+            'fft2r': 'espressif__esp-dsp',
+            'dsps_fft2r': 'espressif__esp-dsp'
         }
         
         if cleaned_name in direct_mapping:
@@ -912,46 +909,42 @@ class LibraryIgnoreHandler:
     def _remove_ignored_lib_includes(self) -> None:
         """
         Remove include entries for ignored libraries from pioarduino-build.py.
-    
+
         Processes the Arduino build script to remove CPPPATH entries for
         all ignored libraries. Implements protection for BT/BLE and DSP
         components when dependencies are detected. Uses multiple regex
         patterns to catch different include path formats.
         """
         build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
-    
+
         if not os.path.exists(build_py_path):
             self.logger.log_change("Build file not found")
             return
-    
+
         # Check if BT/BLE dependencies exist in lib_deps
         bt_ble_protected = self._has_bt_ble_dependencies()
         if bt_ble_protected:
             self.logger.log_change("BT/BLE protection enabled")
-    
-        # Get original lib_ignore entries for DSP protection check
-        original_lib_ignore = self._get_original_lib_ignore_entries()
-    
+
         try:
             with open(build_py_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-        
+
             original_content = content
             total_removed = 0
-        
+
             # Remove CPPPATH entries for each ignored library
             for lib_name in self.ignored_libs:
                 # Skip BT-related libraries if BT/BLE dependencies are present
                 if bt_ble_protected and self._is_bt_related_library(lib_name):
                     self.logger.log_change(f"Protected BT library: {lib_name}")
                     continue
-            
-#                # Protection for DSP components - only remove if 'dsp' is explicitly in lib_ignore
-#                if lib_name.lower() in ['dsp', 'esp_dsp', 'dsps', 'fft2r', 'dsps_fft2r', 'espressif__esp-dsp']:
-#                    if 'dsp' not in original_lib_ignore:
-#                        self.logger.log_change(f"Protected DSP component: {lib_name}")
-#                        continue
-            
+
+#                # Hard protection for DSP components
+#                if lib_name.lower() in ['dsp', 'esp_dsp', 'dsps', 'fft2r', 'dsps_fft2r']:
+#                    self.logger.log_change(f"Protected DSP component: {lib_name}")
+#                    continue
+
                 # Multiple patterns to catch different include formats
                 patterns = [
                     rf'.*join\([^,]*,\s*"include",\s*"{re.escape(lib_name)}"[^)]*\),?\n',
@@ -966,28 +959,28 @@ class LibraryIgnoreHandler:
                     rf'.*Path\([^)]*\)\s*/\s*"include"\s*/\s*"{re.escape(lib_name)}"[^,\n]*,?\n',
                     rf'.*Path\([^)]*{re.escape(lib_name)}[^)]*\)\s*/\s*"include"[^,\n]*,?\n'
                 ]
-            
+
                 removed_count = 0
                 for pattern in patterns:
                     matches = re.findall(pattern, content)
                     if matches:
                         content = re.sub(pattern, '', content)
                         removed_count += len(matches)
-            
+
                 if removed_count > 0:
                     self.logger.log_change(f"Ignored library: {lib_name} ({removed_count} entries)")
                     total_removed += removed_count
-        
+
             # Clean up empty lines and trailing commas
             content = re.sub(r'\n\s*\n', '\n', content)
             content = re.sub(r',\s*\n\s*\]', '\n]', content)
-        
+
             # Validate and write changes
             if self._validate_changes(original_content, content) and content != original_content:
                 with open(build_py_path, 'w', encoding='utf-8') as f:
                     f.write(content)
                 self.logger.log_change(f"Updated build file ({total_removed} total removals)")
-            
+
         except (IOError, OSError) as e:
             self.logger.log_change(f"Error processing libraries: {str(e)}")
         except Exception as e:
@@ -996,47 +989,41 @@ class LibraryIgnoreHandler:
     def _validate_changes(self, original_content: str, new_content: str) -> bool:
         """
         Validate that the changes are reasonable and safe.
-    
+
         Performs sanity checks on the modified content to ensure that
         the changes don't remove too much content or create invalid
         modifications that could break the build process.
-    
+
         Args:
             original_content: Original file content before modifications
-            new_content: Modified file content after changes
-        
+            new_content: Modified file content after processing
+
         Returns:
-            True if changes are valid and safe to apply
+            True if changes are within acceptable limits and safe to apply
         """
-        # Check if too much content was removed (more than 50% indicates potential error)
-        if len(new_content) < len(original_content) * 0.5:
-            self.logger.log_change("Warning: Too much content removed, skipping changes")
-            return False
-    
-        # Check for basic Python syntax structure preservation
-        if 'CPPPATH' not in new_content or 'env.Append' not in new_content:
-            self.logger.log_change("Warning: Critical build structure missing, skipping changes")
-            return False
-    
-        return True
+        original_lines = len(original_content.splitlines())
+        new_lines = len(new_content.splitlines())
+        removed_lines = original_lines - new_lines
+
+        # Don't allow removing more than 50% of the file or negative changes
+        return not (removed_lines > original_lines * 0.5 or removed_lines < 0)
 
     def _backup_pioarduino_build_py(self) -> None:
         """
         Create backup of the original pioarduino-build.py file.
-    
-        Creates a backup of the Arduino framework's build script before
-        making modifications. Only operates when Arduino framework is active
-        and creates MCU-specific backup names to avoid conflicts.
+        
+        Creates a backup copy of the Arduino build script before making
+        modifications. Only operates when Arduino framework is active
+        and uses MCU-specific backup naming to avoid conflicts.
         """
         if "arduino" not in self.config.env.subst("$PIOFRAMEWORK"):
             return
 
         if not self.config.arduino_libs_mcu:
             return
-
         build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
         backup_path = str(Path(self.config.arduino_libs_mcu) / f"pioarduino-build.py.{self.config.mcu}")
-    
+
         if os.path.exists(build_py_path) and not os.path.exists(backup_path):
             shutil.copy2(build_py_path, backup_path)
 
