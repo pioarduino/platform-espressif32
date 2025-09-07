@@ -387,7 +387,7 @@ class ComponentHandler:
 
         for component in components_to_add:
             component = component.strip()
-            if not component:  # Skip empty entrys
+            if not component:  # Skip empty entries
                 continue
 
             component_name, version = self._parse_component_entry(component)
@@ -524,8 +524,8 @@ class ComponentHandler:
                 with open(build_py_path, 'w', encoding='utf-8') as f:
                     f.write(content)
 
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[ComponentManager] Error updating build file during CPPPATH cleanup: {e!s}")
 
 
 class LibraryIgnoreHandler:
@@ -633,7 +633,7 @@ class LibraryIgnoreHandler:
                     if include_name not in self._critical_components:
                         cleaned_entries.append(include_name)
 
-            return cleaned_entries
+            return sorted(set(cleaned_entries))
 
         except Exception:
             return []
@@ -853,7 +853,9 @@ class LibraryIgnoreHandler:
             'dsps': 'espressif__esp-dsp',
             'fft2r': 'espressif__esp-dsp',
             'dsps_fft2r': 'espressif__esp-dsp',
-            'esp-dsp': 'espressif__esp-dsp'
+            'esp-dsp': 'espressif__esp-dsp',
+            'espressif/esp-dsp': 'espressif__esp-dsp',
+            'espressif__esp-dsp': 'espressif__esp-dsp'
         }
 
         # Check extended mapping first
@@ -886,7 +888,8 @@ class LibraryIgnoreHandler:
 
         # Fast path optimization for DSP components (most performance-critical case)
         dsp_patterns = {
-            'dsp', 'esp_dsp', 'dsps', 'fft2r', 'dsps_fft2r', 'esp-dsp'
+            'dsp', 'esp_dsp', 'dsps', 'fft2r', 'dsps_fft2r', 'esp-dsp',
+            'espressif/esp-dsp', 'espressif__esp-dsp'
         }
         if lib_name_lower in dsp_patterns:
             return 'espressif__esp-dsp'
@@ -1034,7 +1037,7 @@ class LibraryIgnoreHandler:
                     self.logger.log_change(f"Updated build file ({total_removed} total removals)")
 
         except Exception as e:
-            self.logger.log_change(f"Error processing libraries: {str(e)}")
+            self.logger.log_change(f"Error processing libraries: {e!s} ({e.__class__.__name__})")
 
     def _batch_remove_patterns(self, content: str, libs_to_process: List[str]) -> Tuple[str, int]:
         """
