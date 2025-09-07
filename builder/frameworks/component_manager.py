@@ -824,7 +824,11 @@ class LibraryIgnoreHandler:
             'tcpip': 'lwip',
             'usb': 'arduino_tinyusb',
             'tinyusb': 'arduino_tinyusb',
-            'arduino_tinyusb': 'arduino_tinyusb'
+            'dsp': 'espressif__esp-dsp',
+            'esp_dsp': 'espressif__esp-dsp',
+            'dsps': 'espressif__esp-dsp',
+            'fft2r': 'espressif__esp-dsp',
+            'dsps_fft2r': 'espressif__esp-dsp'
         }
         
         # Check extended mapping first
