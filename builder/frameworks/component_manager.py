@@ -771,7 +771,8 @@ class LibraryIgnoreHandler:
             'esp32blearduino': 'bt',
             'esp32_ble_arduino': 'bt',
             'simpleble': 'bt',
-            'esp-nimble-cpp': 'bt',
+            'esp_nimble_cpp': 'bt',
+            'nimble_arduino': 'bt',
             'esp32': 'esp32',
             'wire': 'driver',
             'spi': 'driver',
@@ -830,7 +831,8 @@ class LibraryIgnoreHandler:
             'esp_dsp': 'espressif__esp-dsp',
             'dsps': 'espressif__esp-dsp',
             'fft2r': 'espressif__esp-dsp',
-            'dsps_fft2r': 'espressif__esp-dsp'
+            'dsps_fft2r': 'espressif__esp-dsp',
+            'esp-dsp': 'espressif__esp-dsp'
         }
         
         # Check extended mapping first
@@ -898,7 +900,8 @@ class LibraryIgnoreHandler:
             'esp_dsp': 'espressif__esp-dsp',
             'dsps': 'espressif__esp-dsp',
             'fft2r': 'espressif__esp-dsp',
-            'dsps_fft2r': 'espressif__esp-dsp'
+            'dsps_fft2r': 'espressif__esp-dsp',
+            'esp-dsp': 'espressif__esp-dsp'
         }
         
         if cleaned_name in direct_mapping:
@@ -911,8 +914,8 @@ class LibraryIgnoreHandler:
         Remove include entries for ignored libraries from pioarduino-build.py.
 
         Processes the Arduino build script to remove CPPPATH entries for
-        all ignored libraries. Implements protection for BT/BLE and DSP
-        components when dependencies are detected. Uses multiple regex
+        all ignored libraries. Implements protection for BT/BLE components
+        when dependencies are detected. Uses multiple regex
         patterns to catch different include path formats.
         """
         build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
@@ -939,11 +942,6 @@ class LibraryIgnoreHandler:
                 if bt_ble_protected and self._is_bt_related_library(lib_name):
                     self.logger.log_change(f"Protected BT library: {lib_name}")
                     continue
-
-#                # Hard protection for DSP components
-#                if lib_name.lower() in ['dsp', 'esp_dsp', 'dsps', 'fft2r', 'dsps_fft2r']:
-#                    self.logger.log_change(f"Protected DSP component: {lib_name}")
-#                    continue
 
                 # Multiple patterns to catch different include formats
                 patterns = [
@@ -1019,8 +1017,6 @@ class LibraryIgnoreHandler:
         if "arduino" not in self.config.env.subst("$PIOFRAMEWORK"):
             return
 
-        if not self.config.arduino_libs_mcu:
-            return
         build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
         backup_path = str(Path(self.config.arduino_libs_mcu) / f"pioarduino-build.py.{self.config.mcu}")
 
