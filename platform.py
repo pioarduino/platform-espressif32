@@ -144,7 +144,11 @@ def safe_remove_file(path: Union[str, Path]) -> bool:
 def safe_remove_directory(path: Union[str, Path]) -> bool:
     """Safely remove directories with error handling using pathlib."""
     path = Path(path)
-    if path.exists() and path.is_dir():
+    if not path.exists():
+        return True
+    if path.is_symlink():
+        path.unlink()
+    elif path.is_dir():
         shutil.rmtree(path)
         logger.debug(f"Directory removed: {path}")
     return True
@@ -158,8 +162,11 @@ def safe_remove_directory_pattern(base_path: Union[str, Path], pattern: str) -> 
         return True
     # Find all directories matching the pattern in the base directory
     for item in base_path.rglob("*"):
-        if item.is_dir() and fnmatch.fnmatch(item.name, pattern):
-            shutil.rmtree(item)
+        if fnmatch.fnmatch(item.name, pattern):
+            if item.is_symlink():
+                item.unlink()
+            elif item.is_dir():
+                shutil.rmtree(item)
             logger.debug(f"Directory removed: {item}")
     return True
 
@@ -218,7 +225,7 @@ class Espressif32Platform(PlatformBase):
             return True
         
         # Check if tool is already installed
-        tl_install_path = Path(self.packages_dir) / tl_install_name
+        tl_install_path = self.packages_dir / tl_install_name
         package_json_path = tl_install_path / "package.json"
         
         if not package_json_path.exists():
