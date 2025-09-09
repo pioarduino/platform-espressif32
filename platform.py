@@ -134,7 +134,7 @@ def safe_file_operation(operation_func):
 def safe_remove_file(path: Union[str, Path]) -> bool:
     """Safely remove a file with error handling using pathlib."""
     path = Path(path)
-    if path.exists() and path.is_file():
+    if path.is_file() or path.is_symlink() or path.exists():
         path.unlink()
         logger.debug(f"File removed: {path}")
     return True
@@ -157,7 +157,7 @@ def safe_remove_directory_pattern(base_path: Union[str, Path], pattern: str) -> 
     if not base_path.exists():
         return True
     # Find all directories matching the pattern in the base directory
-    for item in base_path.iterdir():
+    for item in base_path.rglob("*"):
         if item.is_dir() and fnmatch.fnmatch(item.name, pattern):
             shutil.rmtree(item)
             logger.debug(f"Directory removed: {item}")
@@ -169,7 +169,7 @@ def safe_copy_file(src: Union[str, Path], dst: Union[str, Path]) -> bool:
     """Safely copy files with error handling using pathlib."""
     src, dst = Path(src), Path(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(src, dst)
+    shutil.copy2(src, dst)
     logger.debug(f"File copied: {src} -> {dst}")
     return True
 
@@ -179,7 +179,7 @@ def safe_copy_directory(src: Union[str, Path], dst: Union[str, Path]) -> bool:
     """Safely copy directories with error handling using pathlib."""
     src, dst = Path(src), Path(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(src, dst, dirs_exist_ok=True)
+    shutil.copytree(src, dst, dirs_exist_ok=True, copy_function=shutil.copy2)
     logger.debug(f"Directory copied: {src} -> {dst}")
     return True
 
@@ -195,11 +195,11 @@ class Espressif32Platform(PlatformBase):
         self._mcu_config_cache = {}
 
     @property
-    def packages_dir(self) -> str:
+    def packages_dir(self) -> Path:
         """Get cached packages directory path."""
         if self._packages_dir is None:
             config = ProjectConfig.get_instance()
-            self._packages_dir = config.get("platformio", "packages_dir")
+            self._packages_dir = Path(config.get("platformio", "packages_dir"))
         return self._packages_dir
 
     def _check_tl_install_version(self) -> bool:
@@ -371,8 +371,8 @@ class Espressif32Platform(PlatformBase):
                     safe_remove_directory(item)
                     logger.debug(f"Removed versioned directory: {item}")
                         
-        except OSError as e:
-            logger.error(f"Error cleaning up versioned directories for {tool_name}: {e}")
+        except OSError:
+            logger.exception(f"Error cleaning up versioned directories for {tool_name}")
 
     def _get_tool_paths(self, tool_name: str) -> Dict[str, str]:
         """Get centralized path calculation for tools with caching."""
@@ -661,8 +661,8 @@ class Espressif32Platform(PlatformBase):
                 if not version.startswith("3."):
                     safe_remove_file(piopm_path)
                     logger.info(f"Incompatible mklittlefs version {version} removed (required: 3.x)")
-            except (json.JSONDecodeError, KeyError) as e:
-                logger.error(f"Error reading mklittlefs package  {e}")
+            except (json.JSONDecodeError, KeyError):
+                logger.exception("Error reading mklittlefs package metadata")
 
     def _setup_mklittlefs_for_download(self) -> None:
         """Setup mklittlefs for download functionality with version 4.x."""
