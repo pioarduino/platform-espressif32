@@ -186,7 +186,7 @@ def safe_copy_directory(src: Union[str, Path], dst: Union[str, Path]) -> bool:
     """Safely copy directories with error handling using pathlib."""
     src, dst = Path(src), Path(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(src, dst, dirs_exist_ok=True, copy_function=shutil.copy2)
+    shutil.copytree(src, dst, dirs_exist_ok=True, copy_function=shutil.copy2, symlinks=True)
     logger.debug(f"Directory copied: {src} -> {dst}")
     return True
 
