@@ -134,7 +134,7 @@ def safe_file_operation(operation_func):
 def safe_remove_file(path: Union[str, Path]) -> bool:
     """Safely remove a file with error handling using pathlib."""
     path = Path(path)
-    if path.is_file() or path.is_symlink() or path.exists():
+    if path.is_file() or path.is_symlink():
         path.unlink()
         logger.debug(f"File removed: {path}")
     return True
