@@ -690,6 +690,8 @@ class Espressif32Platform(PlatformBase):
 
         # Copy mklittlefs 4.x over 3.x
         if mklittlefs4_dir.exists():
+            # Copy 3.x package.json into 4.x before mirroring 4.x -> 3.x,
+            # so 3.x dir ends up with 4.x binaries and 3.x metadata.
             package_src = mklittlefs_dir / "package.json"
             package_dst = mklittlefs4_dir / "package.json"
             safe_copy_file(package_src, package_dst)
