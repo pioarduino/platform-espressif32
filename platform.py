@@ -160,12 +160,11 @@ def safe_remove_directory_pattern(base_path: Union[str, Path], pattern: str) -> 
     base_path = Path(base_path)
     if not base_path.exists():
         return True
-    # Find all directories matching the pattern in the base directory
-    for item in base_path.rglob("*"):
-        if fnmatch.fnmatch(item.name, pattern):
+    for item in base_path.iterdir():
+        if item.is_dir() and fnmatch.fnmatch(item.name, pattern):
             if item.is_symlink():
                 item.unlink()
-            elif item.is_dir():
+            else:
                 shutil.rmtree(item)
             logger.debug(f"Directory removed: {item}")
     return True
