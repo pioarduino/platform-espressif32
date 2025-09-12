@@ -45,7 +45,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/55.03.30-alpha1/c2_cbe9388f45_compile_skeleton.zip"
+      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c2-skeleton/c2_129cd0d247_compile_skeleton.zip"
     },
     "framework-espidf": {
       "type": "framework",
