@@ -175,8 +175,8 @@
       "type": "tool",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "3.30.2",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/cmake-3.30.2.zip"
+      "package-version": "4.0.3",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/cmake-4.0.3.zip"
     },
     "tool-esp-rom-elfs": {
       "type": "tool",
