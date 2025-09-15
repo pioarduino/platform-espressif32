@@ -416,7 +416,7 @@ def switch_off_ldf():
 
 # Initialize board configuration and MCU settings
 board = env.BoardConfig()
-board_id = board.get("id")
+board_id = env.subst("$BOARD")
 mcu = board.get("build.mcu", "esp32")
 is_xtensa = mcu in ("esp32", "esp32s2", "esp32s3")
 toolchain_arch = "xtensa-%s" % mcu
