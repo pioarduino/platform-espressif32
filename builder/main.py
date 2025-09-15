@@ -43,6 +43,7 @@ projectconfig = env.GetProjectConfig()
 terminal_cp = locale.getpreferredencoding().lower()
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
 platformio_dir = projectconfig.get("platformio", "core_dir")
+platform_dir = Path(env.PioPlatform().get_dir())
 
 # Setup Python virtual environment and get executable paths
 PYTHON_EXE, esptool_binary_path = setup_python_environment(env, platform, platformio_dir)
@@ -426,7 +427,6 @@ def load_board_script(env):
     if not board_id:
         return
 
-    platform_dir = Path(env.PioPlatform().get_dir())
     script_path = platform_dir / "boards" / f"{board_id}.py"
 
     if script_path.exists():
