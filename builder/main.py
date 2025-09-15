@@ -20,6 +20,7 @@ import subprocess
 import sys
 from os.path import isfile, join
 from pathlib import Path
+import importlib.util
 
 from SCons.Script import (
     ARGUMENTS,
@@ -414,10 +415,35 @@ def switch_off_ldf():
 
 # Initialize board configuration and MCU settings
 board = env.BoardConfig()
+board_id = board.get("id")
 mcu = board.get("build.mcu", "esp32")
 is_xtensa = mcu in ("esp32", "esp32s2", "esp32s3")
 toolchain_arch = "xtensa-%s" % mcu
 filesystem = board.get("build.filesystem", "littlefs")
+
+
+def load_board_script(env):
+    if not board_id:
+        return
+
+    platform_dir = Path(env.PioPlatform().get_dir())
+    script_path = platform_dir / "boards" / f"{board_id}.py"
+
+    if script_path.exists():
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"board_{board_id}", 
+                str(script_path)
+            )
+            board_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(board_module)
+
+            if hasattr(board_module, 'configure_board'):
+                board_module.configure_board(env)
+
+        except Exception as e:
+            print(f"Error loading board script {board_id}.py: {e}")
+
 
 # Set toolchain architecture for RISC-V based ESP32 variants
 if not is_xtensa:
@@ -906,6 +932,9 @@ env.AddCustomTarget(
 
 # Override memory inspection behavior
 env.SConscript("sizedata.py", exports="env")
+
+# Board specific script
+load_board_script(env)
 
 # Set default targets
 Default([target_buildprog, target_size])
