@@ -649,6 +649,9 @@ def firmware_metrics(target, source, env):
         print(f'Make sure esp-idf-size is installed: uv pip install --python "{PYTHON_EXE}" esp-idf-size')
 
 
+# Board specific script
+load_board_script(env)
+
 #
 # Target: Build executable and linkable firmware or FS image
 #
@@ -932,9 +935,6 @@ env.AddCustomTarget(
 
 # Override memory inspection behavior
 env.SConscript("sizedata.py", exports="env")
-
-# Board specific script
-load_board_script(env)
 
 # Set default targets
 Default([target_buildprog, target_size])
