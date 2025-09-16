@@ -1,24 +1,24 @@
 {
   "build": {
     "core": "esp32",
-    "extra_flags": "-DARDUINO_M5Stack_Core",
     "f_cpu": "240000000L",
     "f_flash": "80000000L",
     "flash_mode": "qio",
-    "mcu": "esp32",
-    "variant": "m5stack_core"
+    "mcu": "esp32c5",
+    "variant": "esp32c5"
   },
   "connectivity": [
-    "wifi",
     "bluetooth",
-    "ethernet",
-    "can"
+    "wifi"
   ],
+  "debug": {
+    "openocd_target": "esp32c5.cfg"
+  },
   "frameworks": [
     "arduino",
     "espidf"
   ],
-  "name": "M5Stack Core ESP32",
+  "name": "Espressif ESP32-C5-DevKitC-1 N4 (4MB no PSRAM)",
   "upload": {
     "flash_size": "4MB",
     "maximum_ram_size": 327680,
@@ -26,6 +26,6 @@
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "http://www.m5stack.com",
-  "vendor": "M5Stack"
+  "url": "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c5/esp32-c5-devkitc-1/user_guide.html",
+  "vendor": "Espressif"
 }

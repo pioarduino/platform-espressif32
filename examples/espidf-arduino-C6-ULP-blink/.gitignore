@@ -1,0 +1,5 @@
+.pio
+.vscode
+.dependencies.lock
+sdkconfig.esp32c6
+managed_components

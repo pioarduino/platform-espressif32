@@ -17,6 +17,7 @@ import re
 import subprocess
 import sys
 
+from platformio.compat import IS_WINDOWS
 from platformio.exception import PlatformioException
 from platformio.public import (
     DeviceMonitorFilterBase,
@@ -25,8 +26,6 @@ from platformio.public import (
 
 # By design, __init__ is called inside miniterm and we can't pass context to it.
 # pylint: disable=attribute-defined-outside-init
-
-IS_WINDOWS = sys.platform.startswith("win")
 
 
 class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
