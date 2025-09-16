@@ -48,6 +48,35 @@ platform_dir = Path(env.PioPlatform().get_dir())
 # Setup Python virtual environment and get executable paths
 PYTHON_EXE, esptool_binary_path = setup_python_environment(env, platform, platformio_dir)
 
+# Initialize board configuration and MCU settings
+board = env.BoardConfig()
+board_id = env.subst("$BOARD")
+mcu = board.get("build.mcu", "esp32")
+is_xtensa = mcu in ("esp32", "esp32s2", "esp32s3")
+toolchain_arch = "xtensa-%s" % mcu
+filesystem = board.get("build.filesystem", "littlefs")
+
+
+def load_board_script(env):
+    if not board_id:
+        return
+
+    script_path = platform_dir / "boards" / f"{board_id}.py"
+
+    if script_path.exists():
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"board_{board_id}", 
+                str(script_path)
+            )
+            board_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(board_module)
+
+            if hasattr(board_module, 'configure_board'):
+                board_module.configure_board(env)
+
+        except Exception as e:
+            print(f"Error loading board script {board_id}.py: {e}")
 
 def BeforeUpload(target, source, env):
     """
@@ -412,37 +441,6 @@ def switch_off_ldf():
         if not projectconfig.has_section(env_section):
             projectconfig.add_section(env_section)
         projectconfig.set(env_section, "lib_ldf_mode", "off")
-
-
-# Initialize board configuration and MCU settings
-board = env.BoardConfig()
-board_id = env.subst("$BOARD")
-mcu = board.get("build.mcu", "esp32")
-is_xtensa = mcu in ("esp32", "esp32s2", "esp32s3")
-toolchain_arch = "xtensa-%s" % mcu
-filesystem = board.get("build.filesystem", "littlefs")
-
-
-def load_board_script(env):
-    if not board_id:
-        return
-
-    script_path = platform_dir / "boards" / f"{board_id}.py"
-
-    if script_path.exists():
-        try:
-            spec = importlib.util.spec_from_file_location(
-                f"board_{board_id}", 
-                str(script_path)
-            )
-            board_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(board_module)
-
-            if hasattr(board_module, 'configure_board'):
-                board_module.configure_board(env)
-
-        except Exception as e:
-            print(f"Error loading board script {board_id}.py: {e}")
 
 
 # Set toolchain architecture for RISC-V based ESP32 variants
