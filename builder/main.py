@@ -39,14 +39,16 @@ from penv_setup import setup_python_environment
 # Initialize environment and configuration
 env = DefaultEnvironment()
 platform = env.PioPlatform()
+pioenv = env.subst("$PIOENV")
 projectconfig = env.GetProjectConfig()
 terminal_cp = locale.getpreferredencoding().lower()
-FRAMEWORK_DIR = platform.get_package_dir("framework-arduinoespressif32")
-platformio_dir = projectconfig.get("platformio", "core_dir")
 platform_dir = Path(env.PioPlatform().get_dir())
+framework_dir = platform.get_package_dir("framework-arduinoespressif32")
+core_dir = projectconfig.get("platformio", "core_dir")
+build_dir = Path(projectconfig.get("platformio", "build_dir"))
 
 # Setup Python virtual environment and get executable paths
-PYTHON_EXE, esptool_binary_path = setup_python_environment(env, platform, platformio_dir)
+PYTHON_EXE, esptool_binary_path = setup_python_environment(env, platform, core_dir)
 
 # Initialize board configuration and MCU settings
 board = env.BoardConfig()
@@ -443,6 +445,9 @@ def switch_off_ldf():
         projectconfig.set(env_section, "lib_ldf_mode", "off")
 
 
+# Board specific script
+load_board_script(env)
+
 # Set toolchain architecture for RISC-V based ESP32 variants
 if not is_xtensa:
     toolchain_arch = "riscv32-esp"
@@ -647,9 +652,6 @@ def firmware_metrics(target, source, env):
         print(f'Make sure esp-idf-size is installed: uv pip install --python "{PYTHON_EXE}" esp-idf-size')
 
 
-# Board specific script
-load_board_script(env)
-
 #
 # Target: Build executable and linkable firmware or FS image
 #
@@ -733,7 +735,7 @@ if upload_protocol == "espota":
             "espressif32.html#over-the-air-ota-update\n"
         )
     env.Replace(
-        UPLOADER=str(Path(FRAMEWORK_DIR).resolve() / "tools" / "espota.py"),
+        UPLOADER=str(Path(framework_dir).resolve() / "tools" / "espota.py"),
         UPLOADERFLAGS=["--debug", "--progress", "-i", "$UPLOAD_PORT"],
         UPLOADCMD=f'"{PYTHON_EXE}" "$UPLOADER" $UPLOADERFLAGS -f $SOURCE',
     )
