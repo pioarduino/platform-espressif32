@@ -9,20 +9,21 @@ def configure_board(env):
         
         # Install libraries using PlatformIO CLI
         try:
+            import subprocess
+            from pathlib import Path
+            pioenv = env.subst("$PIOENV")
+            project_dir = env.subst("$PROJECT_DIR")
+
             for lib in m5tab_deps:
                 lib_name = lib.split("/")[-1].replace(".git", "")
-                lib_path = Path(build_dir) / ".pio" / "libdeps" / pioenv / lib_name
-                
-                # Skip if already installed
-                if lib_path.exists():
-                    continue
-                    
+                lib_path = Path(project_dir) / ".pio" / "libdeps" / pioenv
+                print(f"M5stack ESP32-P4 Tab5: Installing library '{lib_name}' at '{lib_path}'")
                 try:
                     result = subprocess.run(
-                        ["platformio", "lib", "install", lib],
+                        ["platformio", "lib", "-e", pioenv, "-d", lib_path, "install", lib_name],
                         capture_output=True, 
                         text=True,
-                        cwd=build_dir,
+#                        cwd=project_dir,
                         timeout=60
                     )
                     
