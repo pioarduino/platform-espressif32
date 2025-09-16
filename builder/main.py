@@ -39,7 +39,6 @@ from penv_setup import setup_python_environment
 # Initialize environment and configuration
 env = DefaultEnvironment()
 platform = env.PioPlatform()
-pioenv = env.subst("$PIOENV")
 projectconfig = env.GetProjectConfig()
 terminal_cp = locale.getpreferredencoding().lower()
 platform_dir = Path(env.PioPlatform().get_dir())
