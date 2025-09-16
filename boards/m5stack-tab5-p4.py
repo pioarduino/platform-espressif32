@@ -16,14 +16,18 @@ def configure_board(env):
 
             for lib in m5tab_deps:
                 lib_name = lib.split("/")[-1].replace(".git", "")
-                lib_path = Path(project_dir) / ".pio" / "libdeps" / pioenv
-                print(f"M5stack ESP32-P4 Tab5: Installing library '{lib_name}' at '{lib_path}'")
+                lib_dir = Path(project_dir) / ".pio" / "libdeps" / pioenv
+                lib_path = Path(project_dir) / ".pio" / "libdeps" / pioenv / lib_name
+                
+                # Skip if already installed
+                if lib_path.exists() and (lib_path / ".piopm").exists():
+                    continue
+
                 try:
                     result = subprocess.run(
-                        ["platformio", "lib", "-e", pioenv, "-d", lib_path, "install", lib_name],
+                        ["platformio", "lib", "-e", pioenv, "-d", lib_dir, "install", lib_name],
                         capture_output=True, 
                         text=True,
-#                        cwd=project_dir,
                         timeout=60
                     )
                     
