@@ -563,7 +563,6 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
     # Get esptool path from tool-esptoolpy package (provided by tl-install)
     esptool_repo_path = platform.get_package_dir("tool-esptoolpy") or ""
     if not esptool_repo_path or not os.path.isdir(esptool_repo_path):
-        print(f"Warning: tool-esptoolpy package not available, skipping esptool installation")
         return
 
     # Check if esptool is already installed from the correct path
