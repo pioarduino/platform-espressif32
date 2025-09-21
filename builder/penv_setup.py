@@ -400,12 +400,11 @@ def install_esptool(env, platform, python_exe, uv_executable):
         sys.exit(1)
 
 
-def setup_python_environment(env, platform, platformio_dir):
+def setup_penv_minimal(platform, platformio_dir):
     """
-    Main function to setup the Python virtual environment and dependencies.
+    Minimal Python virtual environment setup without SCons dependencies.
     
     Args:
-        env: SCons environment object
         platform: PlatformIO platform object
         platformio_dir (str): Path to PlatformIO core directory
     
@@ -414,6 +413,21 @@ def setup_python_environment(env, platform, platformio_dir):
         
     Raises:
         SystemExit: If Python version < 3.10 or dependency installation fails
+    """
+    return _setup_python_environment_core(None, platform, platformio_dir)
+
+
+def _setup_python_environment_core(env, platform, platformio_dir):
+    """
+    Core Python environment setup logic shared by both SCons and minimal versions.
+    
+    Args:
+        env: SCons environment object (None for minimal setup)
+        platform: PlatformIO platform object
+        platformio_dir (str): Path to PlatformIO core directory
+    
+    Returns:
+        tuple[str, str]: (Path to penv Python executable, Path to esptool script)
     """
     # Check Python version requirement
     if sys.version_info < (3, 10):
@@ -427,11 +441,19 @@ def setup_python_environment(env, platform, platformio_dir):
     penv_dir = str(Path(platformio_dir) / "penv")
     
     # Setup virtual environment if needed
-    used_uv_executable = setup_pipenv_in_package(env, penv_dir)
+    if env is not None:
+        # SCons version
+        used_uv_executable = setup_pipenv_in_package(env, penv_dir)
+    else:
+        # Minimal version
+        used_uv_executable = _setup_pipenv_minimal(penv_dir)
     
-    # Set Python Scons Var to env Python
+    # Set Python executable path
     penv_python = get_executable_path(penv_dir, "python")
-    env.Replace(PYTHONEXE=penv_python)
+    
+    # Update SCons environment if available
+    if env is not None:
+        env.Replace(PYTHONEXE=penv_python)
     
     # check for python binary, exit with error when not found
     assert os.path.isfile(penv_python), f"Python executable not found: {penv_python}"
@@ -452,21 +474,152 @@ def setup_python_environment(env, platform, platformio_dir):
         print("Warning: No internet connection detected, Python dependency check will be skipped.")
 
     # Install esptool after dependencies
-    install_esptool(env, platform, penv_python, uv_executable)
+    if env is not None:
+        # SCons version
+        install_esptool(env, platform, penv_python, uv_executable)
+    else:
+        # Minimal version
+        _install_esptool_minimal(platform, penv_python, uv_executable)
 
     # Setup certifi environment variables
-    def setup_certifi_env():
+    _setup_certifi_env(env)
+
+    return penv_python, esptool_binary_path
+
+
+def _setup_pipenv_minimal(penv_dir):
+    """
+    Setup virtual environment without SCons dependencies.
+    
+    Args:
+        penv_dir (str): Path to virtual environment directory
+        
+    Returns:
+        str or None: Path to uv executable if uv was used, None if python -m venv was used
+    """
+    if not os.path.exists(penv_dir):
+        # First try to create virtual environment with uv
+        uv_success = False
+        uv_cmd = None
         try:
-            import certifi
-        except ImportError:
-            print("Info: certifi not available; skipping CA environment setup.")
+            # Derive uv path from current Python path
+            python_dir = os.path.dirname(sys.executable)
+            uv_exe_suffix = ".exe" if IS_WINDOWS else ""
+            uv_cmd = str(Path(python_dir) / f"uv{uv_exe_suffix}")
+            
+            # Fall back to system uv if derived path doesn't exist
+            if not os.path.isfile(uv_cmd):
+                uv_cmd = "uv"
+                
+            subprocess.check_call(
+                [uv_cmd, "venv", "--clear", f"--python={sys.executable}", penv_dir],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=90
+            )
+            uv_success = True
+            print(f"Created pioarduino Python virtual environment using uv: {penv_dir}")
+
+        except Exception:
+            pass
+        
+        # Fallback to python -m venv if uv failed or is not available
+        if not uv_success:
+            uv_cmd = None
+            cmd = f'"{sys.executable}" -m venv --clear "{penv_dir}"'
+            try:
+                subprocess.run(cmd, shell=True, check=True)
+                print(f"Created pioarduino Python virtual environment: {penv_dir}")
+            except subprocess.CalledProcessError as e:
+                sys.stderr.write(f"Error: Failed to create virtual environment: {e}\n")
+                sys.exit(1)
+        
+        # Verify that the virtual environment was created properly
+        # Check for python executable
+        assert os.path.isfile(
+            get_executable_path(penv_dir, "python")
+        ), f"Error: Failed to create a proper virtual environment. Missing the `python` binary! Created with uv: {uv_success}"
+        
+        return uv_cmd if uv_success else None
+    
+    return None
+
+
+def _install_esptool_minimal(platform, python_exe, uv_executable):
+    """
+    Install esptool from package folder "tool-esptoolpy" without SCons dependencies.
+    
+    Args:
+        platform: PlatformIO platform object  
+        python_exe (str): Path to Python executable in virtual environment
+        uv_executable (str): Path to uv executable
+    
+    Raises:
+        SystemExit: If esptool installation fails or package directory not found
+    """
+    esptool_repo_path = platform.get_package_dir("tool-esptoolpy") or ""
+    if not esptool_repo_path or not os.path.isdir(esptool_repo_path):
+        sys.stderr.write(
+            f"Error: 'tool-esptoolpy' package directory not found: {esptool_repo_path!r}\n"
+        )
+        sys.exit(1)
+
+    # Check if esptool is already installed from the correct path
+    try:
+        result = subprocess.run(
+            [
+                python_exe,
+                "-c",
+                (
+                    "import esptool, os, sys; "
+                    "expected_path = os.path.normcase(os.path.realpath(sys.argv[1])); "
+                    "actual_path = os.path.normcase(os.path.realpath(os.path.dirname(esptool.__file__))); "
+                    "print('MATCH' if actual_path.startswith(expected_path) else 'MISMATCH')"
+                ),
+                esptool_repo_path,
+            ],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=5
+        )
+        
+        if result.stdout.strip() == "MATCH":
             return
-        cert_path = certifi.where()
-        os.environ["CERTIFI_PATH"] = cert_path
-        os.environ["SSL_CERT_FILE"] = cert_path
-        os.environ["REQUESTS_CA_BUNDLE"] = cert_path
-        os.environ["CURL_CA_BUNDLE"] = cert_path
-        # Also propagate to SCons environment for future env.Execute calls
+            
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    try:
+        subprocess.check_call([
+            uv_executable, "pip", "install", "--quiet", "--force-reinstall",
+            f"--python={python_exe}",
+            "-e", esptool_repo_path
+        ], timeout=60)
+
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(
+            f"Error: Failed to install esptool from {esptool_repo_path} (exit {e.returncode})\n"
+        )
+        sys.exit(1)
+
+
+def _setup_certifi_env(env):
+    """Setup certifi environment variables with optional SCons integration."""
+    try:
+        import certifi
+    except ImportError:
+        print("Info: certifi not available; skipping CA environment setup.")
+        return
+    
+    cert_path = certifi.where()
+    os.environ["CERTIFI_PATH"] = cert_path
+    os.environ["SSL_CERT_FILE"] = cert_path
+    os.environ["REQUESTS_CA_BUNDLE"] = cert_path
+    os.environ["CURL_CA_BUNDLE"] = cert_path
+    
+    # Also propagate to SCons environment if available
+    if env is not None:
         env_vars = dict(env.get("ENV", {}))
         env_vars.update({
             "CERTIFI_PATH": cert_path,
@@ -476,6 +629,20 @@ def setup_python_environment(env, platform, platformio_dir):
         })
         env.Replace(ENV=env_vars)
 
-    setup_certifi_env()
 
-    return penv_python, esptool_binary_path
+def setup_python_environment(env, platform, platformio_dir):
+    """
+    Main function to setup the Python virtual environment and dependencies.
+    
+    Args:
+        env: SCons environment object
+        platform: PlatformIO platform object
+        platformio_dir (str): Path to PlatformIO core directory
+    
+    Returns:
+        tuple[str, str]: (Path to penv Python executable, Path to esptool script)
+        
+    Raises:
+        SystemExit: If Python version < 3.10 or dependency installation fails
+    """
+    return _setup_python_environment_core(env, platform, platformio_dir)

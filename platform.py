@@ -46,7 +46,7 @@ from platformio.package.manager.tool import ToolPackageManager
 
 # Import penv_setup functionality
 sys.path.insert(0, str(Path(__file__).parent / "builder"))
-from penv_setup import setup_python_environment
+from penv_setup import setup_python_environment, setup_penv_minimal
 
 
 # Constants
@@ -728,21 +728,20 @@ class Espressif32Platform(PlatformBase):
 
     def setup_python_env(self, env):
         """Setup Python virtual environment and return executable paths."""
-        # If penv was already set up in configure_default_packages, use that
-        if hasattr(self, '_penv_python'):
-            # Get esptool path from penv
-            from pathlib import Path
-            penv_dir = str(Path(self._penv_python).parent.parent)
-            from .builder.penv_setup import get_executable_path
-            esptool_binary_path = get_executable_path(penv_dir, "esptool")
-            return self._penv_python, esptool_binary_path
+        # Penv should already be set up in configure_default_packages
+        if hasattr(self, '_penv_python') and hasattr(self, '_esptool_path'):
+            # Update SCons environment with penv python
+            env.Replace(PYTHONEXE=self._penv_python)
+            return self._penv_python, self._esptool_path
         
-        # Fallback: Setup Python virtual environment if not done yet
+        # This should not happen, but provide fallback
+        logger.warning("Penv not set up in configure_default_packages, setting up now")
         config = ProjectConfig.get_instance()
         core_dir = config.get("platformio", "core_dir")
         
         python_exe, esptool_binary_path = setup_python_environment(env, self, core_dir)
         self._penv_python = python_exe
+        self._esptool_path = esptool_binary_path
         
         return python_exe, esptool_binary_path
 
@@ -757,14 +756,16 @@ class Espressif32Platform(PlatformBase):
         frameworks = list(variables.get("pioframework", []))  # Create copy
 
         try:
-            # FIRST: Setup Python virtual environment
+            # FIRST: Setup Python virtual environment completely
             config = ProjectConfig.get_instance()
             core_dir = config.get("platformio", "core_dir")
             
-            # Setup penv without SCons environment (we'll handle that later in setup_python_env)
-            # For now, just prepare the penv directory and mark that we need to set it up
-            self._core_dir = core_dir
-            self._penv_setup_needed = True
+            # Setup penv using minimal function (no SCons dependencies)
+            penv_python, esptool_path = setup_penv_minimal(self, core_dir)
+            
+            # Store both for later use
+            self._penv_python = penv_python
+            self._esptool_path = esptool_path
             
             # Configuration steps (now with penv available)
             self._configure_installer()
