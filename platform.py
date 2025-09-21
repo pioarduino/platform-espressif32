@@ -46,11 +46,11 @@ from platformio.package.manager.tool import ToolPackageManager
 
 # Import penv_setup functionality
 try:
-    from .builder.penv_setup import setup_python_environment, setup_penv_minimal, get_executable_path
+    from .builder.penv_setup import setup_penv_simple, get_executable_path
 except ImportError:
     # Fallback for standalone execution
     sys.path.insert(0, str(Path(__file__).parent / "builder"))
-    from penv_setup import setup_python_environment, setup_penv_minimal, get_executable_path
+    from penv_setup import setup_penv_simple, get_executable_path
 
 
 # Constants
@@ -740,14 +740,9 @@ class Espressif32Platform(PlatformBase):
         
         # This should not happen, but provide fallback
         logger.warning("Penv not set up in configure_default_packages, setting up now")
-        config = ProjectConfig.get_instance()
-        core_dir = config.get("platformio", "core_dir")
         
-        python_exe, esptool_binary_path = setup_python_environment(env, self, core_dir)
-        self._penv_python = python_exe
-        self._esptool_path = esptool_binary_path
-        
-        return python_exe, esptool_binary_path
+        # Use the centralized setup method
+        return self.setup_python_env(env)
 
     def configure_default_packages(self, variables: Dict, targets: List[str]) -> Any:
         """Main configuration method with optimized package management."""
@@ -768,8 +763,8 @@ class Espressif32Platform(PlatformBase):
             config = ProjectConfig.get_instance()
             core_dir = config.get("platformio", "core_dir")
             
-            # Setup penv using minimal function (no SCons dependencies, esptool from tl-install)
-            penv_python, esptool_path = setup_penv_minimal(self, core_dir, install_esptool=True)
+            # Setup penv using simple function (no SCons dependencies, esptool from tl-install)
+            penv_python, esptool_path = setup_penv_simple(self, core_dir)
             
             # Store both for later use
             self._penv_python = penv_python
