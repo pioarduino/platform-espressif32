@@ -42,12 +42,7 @@ from platformio.public import PlatformBase, to_unix_path
 from platformio.proc import get_pythonexe_path
 from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
-
-# Import penv_setup functionality
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent / "builder"))
-from penv_setup import setup_python_environment
+from .builder.penv_setup import setup_python_environment
 
 # Constants
 DEFAULT_DEBUG_SPEED = "5000"
