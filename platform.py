@@ -761,15 +761,10 @@ class Espressif32Platform(PlatformBase):
             config = ProjectConfig.get_instance()
             core_dir = config.get("platformio", "core_dir")
             
-            # Create a dummy env object for setup_python_environment
-            # This is needed because configure_default_packages doesn't receive an env parameter
-            from SCons.Script import DefaultEnvironment
-            temp_env = DefaultEnvironment()
-            
-            penv_python, _ = setup_python_environment(temp_env, self, core_dir)
-            
-            # Store penv_python for use in tool installations
-            self._penv_python = penv_python
+            # Setup penv without SCons environment (we'll handle that later in setup_python_env)
+            # For now, just prepare the penv directory and mark that we need to set it up
+            self._core_dir = core_dir
+            self._penv_setup_needed = True
             
             # Configuration steps (now with penv available)
             self._configure_installer()
