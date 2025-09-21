@@ -23,14 +23,14 @@ https://github.com/espressif/esp-idf
 import copy
 import importlib.util
 import json
-import subprocess
-import sys
-import shutil
 import os
-from os.path import join
+import platform as sys_platform
 import re
 import requests
-import platform as sys_platform
+import shutil
+import subprocess
+import sys
+from os.path import join
 from pathlib import Path
 from urllib.parse import urlsplit, unquote
 

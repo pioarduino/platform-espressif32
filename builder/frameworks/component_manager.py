@@ -12,9 +12,9 @@ import os
 import shutil
 import re
 import yaml
-from yaml import SafeLoader
 from pathlib import Path
 from typing import Set, Optional, Dict, Any, List, Tuple, Pattern
+from yaml import SafeLoader
 
 
 class ComponentManagerConfig:

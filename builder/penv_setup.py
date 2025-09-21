@@ -15,11 +15,11 @@
 import json
 import os
 import re
-import site
 import semantic_version
+import site
+import socket
 import subprocess
 import sys
-import socket
 from pathlib import Path
 
 from platformio.package.version import pepver_to_semver

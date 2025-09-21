@@ -26,14 +26,14 @@ else:
     del _lzma
 
 import fnmatch
-import os
 import json
+import logging
+import os
 import requests
+import shutil
 import socket
 import subprocess
 import sys
-import shutil
-import logging
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Union
 
@@ -45,8 +45,12 @@ from platformio.package.manager.tool import ToolPackageManager
 
 
 # Import penv_setup functionality
-sys.path.insert(0, str(Path(__file__).parent / "builder"))
-from penv_setup import setup_python_environment, setup_penv_minimal, get_executable_path
+try:
+    from .builder.penv_setup import setup_python_environment, setup_penv_minimal, get_executable_path
+except ImportError:
+    # Fallback for standalone execution
+    sys.path.insert(0, str(Path(__file__).parent / "builder"))
+    from penv_setup import setup_python_environment, setup_penv_minimal, get_executable_path
 
 
 # Constants

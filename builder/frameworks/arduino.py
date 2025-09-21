@@ -22,10 +22,10 @@ kinds of creative coding, interactive objects, spaces or physical experiences.
 http://arduino.cc/en/Reference/HomePage
 """
 
-import os
-import sys
-import shutil
 import hashlib
+import os
+import shutil
+import sys
 import threading
 from contextlib import suppress
 from os.path import join, exists, isabs, splitdrive, commonpath, relpath
