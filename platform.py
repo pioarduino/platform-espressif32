@@ -46,11 +46,11 @@ from platformio.package.manager.tool import ToolPackageManager
 
 # Import penv_setup functionality
 try:
-    from .builder.penv_setup import setup_penv_simple, get_executable_path
+    from .builder.penv_setup import setup_penv_minimal, get_executable_path
 except ImportError:
     # Fallback for standalone execution
     sys.path.insert(0, str(Path(__file__).parent / "builder"))
-    from penv_setup import setup_penv_simple, get_executable_path
+    from penv_setup import setup_penv_minimal, get_executable_path
 
 
 # Constants
@@ -763,8 +763,8 @@ class Espressif32Platform(PlatformBase):
             config = ProjectConfig.get_instance()
             core_dir = config.get("platformio", "core_dir")
             
-            # Setup penv using simple function (no SCons dependencies, esptool from tl-install)
-            penv_python, esptool_path = setup_penv_simple(self, core_dir)
+            # Setup penv using minimal function (no SCons dependencies, esptool from tl-install)
+            penv_python, esptool_path = setup_penv_minimal(self, core_dir, install_esptool=True)
             
             # Store both for later use
             self._penv_python = penv_python
