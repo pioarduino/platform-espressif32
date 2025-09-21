@@ -400,13 +400,14 @@ def install_esptool(env, platform, python_exe, uv_executable):
         sys.exit(1)
 
 
-def setup_penv_minimal(platform, platformio_dir):
+def setup_penv_minimal(platform, platformio_dir, install_esptool=True):
     """
     Minimal Python virtual environment setup without SCons dependencies.
     
     Args:
         platform: PlatformIO platform object
         platformio_dir (str): Path to PlatformIO core directory
+        install_esptool (bool): Whether to install esptool (default: True)
     
     Returns:
         tuple[str, str]: (Path to penv Python executable, Path to esptool script)
@@ -414,10 +415,10 @@ def setup_penv_minimal(platform, platformio_dir):
     Raises:
         SystemExit: If Python version < 3.10 or dependency installation fails
     """
-    return _setup_python_environment_core(None, platform, platformio_dir)
+    return _setup_python_environment_core(None, platform, platformio_dir, install_esptool)
 
 
-def _setup_python_environment_core(env, platform, platformio_dir):
+def _setup_python_environment_core(env, platform, platformio_dir, install_esptool=True):
     """
     Core Python environment setup logic shared by both SCons and minimal versions.
     
@@ -425,6 +426,7 @@ def _setup_python_environment_core(env, platform, platformio_dir):
         env: SCons environment object (None for minimal setup)
         platform: PlatformIO platform object
         platformio_dir (str): Path to PlatformIO core directory
+        install_esptool (bool): Whether to install esptool (default: True)
     
     Returns:
         tuple[str, str]: (Path to penv Python executable, Path to esptool script)
@@ -473,13 +475,14 @@ def _setup_python_environment_core(env, platform, platformio_dir):
     else:
         print("Warning: No internet connection detected, Python dependency check will be skipped.")
 
-    # Install esptool after dependencies
-    if env is not None:
-        # SCons version
-        install_esptool(env, platform, penv_python, uv_executable)
-    else:
-        # Minimal version
-        _install_esptool_minimal(platform, penv_python, uv_executable)
+    # Install esptool after dependencies (if requested)
+    if install_esptool:
+        if env is not None:
+            # SCons version
+            install_esptool(env, platform, penv_python, uv_executable)
+        else:
+            # Minimal version
+            _install_esptool_minimal(platform, penv_python, uv_executable)
 
     # Setup certifi environment variables
     _setup_certifi_env(env)
@@ -604,6 +607,20 @@ def _install_esptool_minimal(platform, python_exe, uv_executable):
         sys.exit(1)
 
 
+def install_esptool_into_penv(platform, penv_python):
+    """
+    Install esptool into an existing penv.
+    
+    Args:
+        platform: PlatformIO platform object
+        penv_python (str): Path to penv Python executable
+    """
+    from pathlib import Path
+    penv_dir = str(Path(penv_python).parent.parent)
+    uv_executable = get_executable_path(penv_dir, "uv")
+    _install_esptool_minimal(platform, penv_python, uv_executable)
+
+
 def _setup_certifi_env(env):
     """Setup certifi environment variables with optional SCons integration."""
     try:
@@ -645,4 +662,4 @@ def setup_python_environment(env, platform, platformio_dir):
     Raises:
         SystemExit: If Python version < 3.10 or dependency installation fails
     """
-    return _setup_python_environment_core(env, platform, platformio_dir)
+    return _setup_python_environment_core(env, platform, platformio_dir, install_esptool=True)
