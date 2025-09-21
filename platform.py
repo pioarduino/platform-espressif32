@@ -396,14 +396,17 @@ class Espressif32Platform(PlatformBase):
             'tool_exists': Path(paths['tool_path']).exists()
         }
 
-    def _run_idf_tools_install(self, tools_json_path: str, idf_tools_path: str) -> bool:
+    def _run_idf_tools_install(self, tools_json_path: str, idf_tools_path: str, penv_python: str = None) -> bool:
         """
         Execute idf_tools.py install command.
         Note: No timeout is set to allow installations to complete on slow networks.
         The tool-esp_install handles the retry logic.
         """
+        # Use penv Python if available, fallback to system Python
+        python_executable = penv_python or python_exe
+        
         cmd = [
-            python_exe,
+            python_executable,
             idf_tools_path,
             "--quiet",
             "--non-interactive",
@@ -473,22 +476,25 @@ class Espressif32Platform(PlatformBase):
         paths = self._get_tool_paths(tool_name)
         status = self._check_tool_status(tool_name)
 
+        # Get penv python if available
+        penv_python = getattr(self, '_penv_python', None)
+
         # Case 1: New installation with idf_tools
         if status['has_idf_tools'] and status['has_tools_json']:
-            return self._install_with_idf_tools(tool_name, paths)
+            return self._install_with_idf_tools(tool_name, paths, penv_python)
 
         # Case 2: Tool already installed, version check
         if (status['has_idf_tools'] and status['has_piopm'] and
                 not status['has_tools_json']):
-            return self._handle_existing_tool(tool_name, paths)
+            return self._handle_existing_tool(tool_name, paths, penv_python)
 
         logger.debug(f"Tool {tool_name} already configured")
         return True
 
-    def _install_with_idf_tools(self, tool_name: str, paths: Dict[str, str]) -> bool:
+    def _install_with_idf_tools(self, tool_name: str, paths: Dict[str, str], penv_python: str = None) -> bool:
         """Install tool using idf_tools.py installation method."""
         if not self._run_idf_tools_install(
-            paths['tools_json_path'], paths['idf_tools_path']
+            paths['tools_json_path'], paths['idf_tools_path'], penv_python
         ):
             return False
 
@@ -506,7 +512,7 @@ class Espressif32Platform(PlatformBase):
         logger.info(f"Tool {tool_name} successfully installed")
         return True
 
-    def _handle_existing_tool(self, tool_name: str, paths: Dict[str, str]) -> bool:
+    def _handle_existing_tool(self, tool_name: str, paths: Dict[str, str], penv_python: str = None) -> bool:
         """Handle already installed tools with version checking."""
         if self._check_tool_version(tool_name):
             # Version matches, use tool
@@ -717,11 +723,21 @@ class Espressif32Platform(PlatformBase):
 
     def setup_python_env(self, env):
         """Setup Python virtual environment and return executable paths."""
+        # If penv was already set up in configure_default_packages, use that
+        if hasattr(self, '_penv_python'):
+            # Get esptool path from penv
+            from pathlib import Path
+            penv_dir = str(Path(self._penv_python).parent.parent)
+            from .builder.penv_setup import get_executable_path
+            esptool_binary_path = get_executable_path(penv_dir, "esptool")
+            return self._penv_python, esptool_binary_path
+        
+        # Fallback: Setup Python virtual environment if not done yet
         config = ProjectConfig.get_instance()
         core_dir = config.get("platformio", "core_dir")
         
-        # Setup Python virtual environment and get executable paths
         python_exe, esptool_binary_path = setup_python_environment(env, self, core_dir)
+        self._penv_python = python_exe
         
         return python_exe, esptool_binary_path
 
@@ -736,7 +752,21 @@ class Espressif32Platform(PlatformBase):
         frameworks = list(variables.get("pioframework", []))  # Create copy
 
         try:
-            # Configuration steps
+            # FIRST: Setup Python virtual environment
+            config = ProjectConfig.get_instance()
+            core_dir = config.get("platformio", "core_dir")
+            
+            # Create a dummy env object for setup_python_environment
+            # This is needed because configure_default_packages doesn't receive an env parameter
+            from SCons.Script import DefaultEnvironment
+            temp_env = DefaultEnvironment()
+            
+            penv_python, _ = setup_python_environment(temp_env, self, core_dir)
+            
+            # Store penv_python for use in tool installations
+            self._penv_python = penv_python
+            
+            # Configuration steps (now with penv available)
             self._configure_installer()
             self._install_esptool_package()
             self._configure_arduino_framework(frameworks)
