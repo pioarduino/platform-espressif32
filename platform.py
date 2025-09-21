@@ -43,6 +43,12 @@ from platformio.proc import get_pythonexe_path
 from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
 
+# Import penv_setup functionality
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent / "builder"))
+from penv_setup import setup_python_environment
+
 # Constants
 DEFAULT_DEBUG_SPEED = "5000"
 DEFAULT_APP_OFFSET = "0x10000"
@@ -713,6 +719,16 @@ class Espressif32Platform(PlatformBase):
 
         if "downloadfs" in targets:
             self._install_filesystem_tool(filesystem, for_download=True)
+
+    def setup_python_env(self, env):
+        """Setup Python virtual environment and return executable paths."""
+        config = ProjectConfig.get_instance()
+        core_dir = config.get("platformio", "core_dir")
+        
+        # Setup Python virtual environment and get executable paths
+        python_exe, esptool_binary_path = setup_python_environment(env, self, core_dir)
+        
+        return python_exe, esptool_binary_path
 
     def configure_default_packages(self, variables: Dict, targets: List[str]) -> Any:
         """Main configuration method with optimized package management."""

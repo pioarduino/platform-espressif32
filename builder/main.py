@@ -34,7 +34,6 @@ from SCons.Script import (
 from platformio.project.helpers import get_project_dir
 from platformio.util import get_serial_ports
 from platformio.compat import IS_WINDOWS
-from penv_setup import setup_python_environment
 
 # Initialize environment and configuration
 env = DefaultEnvironment()
@@ -47,7 +46,7 @@ core_dir = projectconfig.get("platformio", "core_dir")
 build_dir = Path(projectconfig.get("platformio", "build_dir"))
 
 # Setup Python virtual environment and get executable paths
-PYTHON_EXE, esptool_binary_path = setup_python_environment(env, platform, core_dir)
+PYTHON_EXE, esptool_binary_path = platform.setup_python_env(env)
 
 # Initialize board configuration and MCU settings
 board = env.BoardConfig()
