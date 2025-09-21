@@ -481,8 +481,8 @@ def _setup_python_environment_core(env, platform, platformio_dir, install_esptoo
             # SCons version
             install_esptool(env, platform, penv_python, uv_executable)
         else:
-            # Minimal version
-            _install_esptool_minimal(platform, penv_python, uv_executable)
+            # Minimal version - install esptool from tl-install provided path
+            _install_esptool_from_tl_install(platform, penv_python, uv_executable)
 
     # Setup certifi environment variables
     _setup_certifi_env(env)
@@ -548,9 +548,9 @@ def _setup_pipenv_minimal(penv_dir):
     return None
 
 
-def _install_esptool_minimal(platform, python_exe, uv_executable):
+def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
     """
-    Install esptool from package folder "tool-esptoolpy" without SCons dependencies.
+    Install esptool from tl-install provided path into penv.
     
     Args:
         platform: PlatformIO platform object  
@@ -560,12 +560,11 @@ def _install_esptool_minimal(platform, python_exe, uv_executable):
     Raises:
         SystemExit: If esptool installation fails or package directory not found
     """
+    # Get esptool path from tool-esptoolpy package (provided by tl-install)
     esptool_repo_path = platform.get_package_dir("tool-esptoolpy") or ""
     if not esptool_repo_path or not os.path.isdir(esptool_repo_path):
-        sys.stderr.write(
-            f"Error: 'tool-esptoolpy' package directory not found: {esptool_repo_path!r}\n"
-        )
-        sys.exit(1)
+        print(f"Warning: tool-esptoolpy package not available, skipping esptool installation")
+        return
 
     # Check if esptool is already installed from the correct path
     try:
@@ -599,26 +598,14 @@ def _install_esptool_minimal(platform, python_exe, uv_executable):
             f"--python={python_exe}",
             "-e", esptool_repo_path
         ], timeout=60)
+        print(f"Installed esptool from tl-install path: {esptool_repo_path}")
 
     except subprocess.CalledProcessError as e:
-        sys.stderr.write(
-            f"Error: Failed to install esptool from {esptool_repo_path} (exit {e.returncode})\n"
-        )
-        sys.exit(1)
+        print(f"Warning: Failed to install esptool from {esptool_repo_path} (exit {e.returncode})")
+        # Don't exit - esptool installation is not critical for penv setup
 
 
-def install_esptool_into_penv(platform, penv_python):
-    """
-    Install esptool into an existing penv.
-    
-    Args:
-        platform: PlatformIO platform object
-        penv_python (str): Path to penv Python executable
-    """
-    from pathlib import Path
-    penv_dir = str(Path(penv_python).parent.parent)
-    uv_executable = get_executable_path(penv_dir, "uv")
-    _install_esptool_minimal(platform, penv_python, uv_executable)
+
 
 
 def _setup_certifi_env(env):

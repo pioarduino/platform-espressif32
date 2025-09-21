@@ -46,7 +46,7 @@ from platformio.package.manager.tool import ToolPackageManager
 
 # Import penv_setup functionality
 sys.path.insert(0, str(Path(__file__).parent / "builder"))
-from penv_setup import setup_python_environment, setup_penv_minimal, install_esptool_into_penv
+from penv_setup import setup_python_environment, setup_penv_minimal, get_executable_path
 
 
 # Constants
@@ -764,21 +764,14 @@ class Espressif32Platform(PlatformBase):
             config = ProjectConfig.get_instance()
             core_dir = config.get("platformio", "core_dir")
             
-            # Setup penv using minimal function (no SCons dependencies, skip esptool for now)
-            penv_python, esptool_path = setup_penv_minimal(self, core_dir, install_esptool=False)
+            # Setup penv using minimal function (no SCons dependencies, esptool from tl-install)
+            penv_python, esptool_path = setup_penv_minimal(self, core_dir, install_esptool=True)
             
-            # Store penv python for later use
+            # Store both for later use
             self._penv_python = penv_python
+            self._esptool_path = esptool_path
             
             # Configuration steps (now with penv available)
-            # Install esptool into penv after tool-esptoolpy package is available
-            install_esptool_into_penv(self, penv_python)
-            
-            # Update esptool path
-            from pathlib import Path
-            from .builder.penv_setup import get_executable_path
-            penv_dir = str(Path(penv_python).parent.parent)
-            self._esptool_path = get_executable_path(penv_dir, "esptool")
             self._configure_arduino_framework(frameworks)
             self._configure_espidf_framework(frameworks, variables, board_config, mcu)
             self._configure_mcu_toolchains(mcu, variables, targets)
