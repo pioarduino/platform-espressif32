@@ -223,7 +223,7 @@ def install_python_deps(python_exe, external_uv_executable):
                     [external_uv_executable, "pip", "install", "uv>=0.1.0", f"--python={python_exe}", "--quiet"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.STDOUT,
-                    timeout=120
+                    timeout=300
                 )
             except subprocess.CalledProcessError as e:
                 print(f"Error: uv installation failed with exit code {e.returncode}")
@@ -244,7 +244,7 @@ def install_python_deps(python_exe, external_uv_executable):
                     [python_exe, "-m", "pip", "install", "uv>=0.1.0", "--quiet"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.STDOUT,
-                    timeout=120
+                    timeout=300
                 )
             except subprocess.CalledProcessError as e:
                 print(f"Error: uv installation via pip failed with exit code {e.returncode}")
@@ -275,7 +275,7 @@ def install_python_deps(python_exe, external_uv_executable):
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
-                timeout=120
+                timeout=300
             )
             
             if result_obj.returncode == 0:
@@ -323,7 +323,7 @@ def install_python_deps(python_exe, external_uv_executable):
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT,
-                timeout=120
+                timeout=300
             )
                 
         except subprocess.CalledProcessError as e:
@@ -452,7 +452,9 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
         env.Replace(PYTHONEXE=penv_python)
     
     # check for python binary, exit with error when not found
-    assert os.path.isfile(penv_python), f"Python executable not found: {penv_python}"
+    if not os.path.isfile(penv_python):
+        sys.stderr.write(f"Error: Python executable not found: {penv_python}\n")
+        sys.exit(1)
     
     # Setup Python module search paths
     setup_python_paths(penv_dir)
@@ -562,7 +564,7 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
     # Get esptool path from tool-esptoolpy package (provided by tl-install)
     esptool_repo_path = platform.get_package_dir("tool-esptoolpy") or ""
     if not esptool_repo_path or not os.path.isdir(esptool_repo_path):
-        return
+        return (None, None)
 
     # Check if esptool is already installed from the correct path
     try:
