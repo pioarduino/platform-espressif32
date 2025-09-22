@@ -22,10 +22,10 @@ kinds of creative coding, interactive objects, spaces or physical experiences.
 http://arduino.cc/en/Reference/HomePage
 """
 
-import os
-import sys
-import shutil
 import hashlib
+import os
+import shutil
+import sys
 import threading
 from contextlib import suppress
 from os.path import join, exists, isabs, splitdrive, commonpath, relpath
@@ -886,7 +886,7 @@ if check_reinstall_frwrk():
 if flag_custom_sdkconfig and not flag_any_custom_sdkconfig:
     call_compile_libs()
 
-# Main logic for Arduino Framework
+# Arduino framework configuration and build logic
 pioframework = env.subst("$PIOFRAMEWORK")
 arduino_lib_compile_flag = env.subst("$ARDUINO_LIB_COMPILE_FLAG")
 

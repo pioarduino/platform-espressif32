@@ -23,14 +23,14 @@ https://github.com/espressif/esp-idf
 import copy
 import importlib.util
 import json
-import subprocess
-import sys
-import shutil
 import os
-from os.path import join
+import platform as sys_platform
 import re
 import requests
-import platform as sys_platform
+import shutil
+import subprocess
+import sys
+from os.path import join
 from pathlib import Path
 from urllib.parse import urlsplit, unquote
 
@@ -1668,6 +1668,7 @@ def get_python_exe():
     if not os.path.isfile(python_exe_path):
         sys.stderr.write("Error: Missing Python executable file `%s`\n" % python_exe_path)
         env.Exit(1)
+
     return python_exe_path
 
 
@@ -1677,8 +1678,8 @@ def get_python_exe():
 
 ensure_python_venv_available()
 
-# ESP-IDF package doesn't contain .git folder, instead package version is specified
-# in a special file "version.h" in the root folder of the package
+# ESP-IDF package version is determined from version.h file
+# since the package distribution doesn't include .git metadata
 
 create_version_file()
 
@@ -1717,7 +1718,7 @@ if not board.get("build.ldscript", ""):
 
 
 #
-# Current build script limitations
+# Known build system limitations
 #
 
 if any(" " in p for p in (FRAMEWORK_DIR, BUILD_DIR)):
@@ -1756,12 +1757,12 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
         LIBSOURCE_DIRS=[str(Path(ARDUINO_FRAMEWORK_DIR) / "libraries")]
     )
 
-# Set ESP-IDF version environment variables (needed for proper Kconfig processing)
+# Configure ESP-IDF version environment variables for Kconfig processing
 framework_version = get_framework_version()
 major_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
 os.environ["ESP_IDF_VERSION"] = major_version
 
-# Configure CMake arguments with ESP-IDF version
+# Setup CMake configuration arguments
 extra_cmake_args = [
     "-DIDF_TARGET=" + idf_variant,
     "-DPYTHON_DEPS_CHECKED=1",
@@ -1855,7 +1856,7 @@ if flag_custom_sdkonfig == False:
     env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", build_bootloader(sdk_config))
 
 #
-# Target: ESP-IDF menuconfig
+# ESP-IDF menuconfig target implementation
 #
 
 env.AddPlatformTarget(
@@ -2000,8 +2001,8 @@ if "__test" not in COMMAND_LINE_TARGETS or env.GetProjectOption(
 ):
     project_env = env.Clone()
     if project_target_name != "__idf_main":
-        # Manually add dependencies to CPPPATH since ESP-IDF build system doesn't generate
-        # this info if the folder with sources is not named 'main'
+        # Add dependencies to CPPPATH for non-main source directories
+        # ESP-IDF build system requires manual dependency handling for custom source folders
         # https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#rename-main
         project_env.AppendUnique(CPPPATH=app_includes["plain_includes"])
 
@@ -2049,7 +2050,7 @@ if board_flash_size != idf_flash_size:
 #
 
 extra_elf2bin_flags = "--elf-sha256-offset 0xb0"
-# https://github.com/espressif/esp-idf/blob/master/components/esptool_py/project_include.cmake#L58
+# Reference: ESP-IDF esptool_py component configuration
 # For chips that support configurable MMU page size feature
 # If page size is configured to values other than the default "64KB" in menuconfig,
 mmu_page_size = "64KB"
