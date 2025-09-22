@@ -886,7 +886,7 @@ if check_reinstall_frwrk():
 if flag_custom_sdkconfig and not flag_any_custom_sdkconfig:
     call_compile_libs()
 
-# Main logic for Arduino Framework
+# Arduino framework configuration and build logic
 pioframework = env.subst("$PIOFRAMEWORK")
 arduino_lib_compile_flag = env.subst("$ARDUINO_LIB_COMPILE_FLAG")
 

@@ -35,7 +35,7 @@ from platformio.project.helpers import get_project_dir
 from platformio.util import get_serial_ports
 from platformio.compat import IS_WINDOWS
 
-# Initialize environment and configuration
+# Initialize SCons environment and project configuration
 env = DefaultEnvironment()
 platform = env.PioPlatform()
 projectconfig = env.GetProjectConfig()
@@ -45,10 +45,10 @@ framework_dir = platform.get_package_dir("framework-arduinoespressif32")
 core_dir = projectconfig.get("platformio", "core_dir")
 build_dir = Path(projectconfig.get("platformio", "build_dir"))
 
-# Setup Python virtual environment and get executable paths
+# Configure Python environment through centralized platform management
 PYTHON_EXE, esptool_binary_path = platform.setup_python_env(env)
 
-# Initialize board configuration and MCU settings
+# Load board configuration and determine MCU architecture
 board = env.BoardConfig()
 board_id = env.subst("$BOARD")
 mcu = board.get("build.mcu", "esp32")
@@ -450,7 +450,7 @@ load_board_script(env)
 if not is_xtensa:
     toolchain_arch = "riscv32-esp"
 
-# Initialize integration extra data if not present
+# Ensure integration extra data structure exists
 if "INTEGRATION_EXTRA_DATA" not in env:
     env["INTEGRATION_EXTRA_DATA"] = {}
 
@@ -460,7 +460,7 @@ uploader_path = (
     if ' ' in esptool_binary_path 
     else esptool_binary_path
 )
-# Configure build tools and environment variables
+# Configure SCons build tools and compiler settings
 env.Replace(
     __get_board_boot_mode=_get_board_boot_mode,
     __get_board_f_flash=_get_board_f_flash,
@@ -636,7 +636,7 @@ def firmware_metrics(target, source, env):
         if env.GetProjectOption("custom_esp_idf_size_verbose", False):
             print(f"Running command: {' '.join(cmd)}")
         
-        # Call esp-idf-size with modified environment
+        # Execute esp-idf-size with current environment
         result = subprocess.run(cmd, check=False, capture_output=False, env=os.environ)
         
         if result.returncode != 0:

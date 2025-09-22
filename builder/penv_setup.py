@@ -41,7 +41,7 @@ PLATFORMIO_URL_VERSION_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Python dependencies required for the build process
+# Python dependencies required for ESP32 platform builds
 python_deps = {
     "platformio": "https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.18.zip",
     "pyyaml": ">=6.0.2",
@@ -89,7 +89,7 @@ def setup_pipenv_in_package(env, penv_dir):
         str or None: Path to uv executable if uv was used, None if python -m venv was used
     """
     if not os.path.exists(penv_dir):
-        # First try to create virtual environment with uv
+        # Attempt virtual environment creation using uv package manager
         uv_success = False
         uv_cmd = None
         try:
@@ -125,8 +125,8 @@ def setup_pipenv_in_package(env, penv_dir):
                 )
             )
         
-        # Verify that the virtual environment was created properly
-        # Check for python executable
+        # Validate virtual environment creation
+        # Ensure Python executable is available
         assert os.path.isfile(
             get_executable_path(penv_dir, "python")
         ), f"Error: Failed to create a proper virtual environment. Missing the `python` binary! Created with uv: {uv_success}"
@@ -432,7 +432,7 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
     """
     penv_dir = str(Path(platformio_dir) / "penv")
     
-    # Setup virtual environment if needed
+    # Create virtual environment if not present
     if env is not None:
         # SCons version
         used_uv_executable = setup_pipenv_in_package(env, penv_dir)
@@ -457,7 +457,7 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
     esptool_binary_path = get_executable_path(penv_dir, "esptool")
     uv_executable = get_executable_path(penv_dir, "uv")
 
-    # Install espressif32 Python dependencies
+    # Install required Python dependencies for ESP32 platform
     if has_internet_connection() or github_actions:
         if not install_python_deps(penv_python, used_uv_executable):
             sys.stderr.write("Error: Failed to install Python dependencies into penv\n")
@@ -465,13 +465,13 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
     else:
         print("Warning: No internet connection detected, Python dependency check will be skipped.")
 
-    # Install esptool after dependencies (if requested)
+    # Install esptool package if required
     if should_install_esptool:
         if env is not None:
             # SCons version
             install_esptool(env, platform, penv_python, uv_executable)
         else:
-            # Minimal version - install esptool from tl-install provided path
+            # Minimal setup - install esptool from tool package
             _install_esptool_from_tl_install(platform, penv_python, uv_executable)
 
     # Setup certifi environment variables
@@ -491,7 +491,7 @@ def _setup_pipenv_minimal(penv_dir):
         str or None: Path to uv executable if uv was used, None if python -m venv was used
     """
     if not os.path.exists(penv_dir):
-        # First try to create virtual environment with uv
+        # Attempt virtual environment creation using uv package manager
         uv_success = False
         uv_cmd = None
         try:
@@ -528,8 +528,8 @@ def _setup_pipenv_minimal(penv_dir):
                 sys.stderr.write(f"Error: Failed to create virtual environment: {e}\n")
                 sys.exit(1)
         
-        # Verify that the virtual environment was created properly
-        # Check for python executable
+        # Validate virtual environment creation
+        # Ensure Python executable is available
         assert os.path.isfile(
             get_executable_path(penv_dir, "python")
         ), f"Error: Failed to create a proper virtual environment. Missing the `python` binary! Created with uv: {uv_success}"

@@ -252,7 +252,7 @@ class ComponentHandler:
         Returns:
             Absolute path to the component YAML file
         """
-        # Try Arduino framework first
+        # Check Arduino framework directory first
         afd = self.config.arduino_framework_dir
         framework_yml = str(Path(afd) / "idf_component.yml") if afd else ""
         if framework_yml and os.path.exists(framework_yml):

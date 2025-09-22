@@ -45,7 +45,7 @@ from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
 
 
-# Import penv_setup functionality using explicit module loading
+# Import penv_setup functionality using explicit module loading for centralized Python environment management
 penv_setup_path = Path(__file__).parent / "builder" / "penv_setup.py"
 spec = importlib.util.spec_from_file_location("penv_setup", str(penv_setup_path))
 penv_setup_module = importlib.util.module_from_spec(spec)
@@ -226,7 +226,7 @@ class Espressif32Platform(PlatformBase):
             logger.debug(f"No version check required for {tl_install_name}")
             return True
         
-        # Check if tool is already installed
+        # Check current installation status
         tl_install_path = self.packages_dir / tl_install_name
         package_json_path = tl_install_path / "package.json"
         
@@ -244,10 +244,10 @@ class Espressif32Platform(PlatformBase):
                 logger.warning(f"Installed version for {tl_install_name} unknown, installing {required_version}")
                 return self._install_tl_install(required_version)
             
-            # IMPORTANT: Compare versions correctly
+            # Compare versions to avoid unnecessary reinstallation
             if self._compare_tl_install_versions(installed_version, required_version):
                 logger.debug(f"{tl_install_name} version {installed_version} is already correctly installed")
-                # IMPORTANT: Set package as available, but do NOT reinstall
+                # Mark package as available without reinstalling
                 self.packages[tl_install_name]["optional"] = True
                 return True
             else:
@@ -305,8 +305,7 @@ class Espressif32Platform(PlatformBase):
 
     def _install_tl_install(self, version: str) -> bool:
         """
-        Install tool-esp_install ONLY when necessary
-        and handles backwards compatibility for tl-install.
+        Install tool-esp_install with version validation and legacy compatibility.
 
         Args:
             version: Version string or URL to install
@@ -320,7 +319,7 @@ class Espressif32Platform(PlatformBase):
         try:
             old_tl_install_exists = old_tl_install_path.exists()
             if old_tl_install_exists:
-                # remove outdated tl-install
+                # Remove legacy tl-install directory
                 safe_remove_directory(old_tl_install_path)
 
             if tl_install_path.exists():
@@ -331,7 +330,7 @@ class Espressif32Platform(PlatformBase):
             self.packages[tl_install_name]["optional"] = False
             self.packages[tl_install_name]["version"] = version
             pm.install(version)
-            # Ensure backward compatibility by removing pio install status indicator
+            # Remove PlatformIO install marker to prevent version conflicts
             tl_piopm_path = tl_install_path / ".piopm"
             safe_remove_file(tl_piopm_path)
 
@@ -339,9 +338,9 @@ class Espressif32Platform(PlatformBase):
                 logger.info(f"{tl_install_name} successfully installed and verified")
                 self.packages[tl_install_name]["optional"] = True
             
-                # Handle old tl-install to keep backwards compatibility
+                # Maintain backwards compatibility with legacy tl-install references
                 if old_tl_install_exists:
-                    # Copy tool-esp_install content to tl-install location
+                    # Copy tool-esp_install content to legacy tl-install location
                     if safe_copy_directory(tl_install_path, old_tl_install_path):
                         logger.info(f"Content copied from {tl_install_name} to old tl-install location")
                     else:
@@ -450,7 +449,7 @@ class Espressif32Platform(PlatformBase):
 
     def _check_tool_version(self, tool_name: str) -> bool:
         """Check if the installed tool version matches the required version."""
-        # Clean up versioned directories FIRST, before any version checks
+        # Clean up versioned directories before version checks to prevent conflicts
         self._cleanup_versioned_tool_directories(tool_name)
         
         paths = self._get_tool_paths(tool_name)
@@ -489,14 +488,14 @@ class Espressif32Platform(PlatformBase):
         paths = self._get_tool_paths(tool_name)
         status = self._check_tool_status(tool_name)
 
-        # Get penv python if available
+        # Use centrally configured Python executable if available
         penv_python = getattr(self, '_penv_python', None)
 
-        # Case 1: New installation with idf_tools
+        # Case 1: Fresh installation using idf_tools.py
         if status['has_idf_tools'] and status['has_tools_json']:
             return self._install_with_idf_tools(tool_name, paths, penv_python)
 
-        # Case 2: Tool already installed, version check
+        # Case 2: Tool already installed, perform version validation
         if (status['has_idf_tools'] and status['has_piopm'] and
                 not status['has_tools_json']):
             return self._handle_existing_tool(tool_name, paths)
@@ -511,7 +510,7 @@ class Espressif32Platform(PlatformBase):
         ):
             return False
 
-        # Copy tool files
+        # Copy tool metadata to IDF tools directory
         target_package_path = Path(IDF_TOOLS_PATH) / "tools" / tool_name / "package.json"
 
         if not safe_copy_file(paths['package_path'], target_package_path):
@@ -534,7 +533,7 @@ class Espressif32Platform(PlatformBase):
             logger.debug(f"Tool {tool_name} found with correct version")
             return True
 
-        # Wrong version, reinstall - cleanup is already done in _check_tool_version
+        # Version mismatch detected, reinstall tool (cleanup already performed)
         logger.info(f"Reinstalling {tool_name} due to version mismatch")
 
         # Remove the main tool directory (if it still exists after cleanup)
@@ -623,7 +622,7 @@ class Espressif32Platform(PlatformBase):
             logger.error("Error during tool-esp_install version check / installation")
             return
 
-        # Remove pio install marker to avoid issues when switching versions
+        # Remove legacy PlatformIO install marker to prevent version conflicts
         old_tl_piopm_path = Path(self.packages_dir) / "tl-install" / ".piopm"
         if old_tl_piopm_path.exists():
             safe_remove_file(old_tl_piopm_path)
@@ -735,17 +734,17 @@ class Espressif32Platform(PlatformBase):
             self._install_filesystem_tool(filesystem, for_download=True)
 
     def setup_python_env(self, env):
-        """Setup Python virtual environment and return executable paths."""
-        # Penv should already be set up in configure_default_packages
+        """Configure SCons environment with centrally managed Python executable paths."""
+        # Python environment is centrally managed in configure_default_packages
         if hasattr(self, '_penv_python') and hasattr(self, '_esptool_path'):
-            # Update SCons environment with penv python
+            # Update SCons environment with centrally configured Python executable
             env.Replace(PYTHONEXE=self._penv_python)
             return self._penv_python, self._esptool_path
         
         # This should not happen, but provide fallback
         logger.warning("Penv not set up in configure_default_packages, setting up now")
         
-        # Use centralized minimal setup as a fallback and propagate into SCons
+        # Fallback to minimal setup if centralized configuration failed
         config = ProjectConfig.get_instance()
         core_dir = config.get("platformio", "core_dir")
         penv_python, esptool_path = setup_penv_minimal(self, core_dir, install_esptool=True)
@@ -769,7 +768,7 @@ class Espressif32Platform(PlatformBase):
             self._configure_installer()
             self._install_esptool_package()
             
-            # THEN: Setup Python virtual environment completely
+            # Complete Python virtual environment setup
             config = ProjectConfig.get_instance()
             core_dir = config.get("platformio", "core_dir")
             
