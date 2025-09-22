@@ -64,10 +64,9 @@ def has_internet_connection(host="1.1.1.1", port=53, timeout=2):
     Returns True if a connection is possible, otherwise False.
     """
     try:
-        socket.setdefaulttimeout(timeout)
-        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
-        return True
-    except Exception:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
         return False
 
 
