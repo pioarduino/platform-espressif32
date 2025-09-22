@@ -415,10 +415,10 @@ def setup_penv_minimal(platform, platformio_dir, install_esptool=True):
     Raises:
         SystemExit: If Python version < 3.10 or dependency installation fails
     """
-    return _setup_python_environment_core(None, platform, platformio_dir, install_esptool)
+    return _setup_python_environment_core(None, platform, platformio_dir, should_install_esptool=install_esptool)
 
 
-def _setup_python_environment_core(env, platform, platformio_dir, install_esptool=True):
+def _setup_python_environment_core(env, platform, platformio_dir, should_install_esptool=True):
     """
     Core Python environment setup logic shared by both SCons and minimal versions.
     
@@ -426,7 +426,7 @@ def _setup_python_environment_core(env, platform, platformio_dir, install_esptoo
         env: SCons environment object (None for minimal setup)
         platform: PlatformIO platform object
         platformio_dir (str): Path to PlatformIO core directory
-        install_esptool (bool): Whether to install esptool (default: True)
+        should_install_esptool (bool): Whether to install esptool (default: True)
     
     Returns:
         tuple[str, str]: (Path to penv Python executable, Path to esptool script)
@@ -476,7 +476,7 @@ def _setup_python_environment_core(env, platform, platformio_dir, install_esptoo
         print("Warning: No internet connection detected, Python dependency check will be skipped.")
 
     # Install esptool after dependencies (if requested)
-    if install_esptool:
+    if should_install_esptool:
         if env is not None:
             # SCons version
             install_esptool(env, platform, penv_python, uv_executable)
@@ -648,4 +648,4 @@ def setup_python_environment(env, platform, platformio_dir):
     Raises:
         SystemExit: If Python version < 3.10 or dependency installation fails
     """
-    return _setup_python_environment_core(env, platform, platformio_dir, install_esptool=True)
+    return _setup_python_environment_core(env, platform, platformio_dir, should_install_esptool=True)
