@@ -45,7 +45,6 @@ from platformio.project.config import ProjectConfig
 from platformio.package.manager.tool import ToolPackageManager
 
 
-# Import penv_setup functionality
 # Import penv_setup functionality using explicit module loading
 penv_setup_path = Path(__file__).parent / "builder" / "penv_setup.py"
 spec = importlib.util.spec_from_file_location("penv_setup", str(penv_setup_path))
