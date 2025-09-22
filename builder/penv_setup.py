@@ -356,7 +356,7 @@ def install_esptool(env, platform, python_exe, uv_executable):
     Raises:
         SystemExit: If esptool installation fails or package directory not found
     """
-    esptool_repo_path = env.subst(platform.get_package_dir("tool-esptoolpy") or "")
+    esptool_repo_path = platform.get_package_dir("tool-esptoolpy") or ""
     if not esptool_repo_path or not os.path.isdir(esptool_repo_path):
         sys.stderr.write(
             f"Error: 'tool-esptoolpy' package directory not found: {esptool_repo_path!r}\n"
