@@ -45,12 +45,7 @@ from platformio.package.manager.tool import ToolPackageManager
 
 
 # Import penv_setup functionality
-try:
-    from .builder.penv_setup import setup_penv_minimal, get_executable_path
-except ImportError:
-    # Fallback for standalone execution
-    sys.path.insert(0, str(Path(__file__).parent / "builder"))
-    from penv_setup import setup_penv_minimal, get_executable_path
+from .builder.penv_setup import setup_penv_minimal, get_executable_path
 
 
 # Constants
