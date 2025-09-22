@@ -452,7 +452,9 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
         env.Replace(PYTHONEXE=penv_python)
     
     # check for python binary, exit with error when not found
-    assert os.path.isfile(penv_python), f"Python executable not found: {penv_python}"
+    if not os.path.isfile(penv_python):
+        sys.stderr.write(f"Error: Python executable not found: {penv_python}\n")
+        sys.exit(1)
     
     # Setup Python module search paths
     setup_python_paths(penv_dir)
