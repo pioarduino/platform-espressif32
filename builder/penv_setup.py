@@ -430,15 +430,6 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
     Returns:
         tuple[str, str]: (Path to penv Python executable, Path to esptool script)
     """
-    # Check Python version requirement
-    if sys.version_info < (3, 10):
-        sys.stderr.write(
-            f"Error: Python 3.10 or higher is required. "
-            f"Current version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}\n"
-            f"Please update your Python installation.\n"
-        )
-        sys.exit(1)
-
     penv_dir = str(Path(platformio_dir) / "penv")
     
     # Setup virtual environment if needed
