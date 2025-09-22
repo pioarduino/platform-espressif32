@@ -34,7 +34,7 @@ if sys.version_info < (3, 10):
     )
     sys.exit(1)
 
-github_actions = os.getenv('GITHUB_ACTIONS')
+github_actions = bool(os.getenv("GITHUB_ACTIONS"))
 
 PLATFORMIO_URL_VERSION_RE = re.compile(
     r'/v?(\d+\.\d+\.\d+(?:[.-]\w+)?(?:\.\d+)?)(?:\.(?:zip|tar\.gz|tar\.bz2))?$',
