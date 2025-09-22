@@ -26,6 +26,7 @@ else:
     del _lzma
 
 import fnmatch
+import importlib.util
 import json
 import logging
 import os
@@ -45,12 +46,14 @@ from platformio.package.manager.tool import ToolPackageManager
 
 
 # Import penv_setup functionality
-try:
-    from .builder.penv_setup import setup_penv_minimal, get_executable_path
-except ImportError:
-    # Fallback for standalone execution
-    sys.path.insert(0, str(Path(__file__).parent / "builder"))
-    from penv_setup import setup_penv_minimal, get_executable_path
+# Import penv_setup functionality using explicit module loading
+penv_setup_path = Path(__file__).parent / "builder" / "penv_setup.py"
+spec = importlib.util.spec_from_file_location("penv_setup", str(penv_setup_path))
+penv_setup_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(penv_setup_module)
+
+setup_penv_minimal = penv_setup_module.setup_penv_minimal
+get_executable_path = penv_setup_module.get_executable_path
 
 
 # Constants
