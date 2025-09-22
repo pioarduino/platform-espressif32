@@ -127,10 +127,14 @@ def setup_pipenv_in_package(env, penv_dir):
         
         # Validate virtual environment creation
         # Ensure Python executable is available
-        assert os.path.isfile(
-            get_executable_path(penv_dir, "python")
-        ), f"Error: Failed to create a proper virtual environment. Missing the `python` binary! Created with uv: {uv_success}"
-        
+        penv_python = get_executable_path(penv_dir, "python")
+        if not os.path.isfile(penv_python):
+            sys.stderr.write(
+                f"Error: Failed to create a proper virtual environment. "
+                f"Missing the `python` binary at {penv_python}! Created with uv: {uv_success}\n"
+            )
+            sys.exit(1)
+
         return uv_cmd if uv_success else None
     
     return None
@@ -530,9 +534,13 @@ def _setup_pipenv_minimal(penv_dir):
         
         # Validate virtual environment creation
         # Ensure Python executable is available
-        assert os.path.isfile(
-            get_executable_path(penv_dir, "python")
-        ), f"Error: Failed to create a proper virtual environment. Missing the `python` binary! Created with uv: {uv_success}"
+        penv_python = get_executable_path(penv_dir, "python")
+        if not os.path.isfile(penv_python):
+            sys.stderr.write(
+                f"Error: Failed to create a proper virtual environment. "
+                f"Missing the `python` binary at {penv_python}! Created with uv: {uv_success}\n"
+            )
+            sys.exit(1)
         
         return uv_cmd if uv_success else None
     
