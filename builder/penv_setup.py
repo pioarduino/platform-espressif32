@@ -620,6 +620,7 @@ def _setup_certifi_env(env):
             "SSL_CERT_FILE": cert_path,
             "REQUESTS_CA_BUNDLE": cert_path,
             "CURL_CA_BUNDLE": cert_path,
+            "GIT_SSL_CAINFO": cert_path,
         })
         env.Replace(ENV=env_vars)
 
