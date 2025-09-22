@@ -741,8 +741,14 @@ class Espressif32Platform(PlatformBase):
         # This should not happen, but provide fallback
         logger.warning("Penv not set up in configure_default_packages, setting up now")
         
-        # Use the centralized setup method
-        return self.setup_python_env(env)
+        # Use centralized minimal setup as a fallback and propagate into SCons
+        config = ProjectConfig.get_instance()
+        core_dir = config.get("platformio", "core_dir")
+        penv_python, esptool_path = setup_penv_minimal(self, core_dir, install_esptool=True)
+        self._penv_python = penv_python
+        self._esptool_path = esptool_path
+        env.Replace(PYTHONEXE=penv_python)
+        return penv_python, esptool_path
 
     def configure_default_packages(self, variables: Dict, targets: List[str]) -> Any:
         """Main configuration method with optimized package management."""
