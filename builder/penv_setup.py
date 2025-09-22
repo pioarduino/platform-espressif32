@@ -223,7 +223,7 @@ def install_python_deps(python_exe, external_uv_executable):
                     [external_uv_executable, "pip", "install", "uv>=0.1.0", f"--python={python_exe}", "--quiet"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.STDOUT,
-                    timeout=120
+                    timeout=300
                 )
             except subprocess.CalledProcessError as e:
                 print(f"Error: uv installation failed with exit code {e.returncode}")
@@ -244,7 +244,7 @@ def install_python_deps(python_exe, external_uv_executable):
                     [python_exe, "-m", "pip", "install", "uv>=0.1.0", "--quiet"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.STDOUT,
-                    timeout=120
+                    timeout=300
                 )
             except subprocess.CalledProcessError as e:
                 print(f"Error: uv installation via pip failed with exit code {e.returncode}")
@@ -275,7 +275,7 @@ def install_python_deps(python_exe, external_uv_executable):
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
-                timeout=120
+                timeout=300
             )
             
             if result_obj.returncode == 0:
@@ -323,7 +323,7 @@ def install_python_deps(python_exe, external_uv_executable):
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT,
-                timeout=120
+                timeout=300
             )
                 
         except subprocess.CalledProcessError as e:
