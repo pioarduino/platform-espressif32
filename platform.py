@@ -495,7 +495,7 @@ class Espressif32Platform(PlatformBase):
         # Case 2: Tool already installed, version check
         if (status['has_idf_tools'] and status['has_piopm'] and
                 not status['has_tools_json']):
-            return self._handle_existing_tool(tool_name, paths, penv_python)
+            return self._handle_existing_tool(tool_name, paths)
 
         logger.debug(f"Tool {tool_name} already configured")
         return True
@@ -521,7 +521,7 @@ class Espressif32Platform(PlatformBase):
         logger.info(f"Tool {tool_name} successfully installed")
         return True
 
-    def _handle_existing_tool(self, tool_name: str, paths: Dict[str, str], penv_python: Optional[str] = None) -> bool:
+    def _handle_existing_tool(self, tool_name: str, paths: Dict[str, str]) -> bool:
         """Handle already installed tools with version checking."""
         if self._check_tool_version(tool_name):
             # Version matches, use tool
