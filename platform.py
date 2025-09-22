@@ -428,13 +428,15 @@ class Espressif32Platform(PlatformBase):
             logger.info(f"Installing tools via idf_tools.py (this may take several minutes)...")
             result = subprocess.run(
                 cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
                 check=False
             )
 
             if result.returncode != 0:
-                logger.error("idf_tools.py installation failed")
+                tail = (result.stderr or result.stdout or "").strip()[-1000:]
+                logger.error("idf_tools.py installation failed (rc=%s). Tail:\n%s", result.returncode, tail)
                 return False
 
             logger.debug("idf_tools.py executed successfully")
