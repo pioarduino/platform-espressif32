@@ -400,7 +400,7 @@ def install_esptool(env, platform, python_exe, uv_executable):
         sys.exit(1)
 
 
-def setup_penv_minimal(platform, platformio_dir, install_esptool=True):
+def setup_penv_minimal(platform, platformio_dir: str, install_esptool: bool = True):
     """
     Minimal Python virtual environment setup without SCons dependencies.
     
@@ -529,9 +529,10 @@ def _setup_pipenv_minimal(penv_dir):
         # Fallback to python -m venv if uv failed or is not available
         if not uv_success:
             uv_cmd = None
-            cmd = f'"{sys.executable}" -m venv --clear "{penv_dir}"'
             try:
-                subprocess.run(cmd, shell=True, check=True)
+                subprocess.check_call([
+                    sys.executable, "-m", "venv", "--clear", penv_dir
+                ])
                 print(f"Created pioarduino Python virtual environment: {penv_dir}")
             except subprocess.CalledProcessError as e:
                 sys.stderr.write(f"Error: Failed to create virtual environment: {e}\n")

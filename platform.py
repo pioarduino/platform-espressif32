@@ -405,7 +405,7 @@ class Espressif32Platform(PlatformBase):
             'tool_exists': Path(paths['tool_path']).exists()
         }
 
-    def _run_idf_tools_install(self, tools_json_path: str, idf_tools_path: str, penv_python: str = None) -> bool:
+    def _run_idf_tools_install(self, tools_json_path: str, idf_tools_path: str, penv_python: Optional[str] = None) -> bool:
         """
         Execute idf_tools.py install command.
         Note: No timeout is set to allow installations to complete on slow networks.
@@ -500,7 +500,7 @@ class Espressif32Platform(PlatformBase):
         logger.debug(f"Tool {tool_name} already configured")
         return True
 
-    def _install_with_idf_tools(self, tool_name: str, paths: Dict[str, str], penv_python: str = None) -> bool:
+    def _install_with_idf_tools(self, tool_name: str, paths: Dict[str, str], penv_python: Optional[str] = None) -> bool:
         """Install tool using idf_tools.py installation method."""
         if not self._run_idf_tools_install(
             paths['tools_json_path'], paths['idf_tools_path'], penv_python
@@ -521,7 +521,7 @@ class Espressif32Platform(PlatformBase):
         logger.info(f"Tool {tool_name} successfully installed")
         return True
 
-    def _handle_existing_tool(self, tool_name: str, paths: Dict[str, str], penv_python: str = None) -> bool:
+    def _handle_existing_tool(self, tool_name: str, paths: Dict[str, str], penv_python: Optional[str] = None) -> bool:
         """Handle already installed tools with version checking."""
         if self._check_tool_version(tool_name):
             # Version matches, use tool
