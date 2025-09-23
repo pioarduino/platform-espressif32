@@ -482,7 +482,7 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
             _install_esptool_from_tl_install(platform, penv_python, uv_executable)
 
     # Setup certifi environment variables
-    _setup_certifi_env(env)
+    _setup_certifi_env(env, penv_python)
 
     return penv_python, esptool_binary_path
 
@@ -609,20 +609,29 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
 
 
 
-def _setup_certifi_env(env):
-    """Setup certifi environment variables with optional SCons integration."""
+def _setup_certifi_env(env, python_exe=None):
+    """
+    Setup certifi environment variables from the given python_exe virtual environment.
+    Uses a subprocess call to extract certifi path from that environment to guarantee penv usage.
+    """
     try:
-        import certifi
-    except ImportError:
-        print("Info: certifi not available; skipping CA environment setup.")
+        # Run python executable from penv to get certifi path
+        out = subprocess.check_output(
+            [python_exe, "-c", "import certifi; print(certifi.where())"],
+            text=True,
+            timeout=5
+        )
+        cert_path = out.strip()
+    except Exception as e:
+        print(f"Error: Failed to obtain certifi path from the virtual environment: {e}")
         return
-    
-    cert_path = certifi.where()
+
+    # Set environment variables for certificate bundles
     os.environ["CERTIFI_PATH"] = cert_path
     os.environ["SSL_CERT_FILE"] = cert_path
     os.environ["REQUESTS_CA_BUNDLE"] = cert_path
     os.environ["CURL_CA_BUNDLE"] = cert_path
-    
+
     # Also propagate to SCons environment if available
     if env is not None:
         env_vars = dict(env.get("ENV", {}))
