@@ -497,7 +497,7 @@ def _setup_pipenv_minimal(penv_dir):
     Returns:
         str or None: Path to uv executable if uv was used, None if python -m venv was used
     """
-    if not os.path.exists(penv_dir):
+    if not os.path.isfile(get_executable_path(penv_dir, "python")):
         # Attempt virtual environment creation using uv package manager
         uv_success = False
         uv_cmd = None
