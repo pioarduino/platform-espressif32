@@ -606,10 +606,7 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
         # Don't exit - esptool installation is not critical for penv setup
 
 
-
-
-
-def _setup_certifi_env(env, python_exe=None):
+def _setup_certifi_env(env, python_exe):
     """
     Setup certifi environment variables from the given python_exe virtual environment.
     Uses a subprocess call to extract certifi path from that environment to guarantee penv usage.
@@ -631,6 +628,7 @@ def _setup_certifi_env(env, python_exe=None):
     os.environ["SSL_CERT_FILE"] = cert_path
     os.environ["REQUESTS_CA_BUNDLE"] = cert_path
     os.environ["CURL_CA_BUNDLE"] = cert_path
+    os.environ["GIT_SSL_CAINFO"] = cert_path
 
     # Also propagate to SCons environment if available
     if env is not None:
