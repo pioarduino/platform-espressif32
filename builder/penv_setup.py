@@ -49,6 +49,7 @@ python_deps = {
     "zopfli": ">=0.2.2",
     "intelhex": ">=2.3.0",
     "rich": ">=14.0.0",
+    "urllib3": "<2",
     "cryptography": ">=45.0.3",
     "certifi": ">=2025.8.3",
     "ecdsa": ">=0.19.1",
