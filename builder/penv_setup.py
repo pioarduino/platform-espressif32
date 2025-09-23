@@ -611,29 +611,21 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
 
 def _setup_certifi_env(env, python_exe=None):
     """
-    Setup certifi environment variables with priority from the given python_exe virtual environment.
-    If python_exe is provided, runs a subprocess to extract certifi path from that env to guarantee penv usage.
-    Falls back to importing certifi from current environment on failure.
+    Setup certifi environment variables from the given python_exe virtual environment.
+    Uses a subprocess call to extract certifi path from that environment to guarantee penv usage.
     """
-    cert_path = None
-    if python_exe:
-        try:
-            # Run python executable from penv to get certifi path
-            out = subprocess.check_output(
-                [python_exe, "-c", "import certifi; print(certifi.where())"],
-                text=True,
-                timeout=5
-            )
-            cert_path = out.strip()
-        except Exception:
-            cert_path = None
-    if not cert_path:
-        try:
-            import certifi
-            cert_path = certifi.where()
-        except Exception:
-            print("Info: certifi not available; skipping CA environment setup.")
-            return
+    try:
+        # Run python executable from penv to get certifi path
+        out = subprocess.check_output(
+            [python_exe, "-c", "import certifi; print(certifi.where())"],
+            text=True,
+            timeout=5
+        )
+        cert_path = out.strip()
+    except Exception as e:
+        print(f"Error: Failed to obtain certifi path from the virtual environment: {e}")
+        return
+
     # Set environment variables for certificate bundles
     os.environ["CERTIFI_PATH"] = cert_path
     os.environ["SSL_CERT_FILE"] = cert_path
