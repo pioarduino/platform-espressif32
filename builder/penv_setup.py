@@ -482,7 +482,7 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
             _install_esptool_from_tl_install(platform, penv_python, uv_executable)
 
     # Setup certifi environment variables
-    _setup_certifi_env(env)
+    _setup_certifi_env(env, penv_python)
 
     return penv_python, esptool_binary_path
 
@@ -609,20 +609,37 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
 
 
 
-def _setup_certifi_env(env):
-    """Setup certifi environment variables with optional SCons integration."""
-    try:
-        import certifi
-    except ImportError:
-        print("Info: certifi not available; skipping CA environment setup.")
-        return
-    
-    cert_path = certifi.where()
+def _setup_certifi_env(env, python_exe=None):
+    """
+    Setup certifi environment variables with priority from the given python_exe virtual environment.
+    If python_exe is provided, runs a subprocess to extract certifi path from that env to guarantee penv usage.
+    Falls back to importing certifi from current environment on failure.
+    """
+    cert_path = None
+    if python_exe:
+        try:
+            # Run python executable from penv to get certifi path
+            out = subprocess.check_output(
+                [python_exe, "-c", "import certifi; print(certifi.where())"],
+                text=True,
+                timeout=5
+            )
+            cert_path = out.strip()
+        except Exception:
+            cert_path = None
+    if not cert_path:
+        try:
+            import certifi
+            cert_path = certifi.where()
+        except Exception:
+            print("Info: certifi not available; skipping CA environment setup.")
+            return
+    # Set environment variables for certificate bundles
     os.environ["CERTIFI_PATH"] = cert_path
     os.environ["SSL_CERT_FILE"] = cert_path
     os.environ["REQUESTS_CA_BUNDLE"] = cert_path
     os.environ["CURL_CA_BUNDLE"] = cert_path
-    
+
     # Also propagate to SCons environment if available
     if env is not None:
         env_vars = dict(env.get("ENV", {}))
