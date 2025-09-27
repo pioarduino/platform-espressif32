@@ -650,6 +650,70 @@ def firmware_metrics(target, source, env):
         print(f'Make sure esp-idf-size is installed: uv pip install --python "{PYTHON_EXE}" esp-idf-size')
 
 
+def coredump_analysis(target, source, env):
+    """
+    Custom target to run esp-coredump with support for command line parameters.
+    Usage: pio run -t coredump -- [esp-coredump arguments]
+    
+    Args:
+        target: SCons target
+        source: SCons source
+        env: SCons environment object
+    """
+    if terminal_cp != "utf-8":
+        print("Coredump analysis can not be shown. Set the terminal codepage to \"utf-8\"")
+        return
+
+    elf_file = str(Path(env.subst("$BUILD_DIR")) / (env.subst("$PROGNAME") + ".elf"))
+    if not Path(elf_file).is_file():
+        # elf file can be in project dir
+        elf_file = str(Path(get_project_dir()) / (env.subst("$PROGNAME") + ".elf"))
+
+    if not Path(elf_file).is_file():
+        print(f"Error: ELF file not found: {elf_file}")
+        print("Make sure the project is built first with 'pio run'")
+        return
+
+    try:        
+        cmd = [PYTHON_EXE, "-m", "esp_coredump"]
+        
+        # Parameters from platformio.ini
+        extra_args = env.GetProjectOption("custom_esp_coredump_args", "")
+        if extra_args:
+            cmd.extend(shlex.split(extra_args))
+        
+        # Command Line Parameter, after --
+        cli_args = []
+        if "--" in sys.argv:
+            dash_index = sys.argv.index("--")
+            if dash_index + 1 < len(sys.argv):
+                cli_args = sys.argv[dash_index + 1:]
+
+        # Add CLI arguments
+        if cli_args:
+            cmd.extend(cli_args)
+        else:
+            # Default arguments if none provided
+            cmd.extend(["info_corefile", "--chip", mcu, "--elf", elf_file])
+
+        # Debug-Info if wanted
+        if env.GetProjectOption("custom_esp_coredump_verbose", False):
+            print(f"Running command: {' '.join(cmd)}")
+        
+        # Execute esp-coredump with current environment
+        result = subprocess.run(cmd, check=False, capture_output=False, env=os.environ)
+        
+        if result.returncode != 0:
+            print(f"Warning: esp-coredump exited with code {result.returncode}")
+
+    except FileNotFoundError:
+        print("Error: Python executable not found.")
+        print("Check your Python installation.")
+    except Exception as e:
+        print(f"Error: Failed to run coredump analysis: {e}")
+        print(f'Make sure esp-coredump is installed: uv pip install --python "{PYTHON_EXE}" esp-coredump')
+
+
 #
 # Target: Build executable and linkable firmware or FS image
 #
@@ -928,6 +992,27 @@ env.AddCustomTarget(
     actions=firmware_metrics,
     title="Firmware Size Metrics (No Build)",
     description="Analyze firmware size without building first",
+    always_build=True,
+)
+
+# Register Custom Target for coredump analysis
+env.AddCustomTarget(
+    name="coredump",
+    dependencies="$BUILD_DIR/${PROGNAME}.elf",
+    actions=coredump_analysis,
+    title="Coredump Analysis",
+    description="Analyze coredumps using esp-coredump "
+    "(supports CLI args after --)",
+    always_build=True,
+)
+
+# Additional Target without Build-Dependency when already compiled
+env.AddCustomTarget(
+    name="coredump-only",
+    dependencies=None,
+    actions=coredump_analysis,
+    title="Coredump Analysis (No Build)",
+    description="Analyze coredumps without building first",
     always_build=True,
 )
 
