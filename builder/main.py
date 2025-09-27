@@ -702,12 +702,25 @@ def coredump_analysis(target, source, env):
                 # Use defaults: --chip <mcu> info_corefile <elf_file>
                 cmd.extend(["--chip", mcu, "info_corefile", elf_file])
 
+        # Set up ESP-IDF environment variables when ESP-IDF framework is used
+        coredump_env = os.environ.copy()
+        if env.get("PIOFRAMEWORK") and "espidf" in env.get("PIOFRAMEWORK", []):
+            _framework_pkg_dir = platform.get_package_dir("framework-espidf")
+            _rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
+            if _framework_pkg_dir and os.path.isdir(_framework_pkg_dir):
+                coredump_env['IDF_PATH'] = str(Path(_framework_pkg_dir).resolve())
+                if _rom_elfs_dir and os.path.isdir(_rom_elfs_dir):
+                    coredump_env['ESP_ROM_ELF_DIR'] = str(Path(_rom_elfs_dir).resolve())
+
         # Debug-Info if wanted
         if env.GetProjectOption("custom_esp_coredump_verbose", False):
             print(f"Running command: {' '.join(cmd)}")
+            if 'IDF_PATH' in coredump_env:
+                print(f"IDF_PATH: {coredump_env['IDF_PATH']}")
+                print(f"ESP_ROM_ELF_DIR: {coredump_env.get('ESP_ROM_ELF_DIR', 'Not set')}")
         
-        # Execute esp-coredump with current environment
-        result = subprocess.run(cmd, check=False, capture_output=False, env=os.environ)
+        # Execute esp-coredump with ESP-IDF environment
+        result = subprocess.run(cmd, check=False, capture_output=False, env=coredump_env)
         
         if result.returncode != 0:
             print(f"Warning: esp-coredump exited with code {result.returncode}")
