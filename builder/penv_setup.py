@@ -286,18 +286,18 @@ def install_python_deps(python_exe, external_uv_executable):
                     for p in packages:
                         result[p["name"].lower()] = pepver_to_semver(p["version"])
             else:
-                print(f"Warning: uv pip list failed with exit code {result_obj.returncode}")
+                print(f"Error: uv pip list failed with exit code {result_obj.returncode}")
                 if result_obj.stderr:
                     print(f"Error output: {result_obj.stderr.strip()}")
                 
         except subprocess.TimeoutExpired:
-            print("Warning: uv pip list command timed out")
+            print("Error: uv pip list command timed out")
         except (json.JSONDecodeError, KeyError) as e:
-            print(f"Warning: Could not parse package list: {e}")
+            print(f"Error: Could not parse package list: {e}")
         except FileNotFoundError:
-            print("Warning: uv command not found")
+            print("Error: uv command not found")
         except Exception as e:
-            print(f"Warning! Couldn't extract the list of installed Python packages: {e}")
+            print(f"Error! Couldn't extract the list of installed Python packages: {e}")
 
         return result
 
@@ -306,39 +306,39 @@ def install_python_deps(python_exe, external_uv_executable):
     
     if packages_to_install:
         packages_list = []
+        package_map = {}
         for p in packages_to_install:
             spec = python_deps[p]
             if spec.startswith(('http://', 'https://', 'git+', 'file://')):
                 packages_list.append(spec)
+                package_map[spec] = p
             else:
-                packages_list.append(f"{p}{spec}")
+                full_spec = f"{p}{spec}"
+                packages_list.append(full_spec)
+                package_map[full_spec] = p
         
-        cmd = [
-            penv_uv_executable, "pip", "install",
-            f"--python={python_exe}",
-            "--quiet", "--upgrade"
-        ] + packages_list
-        
-        try:
-            subprocess.check_call(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.STDOUT,
-                timeout=300
-            )
-                
-        except subprocess.CalledProcessError as e:
-            print(f"Error: Failed to install Python dependencies (exit code: {e.returncode})")
-            return False
-        except subprocess.TimeoutExpired:
-            print("Error: Python dependencies installation timed out")
-            return False
-        except FileNotFoundError:
-            print("Error: uv command not found")
-            return False
-        except Exception as e:
-            print(f"Error installing Python dependencies: {e}")
-            return False
+        for package_spec in packages_list:
+            cmd = [
+                penv_uv_executable, "pip", "install",
+                f"--python={python_exe}",
+                "--quiet", "--upgrade",
+                package_spec
+            ]
+            try:
+                subprocess.check_call(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.STDOUT,
+                    timeout=300
+                )
+            except subprocess.CalledProcessError as e:
+                print(f"Error: Installing package '{package_map.get(package_spec, package_spec)}' failed (exit code {e.returncode}).")
+            except subprocess.TimeoutExpired:
+                print(f"Error: Installing package '{package_map.get(package_spec, package_spec)}' timed out.")
+            except FileNotFoundError:
+                print("Error: uv command not found")
+            except Exception as e:
+                print(f"Error: Installing package '{package_map.get(package_spec, package_spec)}': {e}.")
     
     return True
 
