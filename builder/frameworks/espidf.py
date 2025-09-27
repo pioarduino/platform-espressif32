@@ -88,11 +88,16 @@ flag_custom_component_remove = False
 
 IDF_ENV_VERSION = "1.0.0"
 _framework_pkg_dir = platform.get_package_dir("framework-espidf")
+_rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
 if not _framework_pkg_dir or not os.path.isdir(_framework_pkg_dir):
     sys.stderr.write(f"Error: Missing framework directory '{_framework_pkg_dir}'\n")
     env.Exit(1)
 FRAMEWORK_DIR_PATH = Path(_framework_pkg_dir).resolve()
+ROM_ELFS_DIR_PATH = Path(_rom_elfs_dir).resolve()
 FRAMEWORK_DIR = str(FRAMEWORK_DIR_PATH)
+ROM_ELFS_DIR = str(ROM_ELFS_DIR_PATH)
+os.environ['IDF_PATH'] = FRAMEWORK_DIR
+os.environ['ESP_ROM_ELF_DIR'] = ROM_ELFS_DIR
 TOOLCHAIN_DIR = platform.get_package_dir(
     "toolchain-xtensa-esp-elf"
     if mcu in ("esp32", "esp32s2", "esp32s3")
