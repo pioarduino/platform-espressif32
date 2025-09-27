@@ -699,8 +699,8 @@ def coredump_analysis(target, source, env):
                 cmd.extend(shlex.split(extra_args))
                 cmd.append(elf_file)
             else:
-                # Use defaults: info_corefile --chip <mcu> <elf_file>
-                cmd.extend(["info_corefile", "--chip", mcu, elf_file])
+                # Use defaults: --chip <mcu> info_corefile <elf_file>
+                cmd.extend(["--chip", mcu, "info_corefile", elf_file])
 
         # Debug-Info if wanted
         if env.GetProjectOption("custom_esp_coredump_verbose", False):
