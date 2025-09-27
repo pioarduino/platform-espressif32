@@ -677,11 +677,6 @@ def coredump_analysis(target, source, env):
     try:        
         cmd = [PYTHON_EXE, "-m", "esp_coredump"]
         
-        # Parameters from platformio.ini
-        extra_args = env.GetProjectOption("custom_esp_coredump_args", "")
-        if extra_args:
-            cmd.extend(shlex.split(extra_args))
-        
         # Command Line Parameter, after --
         cli_args = []
         if "--" in sys.argv:
@@ -689,12 +684,24 @@ def coredump_analysis(target, source, env):
             if dash_index + 1 < len(sys.argv):
                 cli_args = sys.argv[dash_index + 1:]
 
-        # Add CLI arguments
+        # Add CLI arguments or use defaults
         if cli_args:
             cmd.extend(cli_args)
+            # ELF file should be at the end as positional argument
+            if not any(arg.endswith('.elf') for arg in cli_args):
+                cmd.append(elf_file)
         else:
             # Default arguments if none provided
-            cmd.extend(["info_corefile", "--chip", mcu, "--elf", elf_file])
+            # Parameters from platformio.ini
+            extra_args = env.GetProjectOption("custom_esp_coredump_args", "")
+            if extra_args:
+                cmd.extend(shlex.split(extra_args))
+            else:
+                # Use defaults: info_corefile --chip <mcu>
+                cmd.extend(["info_corefile", "--chip", mcu])
+            
+            # ELF file as positional argument at the end
+            cmd.append(elf_file)
 
         # Debug-Info if wanted
         if env.GetProjectOption("custom_esp_coredump_verbose", False):
