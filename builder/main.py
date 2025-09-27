@@ -695,13 +695,12 @@ def coredump_analysis(target, source, env):
             # Parameters from platformio.ini
             extra_args = env.GetProjectOption("custom_esp_coredump_args", "")
             if extra_args:
+                # Parse extra args and add ELF file at the end
                 cmd.extend(shlex.split(extra_args))
+                cmd.append(elf_file)
             else:
-                # Use defaults: info_corefile --chip <mcu>
-                cmd.extend(["info_corefile", "--chip", mcu])
-            
-            # ELF file as positional argument at the end
-            cmd.append(elf_file)
+                # Use defaults: info_corefile --chip <mcu> <elf_file>
+                cmd.extend(["info_corefile", "--chip", mcu, elf_file])
 
         # Debug-Info if wanted
         if env.GetProjectOption("custom_esp_coredump_verbose", False):
