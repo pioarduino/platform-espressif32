@@ -702,15 +702,36 @@ def coredump_analysis(target, source, env):
                 # Use defaults: --chip <mcu> info_corefile <elf_file>
                 cmd.extend(["--chip", mcu, "info_corefile", elf_file])
 
-        # Set up ESP-IDF environment variables when ESP-IDF framework is used
+        # Set up ESP-IDF environment variables and ensure required packages are installed
         coredump_env = os.environ.copy()
-        if env.get("PIOFRAMEWORK") and "espidf" in env.get("PIOFRAMEWORK", []):
-            _framework_pkg_dir = platform.get_package_dir("framework-espidf")
-            _rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
-            if _framework_pkg_dir and os.path.isdir(_framework_pkg_dir):
-                coredump_env['IDF_PATH'] = str(Path(_framework_pkg_dir).resolve())
-                if _rom_elfs_dir and os.path.isdir(_rom_elfs_dir):
-                    coredump_env['ESP_ROM_ELF_DIR'] = str(Path(_rom_elfs_dir).resolve())
+        
+        # Check if ESP-IDF packages are available, install if missing
+        _framework_pkg_dir = platform.get_package_dir("framework-espidf")
+        _rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
+        
+        # Install framework-espidf if not available
+        if not _framework_pkg_dir or not os.path.isdir(_framework_pkg_dir):
+            print("ESP-IDF framework not found, installing...")
+            try:
+                platform.install_package("framework-espidf")
+                _framework_pkg_dir = platform.get_package_dir("framework-espidf")
+            except Exception as e:
+                print(f"Warning: Failed to install framework-espidf: {e}")
+        
+        # Install tool-esp-rom-elfs if not available
+        if not _rom_elfs_dir or not os.path.isdir(_rom_elfs_dir):
+            print("ESP ROM ELFs tool not found, installing...")
+            try:
+                platform.install_package("tool-esp-rom-elfs")
+                _rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
+            except Exception as e:
+                print(f"Warning: Failed to install tool-esp-rom-elfs: {e}")
+        
+        # Set environment variables if packages are available
+        if _framework_pkg_dir and os.path.isdir(_framework_pkg_dir):
+            coredump_env['IDF_PATH'] = str(Path(_framework_pkg_dir).resolve())
+            if _rom_elfs_dir and os.path.isdir(_rom_elfs_dir):
+                coredump_env['ESP_ROM_ELF_DIR'] = str(Path(_rom_elfs_dir).resolve())
 
         # Debug-Info if wanted
         if env.GetProjectOption("custom_esp_coredump_verbose", False):
