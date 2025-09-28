@@ -695,12 +695,35 @@ def coredump_analysis(target, source, env):
             # Parameters from platformio.ini
             extra_args = env.GetProjectOption("custom_esp_coredump_args", "")
             if extra_args:
-                # Parse extra args and add ELF file at the end
-                cmd.extend(shlex.split(extra_args))
-                cmd.append(elf_file)
+                args = shlex.split(extra_args)
+                cmd.extend(args)
+                # Ensure ELF is last positional if not present
+                if not any(a.endswith(".elf") for a in args):
+                    cmd.append(elf_file)
             else:
-                # Use defaults: --chip <mcu> info_corefile <elf_file>
-                cmd.extend(["--chip", mcu, "info_corefile", elf_file])
+                # Prefer an explicit core file if configured or present; else read from flash
+                core_file = env.GetProjectOption("custom_esp_coredump_corefile", "")
+                if not core_file:
+                    for name in ("coredump.bin", "coredump.b64"):
+                        cand = Path(get_project_dir()) / name
+                        if cand.is_file():
+                            core_file = str(cand)
+                            break
+
+                # Global options
+                cmd.extend(["--chip", mcu])
+                upload_port = env.subst("$UPLOAD_PORT")
+                if upload_port:
+                    cmd.extend(["--port", upload_port])
+
+                # Subcommand and arguments
+                cmd.append("info_corefile")
+                if core_file:
+                    cmd.extend(["--core", core_file])
+                    if core_file.lower().endswith(".b64"):
+                        cmd.extend(["--core-format", "b64"])
+                # ELF is the required positional
+                cmd.append(elf_file)
 
         # Set up ESP-IDF environment variables and ensure required packages are installed
         coredump_env = os.environ.copy()
@@ -752,7 +775,6 @@ def coredump_analysis(target, source, env):
     except Exception as e:
         print(f"Error: Failed to run coredump analysis: {e}")
         print(f'Make sure esp-coredump is installed: uv pip install --python "{PYTHON_EXE}" esp-coredump')
-
 
 #
 # Target: Build executable and linkable firmware or FS image
