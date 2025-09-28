@@ -104,12 +104,12 @@ if not TOOLCHAIN_DIR or not os.path.isdir(TOOLCHAIN_DIR):
     sys.stderr.write(f"Error: Missing toolchain directory '{TOOLCHAIN_DIR}'\n")
     env.Exit(1)
 
+
 def create_silent_action(action_func):
     """Create a silent SCons action that suppresses output"""
     silent_action = env.Action(action_func)
     silent_action.strfunction = lambda target, source, env: ''
     return silent_action
-
 
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     _arduino_pkg_dir = platform.get_package_dir("framework-arduinoespressif32")
