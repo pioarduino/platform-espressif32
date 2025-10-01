@@ -612,7 +612,7 @@ def firmware_metrics(target, source, env):
         return
 
     try:        
-        cmd = [PYTHON_EXE, "-m", "esp_idf_size", "--ng"]
+        cmd = [PYTHON_EXE, "-m", "esp_idf_size", ""]
         
         # Parameters from platformio.ini
         extra_args = env.GetProjectOption("custom_esp_idf_size_args", "")
