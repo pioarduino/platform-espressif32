@@ -484,6 +484,8 @@ def HandleArduinoIDFsettings(env):
             # Enable experimental features for frequencies > 80MHz
             if compile_freq_val > 80:
                 board_config_flags.append("CONFIG_IDF_EXPERIMENTAL_FEATURES=y")
+                board_config_flags.append("CONFIG_SPI_FLASH_HPM_ENABLE=y")
+                board_config_flags.append("CONFIG_SPI_FLASH_HPM_AUTO=y")
 
         # Check for PSRAM support based on board flags
         extra_flags = board.get("build.extra_flags", [])
