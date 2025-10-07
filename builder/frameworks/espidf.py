@@ -30,7 +30,6 @@ import requests
 import shutil
 import subprocess
 import sys
-from os.path import join
 from pathlib import Path
 from urllib.parse import urlsplit, unquote
 
