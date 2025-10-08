@@ -104,6 +104,47 @@ if not TOOLCHAIN_DIR or not os.path.isdir(TOOLCHAIN_DIR):
     env.Exit(1)
 
 
+def get_framework_version():
+    def _extract_from_cmake_version_file():
+        version_cmake_file = str(Path(FRAMEWORK_DIR) / "tools" / "cmake" / "version.cmake")
+        if not os.path.isfile(version_cmake_file):
+            return
+
+        with open(version_cmake_file, encoding="utf8") as fp:
+            pattern = r"set\(IDF_VERSION_(MAJOR|MINOR|PATCH) (\d+)\)"
+            matches = re.findall(pattern, fp.read())
+            if len(matches) != 3:
+                return
+            # If found all three parts of the version
+            return ".".join([match[1] for match in matches])
+
+    pkg = platform.get_package("framework-espidf")
+    version = get_original_version(str(pkg.metadata.version.truncate()))
+    if not version:
+        # Fallback value extracted directly from the cmake version file
+        version = _extract_from_cmake_version_file()
+        if not version:
+            version = "0.0.0"
+
+    # Normalize to semver (handles "6.0.0-rc1", VCS metadata, etc.)
+    try:
+        coerced = semantic_version.Version.coerce(version, partial=True)
+        major = coerced.major or 0
+        minor = coerced.minor or 0
+        patch = coerced.patch or 0
+        return f"{major}.{minor}.{patch}"
+    except (ValueError, TypeError):
+        m = re.match(r"(\d+)\.(\d+)\.(\d+)", str(version))
+        return ".".join(m.groups()) if m else "0.0.0"
+
+
+# Configure ESP-IDF version environment variables
+framework_version = get_framework_version()
+_mv = framework_version.split(".")
+major_version = f"{_mv[0]}.{_mv[1] if len(_mv) > 1 else '0'}"
+os.environ["ESP_IDF_VERSION"] = major_version
+
+
 def create_silent_action(action_func):
     """Create a silent SCons action that suppresses output"""
     silent_action = env.Action(action_func)
@@ -945,8 +986,8 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
 
     initial_ld_script = str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld" / idf_variant / "sections.ld.in")
 
-    framework_version = [int(v) for v in get_framework_version().split(".")]
-    if framework_version[:2] > [5, 2]:
+    framework_version_list = [int(v) for v in get_framework_version().split(".")]
+    if framework_version_list[:2] > [5, 2]:
         initial_ld_script = preprocess_linker_file(
             initial_ld_script,
             str(Path(BUILD_DIR) / "esp-idf" / "esp_system" / "ld" / "sections.ld.in"),
@@ -1187,6 +1228,9 @@ def build_bootloader(sdk_config):
             "-DPROJECT_SOURCE_DIR=" + PROJECT_DIR,
             "-DLEGACY_INCLUDE_COMMON_HEADERS=",
             "-DEXTRA_COMPONENT_DIRS=" + str(Path(FRAMEWORK_DIR) / "components" / "bootloader"),
+            f"-DESP_IDF_VERSION={major_version}",
+            f"-DESP_IDF_VERSION_MAJOR={framework_version.split('.')[0]}",
+            f"-DESP_IDF_VERSION_MINOR={framework_version.split('.')[1]}",
         ],
     )
 
@@ -1227,7 +1271,84 @@ def build_bootloader(sdk_config):
     )
 
     bootloader_env.MergeFlags(link_args)
-    bootloader_env.Append(LINKFLAGS=extra_flags)
+    
+    # Handle ESP-IDF 6.0 linker script preprocessing for .ld.in files
+    # In bootloader context, only .ld.in templates exist and need preprocessing
+    processed_extra_flags = []
+    
+    # Bootloader preprocessing configuration
+    bootloader_config_dir = str(Path(BUILD_DIR) / "bootloader" / "config")
+    bootloader_extra_includes = [
+        str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant)
+    ]
+
+    i = 0
+    while i < len(extra_flags):
+        if extra_flags[i] == "-T" and i + 1 < len(extra_flags):
+            linker_script = extra_flags[i + 1]
+            
+            # Process .ld.in templates directly
+            if linker_script.endswith(".ld.in"):
+                script_name = os.path.basename(linker_script).replace(".ld.in", ".ld")
+                target_script = str(Path(BUILD_DIR) / "bootloader" / script_name)
+                
+                preprocessed_script = preprocess_linker_file(
+                    linker_script,
+                    target_script,
+                    config_dir=bootloader_config_dir,
+                    extra_include_dirs=bootloader_extra_includes
+                )
+                
+                bootloader_env.Depends("$BUILD_DIR/bootloader.elf", preprocessed_script)
+                processed_extra_flags.extend(["-T", target_script])
+            # Handle .ld files - prioritize using original scripts when available
+            elif linker_script.endswith(".ld"):
+                script_basename = os.path.basename(linker_script)
+                
+                # Check if the original .ld file exists in framework and use it directly
+                original_script_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / script_basename)
+                
+                if os.path.isfile(original_script_path):
+                    # Use the original script directly - no preprocessing needed
+                    processed_extra_flags.extend(["-T", original_script_path])
+                else:
+                    # Only generate from template if no original .ld file exists
+                    script_name_in = script_basename.replace(".ld", ".ld.in")
+                    bootloader_script_in_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / script_name_in)
+                    
+                    # ESP32-P4 specific: Check for bootloader.rev3.ld.in
+                    if idf_variant == "esp32p4" and script_basename == "bootloader.ld":
+                        sdk_config = get_sdk_configuration()
+                        if sdk_config.get("ESP32P4_REV_MIN_300", False):
+                            bootloader_rev3_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / "bootloader.rev3.ld.in")
+                            if os.path.isfile(bootloader_rev3_path):
+                                bootloader_script_in_path = bootloader_rev3_path
+                    
+                    # Preprocess the .ld.in template to generate the .ld file
+                    if os.path.isfile(bootloader_script_in_path):
+                        target_script = str(Path(BUILD_DIR) / "bootloader" / script_basename)
+                        
+                        preprocessed_script = preprocess_linker_file(
+                            bootloader_script_in_path,
+                            target_script,
+                            config_dir=bootloader_config_dir,
+                            extra_include_dirs=bootloader_extra_includes
+                        )
+                        
+                        bootloader_env.Depends("$BUILD_DIR/bootloader.elf", preprocessed_script)
+                        processed_extra_flags.extend(["-T", target_script])
+                    else:
+                        # Pass through if neither original nor template found (e.g., ROM scripts)
+                        processed_extra_flags.extend(["-T", linker_script])
+            else:
+                # Pass through any other linker flags unchanged
+                processed_extra_flags.extend(["-T", linker_script])
+            i += 2
+        else:
+            processed_extra_flags.append(extra_flags[i])
+            i += 1
+    
+    bootloader_env.Append(LINKFLAGS=processed_extra_flags)
     bootloader_libs = find_lib_deps(components_map, elf_config, link_args)
 
     bootloader_env.Prepend(__RPATH="-Wl,--start-group ")
@@ -1323,31 +1444,6 @@ def find_default_component(target_configs):
     env.Exit(1)
 
 
-def get_framework_version():
-    def _extract_from_cmake_version_file():
-        version_cmake_file = str(Path(FRAMEWORK_DIR) / "tools" / "cmake" / "version.cmake")
-        if not os.path.isfile(version_cmake_file):
-            return
-
-        with open(version_cmake_file, encoding="utf8") as fp:
-            pattern = r"set\(IDF_VERSION_(MAJOR|MINOR|PATCH) (\d+)\)"
-            matches = re.findall(pattern, fp.read())
-            if len(matches) != 3:
-                return
-            # If found all three parts of the version
-            return ".".join([match[1] for match in matches])
-
-    pkg = platform.get_package("framework-espidf")
-    version = get_original_version(str(pkg.metadata.version.truncate()))
-    if not version:
-        # Fallback value extracted directly from the cmake version file
-        version = _extract_from_cmake_version_file()
-        if not version:
-            version = "0.0.0"
-
-    return version
-
-
 def create_version_file():
     version_file = str(Path(FRAMEWORK_DIR) / "version.txt")
     if not os.path.isfile(version_file):
@@ -1432,26 +1528,73 @@ def get_app_partition_offset(pt_table, pt_offset):
     return factory_app_params.get("offset", "0x10000")
 
 
-def preprocess_linker_file(src_ld_script, target_ld_script):
-    return env.Command(
-        target_ld_script,
-        src_ld_script,
-        env.VerboseAction(
-            " ".join(
-                [
+def preprocess_linker_file(src_ld_script, target_ld_script, config_dir=None, extra_include_dirs=None):
+    """
+    Preprocess a linker script file (.ld.in) to generate the final .ld file.
+    Supports both IDF 5.x (linker_script_generator.cmake) and IDF 6.x (linker_script_preprocessor.cmake).
+    
+    Args:
+        src_ld_script: Source .ld.in file path
+        target_ld_script: Target .ld file path
+        config_dir: Configuration directory (defaults to BUILD_DIR/config for main app)
+        extra_include_dirs: Additional include directories (list)
+    """
+    if config_dir is None:
+        config_dir = str(Path(BUILD_DIR) / "config")
+    
+    # Convert all paths to forward slashes for CMake compatibility on Windows
+    config_dir = fs.to_unix_path(config_dir)
+    src_ld_script = fs.to_unix_path(src_ld_script)
+    target_ld_script = fs.to_unix_path(target_ld_script)
+    
+    # Check IDF version to determine which CMake script to use
+    framework_version_list = [int(v) for v in get_framework_version().split(".")]
+    
+    # IDF 6.0+ uses linker_script_preprocessor.cmake with CFLAGS approach
+    if framework_version_list[0] >= 6:
+        include_dirs = [f'"{config_dir}"']
+        include_dirs.append(f'"{fs.to_unix_path(str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld"))}"')
+        
+        if extra_include_dirs:
+            include_dirs.extend(f'"{fs.to_unix_path(dir_path)}"' for dir_path in extra_include_dirs)
+        
+        cflags_value = "-I" + " -I".join(include_dirs)
+        
+        return env.Command(
+            target_ld_script,
+            src_ld_script,
+            env.VerboseAction(
+                " ".join([
+                    f'"{CMAKE_DIR}"',
+                    f'-DCC="{fs.to_unix_path(str(Path(TOOLCHAIN_DIR) / "bin" / "$CC"))}"',
+                    f'-DSOURCE="{src_ld_script}"',
+                    f'-DTARGET="{target_ld_script}"',
+                    f'-DCFLAGS="{cflags_value}"',
+                    "-P",
+                    f'"{fs.to_unix_path(str(Path(FRAMEWORK_DIR) / "tools" / "cmake" / "linker_script_preprocessor.cmake"))}"',
+                ]),
+                "Generating LD script $TARGET",
+            ),
+        )
+    else:
+        # IDF 5.x: Use legacy linker_script_generator.cmake method
+        return env.Command(
+            target_ld_script,
+            src_ld_script,
+            env.VerboseAction(
+                " ".join([
                     f'"{CMAKE_DIR}"',
                     f'-DCC="{str(Path(TOOLCHAIN_DIR) / "bin" / "$CC")}"',
                     "-DSOURCE=$SOURCE",
                     "-DTARGET=$TARGET",
-                    f'-DCONFIG_DIR="{str(Path(BUILD_DIR) / "config")}"',
+                    f'-DCONFIG_DIR="{config_dir}"',
                     f'-DLD_DIR="{str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld")}"',
                     "-P",
                     f'"{str(Path("$BUILD_DIR") / "esp-idf" / "esp_system" / "ld" / "linker_script_generator.cmake")}"',
-                ]
+                ]),
+                "Generating LD script $TARGET",
             ),
-            "Generating LD script $TARGET",
-        ),
-    )
+        )
 
 
 def generate_mbedtls_bundle(sdk_config):
@@ -1696,8 +1839,8 @@ generate_default_component()
 if not board.get("build.ldscript", ""):
     initial_ld_script = board.get("build.esp-idf.ldscript", str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld" / idf_variant / "memory.ld.in"))
 
-    framework_version = [int(v) for v in get_framework_version().split(".")]
-    if framework_version[:2] > [5, 2]:
+    framework_version_list = [int(v) for v in get_framework_version().split(".")]
+    if framework_version_list[:2] > [5, 2]:
         initial_ld_script = preprocess_linker_file(
             initial_ld_script,
             str(Path(BUILD_DIR) / "esp-idf" / "esp_system" / "ld" / "memory.ld.in")
@@ -1756,11 +1899,6 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
     env.Append(
         LIBSOURCE_DIRS=[str(Path(ARDUINO_FRAMEWORK_DIR) / "libraries")]
     )
-
-# Configure ESP-IDF version environment variables for Kconfig processing
-framework_version = get_framework_version()
-major_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
-os.environ["ESP_IDF_VERSION"] = major_version
 
 # Setup CMake configuration arguments
 extra_cmake_args = [
