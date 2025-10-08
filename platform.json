@@ -18,7 +18,7 @@
     "type": "git",
     "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "55.03.31",
+  "version": "55.03.32",
   "frameworks": {
     "arduino": {
       "script": "builder/frameworks/arduino.py"
@@ -33,13 +33,13 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.1/esp32-3.3.1.zip"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.2/esp32-3.3.2.tar.xz"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/esp32-arduino-lib-builder/releases/download/idf-release_v5.5/esp32-arduino-libs-idf-release_v5.5-129cd0d2-v4.zip"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.2/esp32-3.3.2-libs.tar.xz"
     },
     "framework-arduino-c2-skeleton-lib": {
       "type": "framework",
@@ -51,21 +51,21 @@
       "type": "framework",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.5.1/esp-idf-v5.5.1.tar.xz"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.5.1.250929/esp-idf-v5.5.1.tar.xz"
     },
     "toolchain-xtensa-esp-elf": {
       "type": "toolchain",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "14.2.0+20241119",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/xtensa-esp-elf-14.2.0_20241119.zip"
+      "package-version": "14.2.0+20250730",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/xtensa-esp-elf-14.2.0_20250730.zip"
     },
     "toolchain-riscv32-esp": {
       "type": "toolchain",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "14.2.0+20241119",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/riscv32-esp-elf-14.2.0_20241119.zip"
+      "package-version": "14.2.0+20250730",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/riscv32-esp-elf-14.2.0_20250730.zip"
     },
     "toolchain-esp32ulp": {
       "type": "toolchain",
@@ -78,15 +78,15 @@
       "type": "debugger",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "16.2.0+20250324",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/xtensa-esp-gdb-v16.2_20250324.zip"
+      "package-version": "16.3.0+20250913",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/xtensa-esp-gdb-16.3_20250913.zip"
     },
     "tool-riscv32-esp-elf-gdb": {
       "type": "debugger",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "16.2.0+20250324",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/riscv32-esp-gdb-v16.2_20250324.zip"
+      "package-version": "16.3.0+20250913",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/riscv32-esp-gdb-16.3_20250913.zip"
     },
     "tool-esptoolpy": {
       "type": "uploader",
