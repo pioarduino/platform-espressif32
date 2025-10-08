@@ -565,7 +565,8 @@ FRAMEWORK_LIB_DIR = path_cache.framework_lib_dir
 
 SConscript("_embed_files.py", exports="env")
 
-flag_any_custom_sdkconfig = exists(str(Path(FRAMEWORK_LIB_DIR) / "sdkconfig"))
+flag_any_custom_sdkconfig = (FRAMEWORK_LIB_DIR is not None and 
+                            exists(str(Path(FRAMEWORK_LIB_DIR) / "sdkconfig")))
 
 
 def has_unicore_flags():
@@ -644,6 +645,8 @@ IS_INTEGRATION_DUMP = env.IsIntegrationDump()
 def is_framework_subfolder(potential_subfolder):
     """Check if a path is a subfolder of the framework SDK directory"""
     # carefully check before change this function
+    if FRAMEWORK_SDK_DIR is None:
+        return False
     if not isabs(potential_subfolder):
         return False
     if (splitdrive(FRAMEWORK_SDK_DIR)[0] !=
