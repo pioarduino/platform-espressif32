@@ -444,7 +444,6 @@ def HandleArduinoIDFsettings(env):
         if f_flash and compile_freq:
             # Ensure frequency compatibility (>= 80MHz must be identical for Flash and PSRAM)
             compile_freq_val = int(str(compile_freq).replace("000000L", ""))
-            esptool_freq_val = int(str(esptool_flash_freq).replace("000000L", ""))
             
             if compile_freq_val >= 80:
                 # Above 80MHz, both Flash and PSRAM must use same frequency
