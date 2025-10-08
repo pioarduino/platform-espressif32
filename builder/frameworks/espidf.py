@@ -78,7 +78,7 @@ config = env.GetProjectConfig()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 flash_speed = board.get("build.f_flash", "40000000L")
-flash_frequency = str(flash_speed.replace("000000L", "m"))
+flash_frequency = str(flash_speed.replace("000000L", ""))
 flash_mode = board.get("build.flash_mode", "dio")
 idf_variant = mcu.lower()
 flag_custom_sdkonfig = False
@@ -102,6 +102,47 @@ PLATFORMIO_DIR = env.subst("$PROJECT_CORE_DIR")
 if not TOOLCHAIN_DIR or not os.path.isdir(TOOLCHAIN_DIR):
     sys.stderr.write(f"Error: Missing toolchain directory '{TOOLCHAIN_DIR}'\n")
     env.Exit(1)
+
+
+def get_framework_version():
+    def _extract_from_cmake_version_file():
+        version_cmake_file = str(Path(FRAMEWORK_DIR) / "tools" / "cmake" / "version.cmake")
+        if not os.path.isfile(version_cmake_file):
+            return
+
+        with open(version_cmake_file, encoding="utf8") as fp:
+            pattern = r"set\(IDF_VERSION_(MAJOR|MINOR|PATCH) (\d+)\)"
+            matches = re.findall(pattern, fp.read())
+            if len(matches) != 3:
+                return
+            # If found all three parts of the version
+            return ".".join([match[1] for match in matches])
+
+    pkg = platform.get_package("framework-espidf")
+    version = get_original_version(str(pkg.metadata.version.truncate()))
+    if not version:
+        # Fallback value extracted directly from the cmake version file
+        version = _extract_from_cmake_version_file()
+        if not version:
+            version = "0.0.0"
+
+    # Normalize to semver (handles "6.0.0-rc1", VCS metadata, etc.)
+    try:
+        coerced = semantic_version.Version.coerce(version, partial=True)
+        major = coerced.major or 0
+        minor = coerced.minor or 0
+        patch = coerced.patch or 0
+        return f"{major}.{minor}.{patch}"
+    except (ValueError, TypeError):
+        m = re.match(r"(\d+)\.(\d+)\.(\d+)", str(version))
+        return ".".join(m.groups()) if m else "0.0.0"
+
+
+# Configure ESP-IDF version environment variables
+framework_version = get_framework_version()
+_mv = framework_version.split(".")
+major_version = f"{_mv[0]}.{_mv[1] if len(_mv) > 1 else '0'}"
+os.environ["ESP_IDF_VERSION"] = major_version
 
 
 def create_silent_action(action_func):
@@ -177,6 +218,29 @@ if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig"):
 if "espidf.custom_sdkconfig" in board:
     flag_custom_sdkonfig = True
 
+
+# Check for board-specific configurations that require sdkconfig generation
+def has_board_specific_config():
+    """Check if board has configuration that needs to be applied to sdkconfig."""
+    # Check for PSRAM support
+    extra_flags = board.get("build.extra_flags", [])
+    has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
+    
+    # Check for special memory types  
+    memory_type = None
+    build_section = board.get("build", {})
+    arduino_section = build_section.get("arduino", {})
+    if "memory_type" in arduino_section:
+        memory_type = arduino_section["memory_type"]
+    elif "memory_type" in build_section:
+        memory_type = build_section["memory_type"]
+    has_special_memory = memory_type and ("opi" in memory_type.lower())
+    
+    return has_psram or has_special_memory
+
+if has_board_specific_config():
+    flag_custom_sdkonfig = True
+
 def HandleArduinoIDFsettings(env):
     """
     Handles Arduino IDF settings configuration with custom sdkconfig support.
@@ -243,48 +307,323 @@ def HandleArduinoIDFsettings(env):
             return line.split("=")[0]
         return None
 
+    def generate_board_specific_config():
+        """Generate board-specific sdkconfig settings from board.json manifest."""
+        board_config_flags = []
+
+        # Handle memory type configuration with platformio.ini override support
+        # Priority: platformio.ini > board.json manifest
+        memory_type = None
+        
+        # Check for memory_type override in platformio.ini
+        if hasattr(env, 'GetProjectOption'):
+            try:
+                memory_type = env.GetProjectOption("board_build.memory_type", None)
+            except:
+                pass
+        
+        # Fallback to board.json manifest
+        if not memory_type:
+            build_section = board.get("build", {})
+            arduino_section = build_section.get("arduino", {})
+            if "memory_type" in arduino_section:
+                memory_type = arduino_section["memory_type"]
+            elif "memory_type" in build_section:
+                memory_type = build_section["memory_type"]
+
+        flash_memory_type = None
+        psram_memory_type = None
+        if memory_type:
+            parts = memory_type.split("_")
+            if len(parts) == 2:
+                flash_memory_type, psram_memory_type = parts
+            else:
+                flash_memory_type = memory_type
+                
+        # Check for additional flash configuration indicators
+        boot_mode = board.get("build", {}).get("boot", None)
+        flash_mode = board.get("build", {}).get("flash_mode", None)
+        
+        # Override flash_memory_type if boot mode indicates OPI
+        if boot_mode == "opi" or flash_mode in ["dout", "opi"]:
+            if not flash_memory_type or flash_memory_type.lower() != "opi":
+                flash_memory_type = "opi"
+                print(f"Info: Detected OPI Flash via boot_mode='{boot_mode}' or flash_mode='{flash_mode}'")
+
+        # Set CPU frequency with platformio.ini override support
+        # Priority: platformio.ini > board.json manifest
+        f_cpu = None
+        if hasattr(env, 'GetProjectOption'):
+            # Check for board_build.f_cpu override in platformio.ini
+            try:
+                f_cpu = env.GetProjectOption("board_build.f_cpu", None)
+            except:
+                pass
+        
+        # Fallback to board.json manifest
+        if not f_cpu:
+            f_cpu = board.get("build.f_cpu", None)
+        
+        if f_cpu:
+            cpu_freq = str(f_cpu).replace("000000L", "")
+            board_config_flags.append(f"CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ={cpu_freq}")
+            # Disable other CPU frequency options and enable the specific one
+            common_cpu_freqs = ["80", "160", "240"]
+            for freq in common_cpu_freqs:
+                if freq != cpu_freq:
+                    if mcu == "esp32":
+                        board_config_flags.append(f"# CONFIG_ESP32_DEFAULT_CPU_FREQ_{freq} is not set")
+                    elif mcu in ["esp32s2", "esp32s3"]:
+                        board_config_flags.append(f"# CONFIG_ESP32S2_DEFAULT_CPU_FREQ_{freq} is not set" if mcu == "esp32s2" else f"# CONFIG_ESP32S3_DEFAULT_CPU_FREQ_{freq} is not set")
+                    elif mcu in ["esp32c2", "esp32c3", "esp32c6"]:
+                        board_config_flags.append(f"# CONFIG_ESP32C3_DEFAULT_CPU_FREQ_{freq} is not set")
+            # Enable the specific CPU frequency
+            if mcu == "esp32":
+                board_config_flags.append(f"CONFIG_ESP32_DEFAULT_CPU_FREQ_{cpu_freq}=y")
+            elif mcu == "esp32s2":
+                board_config_flags.append(f"CONFIG_ESP32S2_DEFAULT_CPU_FREQ_{cpu_freq}=y")
+            elif mcu == "esp32s3":
+                board_config_flags.append(f"CONFIG_ESP32S3_DEFAULT_CPU_FREQ_{cpu_freq}=y")
+            elif mcu in ["esp32c2", "esp32c3", "esp32c6"]:
+                board_config_flags.append(f"CONFIG_ESP32C3_DEFAULT_CPU_FREQ_{cpu_freq}=y")
+
+        # Set flash size with platformio.ini override support
+        # Priority: platformio.ini > board.json manifest
+        flash_size = None
+        if hasattr(env, 'GetProjectOption'):
+            # Check for board_upload.flash_size override in platformio.ini
+            try:
+                flash_size = env.GetProjectOption("board_upload.flash_size", None)
+            except:
+                pass
+        
+        # Fallback to board.json manifest
+        if not flash_size:
+            flash_size = board.get("upload", {}).get("flash_size", None)
+        
+        if flash_size:
+            # Configure both string and boolean flash size formats
+            # Disable other flash size options first
+            flash_sizes = ["4MB", "8MB", "16MB", "32MB", "64MB", "128MB"]
+            for size in flash_sizes:
+                if size != flash_size:
+                    board_config_flags.append(f"# CONFIG_ESPTOOLPY_FLASHSIZE_{size} is not set")
+            
+            # Set the specific flash size configs
+            board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHSIZE=\"{flash_size}\"")
+            board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHSIZE_{flash_size}=y")
+
+        # Handle Flash and PSRAM frequency configuration with platformio.ini override support
+        # Priority: platformio.ini > board.json manifest
+        # From 80MHz onwards, Flash and PSRAM frequencies must be identical
+        
+        # Get f_flash with override support
+        f_flash = None
+        if hasattr(env, 'GetProjectOption'):
+            try:
+                f_flash = env.GetProjectOption("board_build.f_flash", None)
+            except:
+                pass
+        if not f_flash:
+            f_flash = board.get("build.f_flash", None)
+        
+        # Get f_boot with override support
+        f_boot = None
+        if hasattr(env, 'GetProjectOption'):
+            try:
+                f_boot = env.GetProjectOption("board_build.f_boot", None)
+            except:
+                pass
+        if not f_boot:
+            f_boot = board.get("build.f_boot", None)
+        
+        # Determine the frequencies to use
+        esptool_flash_freq = f_flash  # Always use f_flash for esptool compatibility
+        compile_freq = f_boot if f_boot else f_flash  # Use f_boot for compile-time if available
+        
+        if f_flash and compile_freq:
+            # Ensure frequency compatibility (>= 80MHz must be identical for Flash and PSRAM)
+            compile_freq_val = int(str(compile_freq).replace("000000L", ""))
+            esptool_freq_val = int(str(esptool_flash_freq).replace("000000L", ""))
+            
+            if compile_freq_val >= 80:
+                # Above 80MHz, both Flash and PSRAM must use same frequency
+                unified_freq = compile_freq_val
+                flash_freq_str = f"{unified_freq}m"
+                psram_freq_str = str(unified_freq)
+                
+                print(f"Info: Unified frequency mode (>= 80MHz): {unified_freq}MHz for both Flash and PSRAM")
+            else:
+                # Below 80MHz, frequencies can differ
+                flash_freq_str = str(compile_freq).replace("000000L", "m")
+                psram_freq_str = str(compile_freq).replace("000000L", "")
+                
+                print(f"Info: Independent frequency mode (< 80MHz): Flash={flash_freq_str}, PSRAM={psram_freq_str}")
+            
+            # Configure Flash frequency
+            # Disable other flash frequency options first
+            flash_freqs = ["20m", "26m", "40m", "80m", "120m"]
+            for freq in flash_freqs:
+                if freq != flash_freq_str:
+                    board_config_flags.append(f"# CONFIG_ESPTOOLPY_FLASHFREQ_{freq.upper()} is not set")
+            # Then set the specific frequency configs
+            board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ=\"{flash_freq_str}\"")
+            board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_{flash_freq_str.upper()}=y")
+            
+            # Configure PSRAM frequency (same as Flash for >= 80MHz)
+            # Disable other SPIRAM speed options first
+            psram_freqs = ["40", "80", "120"]
+            for freq in psram_freqs:
+                if freq != psram_freq_str:
+                    board_config_flags.append(f"# CONFIG_SPIRAM_SPEED_{freq}M is not set")
+            # Then set the specific SPIRAM configs
+            board_config_flags.append(f"CONFIG_SPIRAM_SPEED={psram_freq_str}")
+            board_config_flags.append(f"CONFIG_SPIRAM_SPEED_{psram_freq_str}M=y")
+            
+            # Enable experimental features for frequencies > 80MHz
+            if compile_freq_val > 80:
+                board_config_flags.append("CONFIG_IDF_EXPERIMENTAL_FEATURES=y")
+                board_config_flags.append("CONFIG_SPI_FLASH_HPM_ENABLE=y")
+                board_config_flags.append("CONFIG_SPI_FLASH_HPM_AUTO=y")
+
+        # Check for PSRAM support based on board flags
+        extra_flags = board.get("build.extra_flags", [])
+        has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
+        
+        # Additional PSRAM detection methods
+        if not has_psram:
+            # Check if memory_type contains psram indicators
+            if memory_type and ("opi" in memory_type.lower() or "psram" in memory_type.lower()):
+                has_psram = True
+            # Check build.psram_type
+            elif "psram_type" in board.get("build", {}):
+                has_psram = True
+            # Check for SPIRAM mentions in extra_flags
+            elif any("SPIRAM" in str(flag) for flag in extra_flags):
+                has_psram = True
+            # For ESP32-S3, assume PSRAM capability (can be disabled later if not present)
+            elif mcu == "esp32s3":
+                has_psram = True
+        
+        if has_psram:
+            # Enable basic SPIRAM support
+            board_config_flags.append("CONFIG_SPIRAM=y")
+            
+            # Determine PSRAM type with platformio.ini override support
+            # Priority: platformio.ini > memory_type > build.psram_type > default
+            psram_type = None
+            
+            # Priority 1: Check for platformio.ini override
+            if hasattr(env, 'GetProjectOption'):
+                try:
+                    psram_type = env.GetProjectOption("board_build.psram_type", None)
+                    if psram_type:
+                        psram_type = psram_type.lower()
+                except:
+                    pass
+            
+            # Priority 2: Check psram_memory_type from memory_type field (e.g., "qio_opi")
+            if not psram_type and psram_memory_type:
+                psram_type = psram_memory_type.lower()
+            # Priority 3: Check build.psram_type field as fallback
+            elif not psram_type and "psram_type" in board.get("build", {}):
+                psram_type = board.get("build.psram_type", "qio").lower()
+            # Priority 4: Default to qio
+            elif not psram_type:
+                psram_type = "qio"
+            
+            # Configure PSRAM mode based on detected type
+            if psram_type == "opi":
+                # Octal PSRAM configuration (for ESP32-S3 only)
+                if mcu == "esp32s3":
+                    board_config_flags.extend([
+                        "CONFIG_IDF_EXPERIMENTAL_FEATURES=y",
+                        "# CONFIG_SPIRAM_MODE_QUAD is not set",
+                        "CONFIG_SPIRAM_MODE_OCT=y",
+                        "CONFIG_SPIRAM_TYPE_AUTO=y"
+                    ])
+                else:
+                    # Fallback to QUAD for non-S3 chips
+                    board_config_flags.extend([
+                        "# CONFIG_SPIRAM_MODE_OCT is not set",
+                        "CONFIG_SPIRAM_MODE_QUAD=y"
+                    ])
+                    
+            elif psram_type in ["qio", "qspi"]:
+                # Quad PSRAM configuration
+                if mcu in ["esp32s2", "esp32s3"]:
+                    board_config_flags.extend([
+                        "# CONFIG_SPIRAM_MODE_OCT is not set",
+                        "CONFIG_SPIRAM_MODE_QUAD=y"
+                    ])
+                elif mcu == "esp32":
+                    board_config_flags.extend([
+                        "# CONFIG_SPIRAM_MODE_OCT is not set",
+                        "# CONFIG_SPIRAM_MODE_QUAD is not set"
+                    ])
+
+        # Use flash_memory_type for flash config
+        if flash_memory_type and "opi" in flash_memory_type.lower():
+            # OPI Flash configurations require specific settings
+            board_config_flags.extend([
+                "# CONFIG_ESPTOOLPY_FLASHMODE_QIO is not set",
+                "# CONFIG_ESPTOOLPY_FLASHMODE_QOUT is not set", 
+                "# CONFIG_ESPTOOLPY_FLASHMODE_DIO is not set",
+                "CONFIG_ESPTOOLPY_FLASHMODE_DOUT=y",
+                "CONFIG_ESPTOOLPY_OCT_FLASH=y",
+                "# CONFIG_ESPTOOLPY_FLASH_SAMPLE_MODE_STR is not set",
+                "CONFIG_ESPTOOLPY_FLASH_SAMPLE_MODE_DTR=y"
+            ])
+
+        return board_config_flags
+
     def build_idf_config_flags():
         """Build complete IDF configuration flags from all sources."""
         flags = []
         
-        # Add board-specific flags first
-        if "espidf.custom_sdkconfig" in board:
-            board_flags = board.get("espidf.custom_sdkconfig", [])
-            if board_flags:
-                flags.extend(board_flags)
+        # FIRST: Add board-specific flags derived from board.json manifest
+        board_flags = generate_board_specific_config()
+        if board_flags:
+            flags.extend(board_flags)
         
-        # Add custom sdkconfig file content
+        # SECOND: Add board-specific flags from board manifest (espidf.custom_sdkconfig)
+        if "espidf.custom_sdkconfig" in board:
+            board_manifest_flags = board.get("espidf.custom_sdkconfig", [])
+            if board_manifest_flags:
+                flags.extend(board_manifest_flags)
+        
+        # THIRD: Add custom sdkconfig file content
         custom_file_content = load_custom_sdkconfig_file()
         if custom_file_content:
             flags.append(custom_file_content)
         
-        # Add project-level custom sdkconfig
+        # FOURTH: Add project-level custom sdkconfig (highest precedence for user overrides)
         if config.has_option("env:" + env["PIOENV"], "custom_sdkconfig"):
             custom_flags = env.GetProjectOption("custom_sdkconfig").rstrip("\n")
             if custom_flags:
                 flags.append(custom_flags)
         
+        # FIFTH: Apply ESP32-specific compatibility fixes
+        all_flags_str = "\n".join(flags) + "\n" if flags else ""
+        esp32_compatibility_flags = apply_esp32_compatibility_fixes(all_flags_str)
+        if esp32_compatibility_flags:
+            flags.extend(esp32_compatibility_flags)
+        
         return "\n".join(flags) + "\n" if flags else ""
 
-    def add_flash_configuration(config_flags):
-        """Add flash frequency and mode configuration."""
-        if flash_frequency != "80m":
-            config_flags += "# CONFIG_ESPTOOLPY_FLASHFREQ_80M is not set\n"
-            config_flags += f"CONFIG_ESPTOOLPY_FLASHFREQ_{flash_frequency.upper()}=y\n"
-            config_flags += f"CONFIG_ESPTOOLPY_FLASHFREQ=\"{flash_frequency}\"\n"
-        
-        if flash_mode != "qio":
-            config_flags += "# CONFIG_ESPTOOLPY_FLASHMODE_QIO is not set\n"
-        
-        flash_mode_flag = f"CONFIG_ESPTOOLPY_FLASHMODE_{flash_mode.upper()}=y\n"
-        if flash_mode_flag not in config_flags:
-            config_flags += flash_mode_flag
+    def apply_esp32_compatibility_fixes(config_flags_str):
+        """Apply ESP32-specific compatibility fixes based on final configuration."""
+        compatibility_flags = []
         
         # ESP32 specific SPIRAM configuration
-        if mcu == "esp32" and "CONFIG_FREERTOS_UNICORE=y" in config_flags:
-            config_flags += "# CONFIG_SPIRAM is not set\n"
+        # On ESP32, SPIRAM is not used with UNICORE mode
+        if mcu == "esp32" and "CONFIG_FREERTOS_UNICORE=y" in config_flags_str:
+            if "CONFIG_SPIRAM=y" in config_flags_str:
+                compatibility_flags.append("# CONFIG_SPIRAM is not set")
+                print("Info: ESP32 SPIRAM disabled since solo1 core mode is enabled")
         
-        return config_flags
+        return compatibility_flags
+
 
     def write_sdkconfig_file(idf_config_flags, checksum_source):
         if "arduino" not in env.subst("$PIOFRAMEWORK"):
@@ -305,7 +644,9 @@ def HandleArduinoIDFsettings(env):
             dst.write(f"# TASMOTA__{checksum}\n")
             
             # Process each line from source sdkconfig
-            for line in src:
+            src_lines = src.readlines()
+            
+            for line in src_lines:
                 flag_name = extract_flag_name(line)
                 
                 if flag_name is None:
@@ -334,20 +675,25 @@ def HandleArduinoIDFsettings(env):
                 print(f"Add: {cleaned_flag}")
                 dst.write(cleaned_flag + "\n")
 
+    
     # Main execution logic
     has_custom_config = (
         config.has_option("env:" + env["PIOENV"], "custom_sdkconfig") or
         "espidf.custom_sdkconfig" in board
     )
     
-    if not has_custom_config:
+    has_board_config = has_board_specific_config()
+    
+    if not has_custom_config and not has_board_config:
         return
     
-    print("*** Add \"custom_sdkconfig\" settings to IDF sdkconfig.defaults ***")
+    if has_board_config and not has_custom_config:
+        print("*** Apply board-specific settings to IDF sdkconfig.defaults ***")
+    else:
+        print("*** Add \"custom_sdkconfig\" settings to IDF sdkconfig.defaults ***")
     
     # Build complete configuration
     idf_config_flags = build_idf_config_flags()
-    idf_config_flags = add_flash_configuration(idf_config_flags)
     
     # Convert to list for processing
     idf_config_list = [line for line in idf_config_flags.splitlines() if line.strip()]
@@ -945,8 +1291,8 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
 
     initial_ld_script = str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld" / idf_variant / "sections.ld.in")
 
-    framework_version = [int(v) for v in get_framework_version().split(".")]
-    if framework_version[:2] > [5, 2]:
+    framework_version_list = [int(v) for v in get_framework_version().split(".")]
+    if framework_version_list[:2] > [5, 2]:
         initial_ld_script = preprocess_linker_file(
             initial_ld_script,
             str(Path(BUILD_DIR) / "esp-idf" / "esp_system" / "ld" / "sections.ld.in"),
@@ -1022,11 +1368,14 @@ def compile_source_files(
     # Canonical, symlink-resolved absolute path of the components directory
     components_dir_path = (Path(FRAMEWORK_DIR) / "components").resolve()
     for source in config.get("sources", []):
-        if source["path"].endswith(".rule"):
+        src_path = source["path"]
+        if src_path.endswith(".rule"):
+            continue
+        # Always skip dummy_src.c to avoid duplicate build actions
+        if os.path.basename(src_path) == "dummy_src.c":
             continue
         compile_group_idx = source.get("compileGroupIndex")
         if compile_group_idx is not None:
-            src_path = source.get("path")
             if not os.path.isabs(src_path):
                 # For cases when sources are located near CMakeLists.txt
                 src_path = str(Path(project_src_dir) / src_path)
@@ -1129,7 +1478,10 @@ def get_lib_ignore_components():
         lib_handler = _component_manager.LibraryIgnoreHandler(config, logger)
         
         # Get the processed lib_ignore entries (already converted to component names)
-        lib_ignore_entries = lib_handler._get_lib_ignore_entries()
+        get_entries = getattr(lib_handler, "get_lib_ignore_entries", None)
+        lib_ignore_entries = (
+            get_entries() if callable(get_entries) else lib_handler._get_lib_ignore_entries()
+        )
         
         return lib_ignore_entries
     except (OSError, ValueError, RuntimeError, KeyError) as e:
@@ -1181,6 +1533,9 @@ def build_bootloader(sdk_config):
             "-DPROJECT_SOURCE_DIR=" + PROJECT_DIR,
             "-DLEGACY_INCLUDE_COMMON_HEADERS=",
             "-DEXTRA_COMPONENT_DIRS=" + str(Path(FRAMEWORK_DIR) / "components" / "bootloader"),
+            f"-DESP_IDF_VERSION={major_version}",
+            f"-DESP_IDF_VERSION_MAJOR={framework_version.split('.')[0]}",
+            f"-DESP_IDF_VERSION_MINOR={framework_version.split('.')[1]}",
         ],
     )
 
@@ -1221,7 +1576,84 @@ def build_bootloader(sdk_config):
     )
 
     bootloader_env.MergeFlags(link_args)
-    bootloader_env.Append(LINKFLAGS=extra_flags)
+    
+    # Handle ESP-IDF 6.0 linker script preprocessing for .ld.in files
+    # In bootloader context, only .ld.in templates exist and need preprocessing
+    processed_extra_flags = []
+    
+    # Bootloader preprocessing configuration
+    bootloader_config_dir = str(Path(BUILD_DIR) / "bootloader" / "config")
+    bootloader_extra_includes = [
+        str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant)
+    ]
+
+    i = 0
+    while i < len(extra_flags):
+        if extra_flags[i] == "-T" and i + 1 < len(extra_flags):
+            linker_script = extra_flags[i + 1]
+            
+            # Process .ld.in templates directly
+            if linker_script.endswith(".ld.in"):
+                script_name = os.path.basename(linker_script).replace(".ld.in", ".ld")
+                target_script = str(Path(BUILD_DIR) / "bootloader" / script_name)
+                
+                preprocessed_script = preprocess_linker_file(
+                    linker_script,
+                    target_script,
+                    config_dir=bootloader_config_dir,
+                    extra_include_dirs=bootloader_extra_includes
+                )
+                
+                bootloader_env.Depends("$BUILD_DIR/bootloader.elf", preprocessed_script)
+                processed_extra_flags.extend(["-T", target_script])
+            # Handle .ld files - prioritize using original scripts when available
+            elif linker_script.endswith(".ld"):
+                script_basename = os.path.basename(linker_script)
+                
+                # Check if the original .ld file exists in framework and use it directly
+                original_script_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / script_basename)
+                
+                if os.path.isfile(original_script_path):
+                    # Use the original script directly - no preprocessing needed
+                    processed_extra_flags.extend(["-T", original_script_path])
+                else:
+                    # Only generate from template if no original .ld file exists
+                    script_name_in = script_basename.replace(".ld", ".ld.in")
+                    bootloader_script_in_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / script_name_in)
+                    
+                    # ESP32-P4 specific: Check for bootloader.rev3.ld.in
+                    if idf_variant == "esp32p4" and script_basename == "bootloader.ld":
+                        sdk_config = get_sdk_configuration()
+                        if sdk_config.get("ESP32P4_REV_MIN_300", False):
+                            bootloader_rev3_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / "bootloader.rev3.ld.in")
+                            if os.path.isfile(bootloader_rev3_path):
+                                bootloader_script_in_path = bootloader_rev3_path
+                    
+                    # Preprocess the .ld.in template to generate the .ld file
+                    if os.path.isfile(bootloader_script_in_path):
+                        target_script = str(Path(BUILD_DIR) / "bootloader" / script_basename)
+                        
+                        preprocessed_script = preprocess_linker_file(
+                            bootloader_script_in_path,
+                            target_script,
+                            config_dir=bootloader_config_dir,
+                            extra_include_dirs=bootloader_extra_includes
+                        )
+                        
+                        bootloader_env.Depends("$BUILD_DIR/bootloader.elf", preprocessed_script)
+                        processed_extra_flags.extend(["-T", target_script])
+                    else:
+                        # Pass through if neither original nor template found (e.g., ROM scripts)
+                        processed_extra_flags.extend(["-T", linker_script])
+            else:
+                # Pass through any other linker flags unchanged
+                processed_extra_flags.extend(["-T", linker_script])
+            i += 2
+        else:
+            processed_extra_flags.append(extra_flags[i])
+            i += 1
+    
+    bootloader_env.Append(LINKFLAGS=processed_extra_flags)
     bootloader_libs = find_lib_deps(components_map, elf_config, link_args)
 
     bootloader_env.Prepend(__RPATH="-Wl,--start-group ")
@@ -1317,31 +1749,6 @@ def find_default_component(target_configs):
     env.Exit(1)
 
 
-def get_framework_version():
-    def _extract_from_cmake_version_file():
-        version_cmake_file = str(Path(FRAMEWORK_DIR) / "tools" / "cmake" / "version.cmake")
-        if not os.path.isfile(version_cmake_file):
-            return
-
-        with open(version_cmake_file, encoding="utf8") as fp:
-            pattern = r"set\(IDF_VERSION_(MAJOR|MINOR|PATCH) (\d+)\)"
-            matches = re.findall(pattern, fp.read())
-            if len(matches) != 3:
-                return
-            # If found all three parts of the version
-            return ".".join([match[1] for match in matches])
-
-    pkg = platform.get_package("framework-espidf")
-    version = get_original_version(str(pkg.metadata.version.truncate()))
-    if not version:
-        # Fallback value extracted directly from the cmake version file
-        version = _extract_from_cmake_version_file()
-        if not version:
-            version = "0.0.0"
-
-    return version
-
-
 def create_version_file():
     version_file = str(Path(FRAMEWORK_DIR) / "version.txt")
     if not os.path.isfile(version_file):
@@ -1426,26 +1833,73 @@ def get_app_partition_offset(pt_table, pt_offset):
     return factory_app_params.get("offset", "0x10000")
 
 
-def preprocess_linker_file(src_ld_script, target_ld_script):
-    return env.Command(
-        target_ld_script,
-        src_ld_script,
-        env.VerboseAction(
-            " ".join(
-                [
+def preprocess_linker_file(src_ld_script, target_ld_script, config_dir=None, extra_include_dirs=None):
+    """
+    Preprocess a linker script file (.ld.in) to generate the final .ld file.
+    Supports both IDF 5.x (linker_script_generator.cmake) and IDF 6.x (linker_script_preprocessor.cmake).
+    
+    Args:
+        src_ld_script: Source .ld.in file path
+        target_ld_script: Target .ld file path
+        config_dir: Configuration directory (defaults to BUILD_DIR/config for main app)
+        extra_include_dirs: Additional include directories (list)
+    """
+    if config_dir is None:
+        config_dir = str(Path(BUILD_DIR) / "config")
+    
+    # Convert all paths to forward slashes for CMake compatibility on Windows
+    config_dir = fs.to_unix_path(config_dir)
+    src_ld_script = fs.to_unix_path(src_ld_script)
+    target_ld_script = fs.to_unix_path(target_ld_script)
+    
+    # Check IDF version to determine which CMake script to use
+    framework_version_list = [int(v) for v in get_framework_version().split(".")]
+    
+    # IDF 6.0+ uses linker_script_preprocessor.cmake with CFLAGS approach
+    if framework_version_list[0] >= 6:
+        include_dirs = [f'"{config_dir}"']
+        include_dirs.append(f'"{fs.to_unix_path(str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld"))}"')
+        
+        if extra_include_dirs:
+            include_dirs.extend(f'"{fs.to_unix_path(dir_path)}"' for dir_path in extra_include_dirs)
+        
+        cflags_value = "-I" + " -I".join(include_dirs)
+        
+        return env.Command(
+            target_ld_script,
+            src_ld_script,
+            env.VerboseAction(
+                " ".join([
+                    f'"{CMAKE_DIR}"',
+                    f'-DCC="{fs.to_unix_path(str(Path(TOOLCHAIN_DIR) / "bin" / "$CC"))}"',
+                    f'-DSOURCE="{src_ld_script}"',
+                    f'-DTARGET="{target_ld_script}"',
+                    f'-DCFLAGS="{cflags_value}"',
+                    "-P",
+                    f'"{fs.to_unix_path(str(Path(FRAMEWORK_DIR) / "tools" / "cmake" / "linker_script_preprocessor.cmake"))}"',
+                ]),
+                "Generating LD script $TARGET",
+            ),
+        )
+    else:
+        # IDF 5.x: Use legacy linker_script_generator.cmake method
+        return env.Command(
+            target_ld_script,
+            src_ld_script,
+            env.VerboseAction(
+                " ".join([
                     f'"{CMAKE_DIR}"',
                     f'-DCC="{str(Path(TOOLCHAIN_DIR) / "bin" / "$CC")}"',
                     "-DSOURCE=$SOURCE",
                     "-DTARGET=$TARGET",
-                    f'-DCONFIG_DIR="{str(Path(BUILD_DIR) / "config")}"',
+                    f'-DCONFIG_DIR="{config_dir}"',
                     f'-DLD_DIR="{str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld")}"',
                     "-P",
                     f'"{str(Path("$BUILD_DIR") / "esp-idf" / "esp_system" / "ld" / "linker_script_generator.cmake")}"',
-                ]
+                ]),
+                "Generating LD script $TARGET",
             ),
-            "Generating LD script $TARGET",
-        ),
-    )
+        )
 
 
 def generate_mbedtls_bundle(sdk_config):
@@ -1690,8 +2144,8 @@ generate_default_component()
 if not board.get("build.ldscript", ""):
     initial_ld_script = board.get("build.esp-idf.ldscript", str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld" / idf_variant / "memory.ld.in"))
 
-    framework_version = [int(v) for v in get_framework_version().split(".")]
-    if framework_version[:2] > [5, 2]:
+    framework_version_list = [int(v) for v in get_framework_version().split(".")]
+    if framework_version_list[:2] > [5, 2]:
         initial_ld_script = preprocess_linker_file(
             initial_ld_script,
             str(Path(BUILD_DIR) / "esp-idf" / "esp_system" / "ld" / "memory.ld.in")
@@ -1750,11 +2204,6 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
     env.Append(
         LIBSOURCE_DIRS=[str(Path(ARDUINO_FRAMEWORK_DIR) / "libraries")]
     )
-
-# Configure ESP-IDF version environment variables for Kconfig processing
-framework_version = get_framework_version()
-major_version = framework_version.split('.')[0] + '.' + framework_version.split('.')[1]
-os.environ["ESP_IDF_VERSION"] = major_version
 
 # Setup CMake configuration arguments
 extra_cmake_args = [
