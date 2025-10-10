@@ -3,7 +3,8 @@
 [![Build Status](https://github.com/pioarduino/platform-espressif32/actions/workflows/examples.yml/badge.svg)](https://github.com/pioarduino/platform-espressif32/actions)
 [![Discord](https://img.shields.io/discord/1263397951829708871.svg?logo=discord&logoColor=white&color=5865F2&label=Discord)](https://discord.gg/Nutz9crnZr)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/pioarduino/platform-espressif32)
-[![GitHub Releases](https://img.shields.io/github/downloads/pioarduino/platform-espressif32/total?label=downloads)](https://github.com/pioarduino/platform-espressif32/releases/latest)
+[![GitHub latest release](https://img.shields.io/github/downloads/pioarduino/platform-espressif32/total?label=Downloads)](https://github.com/pioarduino/platform-espressif32/releases/latest)
+![Downloads latest release](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fespressif%2Farduino-esp32%2Freleases%2Flatest&query=%24.assets%5B0%5D.download_count&label=Downloads%20latest)
 
 Espressif Systems is a privately held, fabless semiconductor company renowned for delivering cost-effective wireless communication microcontrollers. Their innovative solutions are widely adopted in mobile devices and Internet of Things (IoT) applications around the globe.
 
@@ -29,7 +30,7 @@ Prerequisites:
 The Wiki is AI generated and insane detailed and accurate.
 
 ### Stable Arduino
-currently espressif Arduino 3.3.0 and IDF 5.5.0
+currently espressif Arduino 3.3.2 and IDF 5.5.1.250929
 
 ```ini
 [env:stable]
