@@ -464,10 +464,13 @@ def HandleArduinoIDFsettings(env):
                 # Then set the specific frequency configs
                 board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ=\"{flash_freq_str}\"")
                 board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_{flash_freq_str.upper()}=y")
+                # ESP32-P4 requires FLASHFREQ_VAL
+                if mcu == "esp32p4":
+                    board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_VAL={compile_freq_val}")
                 
                 # Configure PSRAM frequency (same as Flash for >= 80MHz)
                 # Disable other SPIRAM speed options first
-                psram_freqs = ["40", "80", "120"]
+                psram_freqs = ["20", "40", "80", "120", "200"]
                 for freq in psram_freqs:
                     if freq != psram_freq_str:
                         board_config_flags.append(f"# CONFIG_SPIRAM_SPEED_{freq}M is not set")
@@ -534,6 +537,11 @@ def HandleArduinoIDFsettings(env):
                         "CONFIG_SPIRAM_MODE_OCT=y",
                         "CONFIG_SPIRAM_TYPE_AUTO=y"
                     ])
+                elif mcu == "esp32p4":
+                    # HEX PSRAM configuration (for ESP32-P4)
+                    board_config_flags.extend([
+                        "CONFIG_SPIRAM_MODE_HEX=y"
+                    ])
                 else:
                     # Fallback to QUAD for non-S3 chips
                     board_config_flags.extend([
@@ -547,6 +555,11 @@ def HandleArduinoIDFsettings(env):
                     board_config_flags.extend([
                         "# CONFIG_SPIRAM_MODE_OCT is not set",
                         "CONFIG_SPIRAM_MODE_QUAD=y"
+                    ])
+                elif mcu == "esp32p4":
+                    # HEX PSRAM configuration (for ESP32-P4)
+                    board_config_flags.extend([
+                        "CONFIG_SPIRAM_MODE_HEX=y"
                     ])
                 elif mcu == "esp32":
                     board_config_flags.extend([
@@ -562,7 +575,7 @@ def HandleArduinoIDFsettings(env):
             # Reference: ESP-IDF Programming Guide - SPI Flash Configuration
             board_config_flags.extend([
                 "# CONFIG_ESPTOOLPY_FLASHMODE_QIO is not set",
-                "# CONFIG_ESPTOOLPY_FLASHMODE_QOUT is not set", 
+                "# CONFIG_ESPTOOLPY_FLASHMODE_QOUT is not set",
                 "# CONFIG_ESPTOOLPY_FLASHMODE_DIO is not set",
                 "CONFIG_ESPTOOLPY_FLASHMODE_DOUT=y",
                 "CONFIG_ESPTOOLPY_OCT_FLASH=y",
