@@ -2620,12 +2620,19 @@ if "espidf" in env.subst("$PIOFRAMEWORK") and (flag_custom_component_add == True
             try:
                 shutil.copy(str(Path(PROJECT_SRC_DIR) / "idf_component.yml.orig"), str(Path(PROJECT_SRC_DIR) / "idf_component.yml"))
                 print("*** Original \"idf_component.yml\" restored ***")
-            except (FileNotFoundError, PermissionError, OSError): # no "idf_component.yml" in source folder
-                try:
-                    os.remove(str(Path(PROJECT_SRC_DIR) / "idf_component.yml"))
-                    print("*** pioarduino generated \"idf_component.yml\" removed ***")
-                except (FileNotFoundError, PermissionError, OSError):
-                    print("*** no custom \"idf_component.yml\" found for removing ***")
+            except (FileNotFoundError, PermissionError, OSError):
+                # Only remove idf_component.yml if a .orig backup exists
+                # This indicates the file was created/modified by pioarduino
+                orig_file = Path(PROJECT_SRC_DIR) / "idf_component.yml.orig"
+                yml_file = Path(PROJECT_SRC_DIR) / "idf_component.yml"
+                if orig_file.exists() and yml_file.exists():
+                    try:
+                        os.remove(str(yml_file))
+                        print("*** pioarduino generated \"idf_component.yml\" removed ***")
+                    except (FileNotFoundError, PermissionError, OSError):
+                        print("*** Failed to remove pioarduino generated \"idf_component.yml\" ***")
+                elif yml_file.exists():
+                    print("*** User-created \"idf_component.yml\" preserved (no .orig backup found) ***")
         if "arduino" in env.subst("$PIOFRAMEWORK"):
             # Restore original pioarduino-build.py, only used with Arduino
             from component_manager import ComponentManager
