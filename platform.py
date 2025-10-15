@@ -53,6 +53,7 @@ spec.loader.exec_module(penv_setup_module)
 
 setup_penv_minimal = penv_setup_module.setup_penv_minimal
 get_executable_path = penv_setup_module.get_executable_path
+has_internet_connection = penv_setup_module.has_internet_connection
 
 
 # Constants
@@ -121,12 +122,11 @@ pm = ToolPackageManager()
 logger = logging.getLogger(__name__)
 
 def is_internet_available():
-    """Check if connected to Internet"""
-    try:
-        with socket.create_connection(("8.8.8.8", 53), timeout=3):
-            return True
-    except OSError:
-        return False
+    """
+    Check if connected to Internet.
+    Uses the centralized internet check from penv_setup module.
+    """
+    return has_internet_connection()
 
 def safe_file_operation(operation_func):
     """Decorator for safe filesystem operations with error handling."""
