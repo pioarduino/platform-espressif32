@@ -364,25 +364,18 @@ def HandleArduinoIDFsettings(env):
         if f_cpu:
             cpu_freq = str(f_cpu).replace("000000L", "")
             board_config_flags.append(f"CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ={cpu_freq}")
+            
+            # MCU name mapping for config flags (uppercase MCU name)
+            mcu_upper = mcu.upper().replace("-", "")
+            
             # Disable other CPU frequency options and enable the specific one
             common_cpu_freqs = ["80", "160", "240"]
             for freq in common_cpu_freqs:
                 if freq != cpu_freq:
-                    if mcu == "esp32":
-                        board_config_flags.append(f"# CONFIG_ESP32_DEFAULT_CPU_FREQ_{freq} is not set")
-                    elif mcu in ["esp32s2", "esp32s3"]:
-                        board_config_flags.append(f"# CONFIG_ESP32S2_DEFAULT_CPU_FREQ_{freq} is not set" if mcu == "esp32s2" else f"# CONFIG_ESP32S3_DEFAULT_CPU_FREQ_{freq} is not set")
-                    elif mcu in ["esp32c2", "esp32c3", "esp32c6"]:
-                        board_config_flags.append(f"# CONFIG_ESP32C3_DEFAULT_CPU_FREQ_{freq} is not set")
+                    board_config_flags.append(f"# CONFIG_{mcu_upper}_DEFAULT_CPU_FREQ_{freq} is not set")
+            
             # Enable the specific CPU frequency
-            if mcu == "esp32":
-                board_config_flags.append(f"CONFIG_ESP32_DEFAULT_CPU_FREQ_{cpu_freq}=y")
-            elif mcu == "esp32s2":
-                board_config_flags.append(f"CONFIG_ESP32S2_DEFAULT_CPU_FREQ_{cpu_freq}=y")
-            elif mcu == "esp32s3":
-                board_config_flags.append(f"CONFIG_ESP32S3_DEFAULT_CPU_FREQ_{cpu_freq}=y")
-            elif mcu in ["esp32c2", "esp32c3", "esp32c6"]:
-                board_config_flags.append(f"CONFIG_ESP32C3_DEFAULT_CPU_FREQ_{cpu_freq}=y")
+            board_config_flags.append(f"CONFIG_{mcu_upper}_DEFAULT_CPU_FREQ_{cpu_freq}=y")
 
         # Set flash size with platformio.ini override support
         # Priority: platformio.ini > board.json manifest
@@ -439,48 +432,54 @@ def HandleArduinoIDFsettings(env):
         compile_freq = f_boot if f_boot else f_flash  # Use f_boot for compile-time if available
         
         if f_flash and compile_freq:
-            # Ensure frequency compatibility (>= 80MHz must be identical for Flash and PSRAM)
-            compile_freq_val = int(str(compile_freq).replace("000000L", ""))
+            # Validate and parse frequency values
+            try:
+                compile_freq_val = int(str(compile_freq).replace("000000L", ""))
+            except (ValueError, AttributeError):
+                print(f"Warning: Invalid compile frequency value: {compile_freq}, skipping frequency configuration")
+                compile_freq_val = None
             
-            if compile_freq_val >= 80:
-                # Above 80MHz, both Flash and PSRAM must use same frequency
-                unified_freq = compile_freq_val
-                flash_freq_str = f"{unified_freq}m"
-                psram_freq_str = str(unified_freq)
+            if compile_freq_val:
+                # Determine frequency strings based on value
+                if compile_freq_val >= 80:
+                    # Above 80MHz, both Flash and PSRAM must use same frequency
+                    unified_freq = compile_freq_val
+                    flash_freq_str = f"{unified_freq}m"
+                    psram_freq_str = str(unified_freq)
+                    
+                    print(f"Info: Unified frequency mode (>= 80MHz): {unified_freq}MHz for both Flash and PSRAM")
+                else:
+                    # Below 80MHz, frequencies can differ
+                    flash_freq_str = str(compile_freq).replace("000000L", "m")
+                    psram_freq_str = str(compile_freq).replace("000000L", "")
+                    
+                    print(f"Info: Independent frequency mode (< 80MHz): Flash={flash_freq_str}, PSRAM={psram_freq_str}")
                 
-                print(f"Info: Unified frequency mode (>= 80MHz): {unified_freq}MHz for both Flash and PSRAM")
-            else:
-                # Below 80MHz, frequencies can differ
-                flash_freq_str = str(compile_freq).replace("000000L", "m")
-                psram_freq_str = str(compile_freq).replace("000000L", "")
+                # Configure Flash frequency
+                # Disable other flash frequency options first
+                flash_freqs = ["20m", "26m", "40m", "80m", "120m"]
+                for freq in flash_freqs:
+                    if freq != flash_freq_str:
+                        board_config_flags.append(f"# CONFIG_ESPTOOLPY_FLASHFREQ_{freq.upper()} is not set")
+                # Then set the specific frequency configs
+                board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ=\"{flash_freq_str}\"")
+                board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_{flash_freq_str.upper()}=y")
                 
-                print(f"Info: Independent frequency mode (< 80MHz): Flash={flash_freq_str}, PSRAM={psram_freq_str}")
-            
-            # Configure Flash frequency
-            # Disable other flash frequency options first
-            flash_freqs = ["20m", "26m", "40m", "80m", "120m"]
-            for freq in flash_freqs:
-                if freq != flash_freq_str:
-                    board_config_flags.append(f"# CONFIG_ESPTOOLPY_FLASHFREQ_{freq.upper()} is not set")
-            # Then set the specific frequency configs
-            board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ=\"{flash_freq_str}\"")
-            board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_{flash_freq_str.upper()}=y")
-            
-            # Configure PSRAM frequency (same as Flash for >= 80MHz)
-            # Disable other SPIRAM speed options first
-            psram_freqs = ["40", "80", "120"]
-            for freq in psram_freqs:
-                if freq != psram_freq_str:
-                    board_config_flags.append(f"# CONFIG_SPIRAM_SPEED_{freq}M is not set")
-            # Then set the specific SPIRAM configs
-            board_config_flags.append(f"CONFIG_SPIRAM_SPEED={psram_freq_str}")
-            board_config_flags.append(f"CONFIG_SPIRAM_SPEED_{psram_freq_str}M=y")
-            
-            # Enable experimental features for frequencies > 80MHz
-            if compile_freq_val > 80:
-                board_config_flags.append("CONFIG_IDF_EXPERIMENTAL_FEATURES=y")
-                board_config_flags.append("CONFIG_SPI_FLASH_HPM_ENABLE=y")
-                board_config_flags.append("CONFIG_SPI_FLASH_HPM_AUTO=y")
+                # Configure PSRAM frequency (same as Flash for >= 80MHz)
+                # Disable other SPIRAM speed options first
+                psram_freqs = ["40", "80", "120"]
+                for freq in psram_freqs:
+                    if freq != psram_freq_str:
+                        board_config_flags.append(f"# CONFIG_SPIRAM_SPEED_{freq}M is not set")
+                # Then set the specific SPIRAM configs
+                board_config_flags.append(f"CONFIG_SPIRAM_SPEED={psram_freq_str}")
+                board_config_flags.append(f"CONFIG_SPIRAM_SPEED_{psram_freq_str}M=y")
+                
+                # Enable experimental features for frequencies > 80MHz
+                if compile_freq_val > 80:
+                    board_config_flags.append("CONFIG_IDF_EXPERIMENTAL_FEATURES=y")
+                    board_config_flags.append("CONFIG_SPI_FLASH_HPM_ENABLE=y")
+                    board_config_flags.append("CONFIG_SPI_FLASH_HPM_AUTO=y")
 
         # Check for PSRAM support based on board flags
         extra_flags = board.get("build.extra_flags", [])
@@ -496,9 +495,6 @@ def HandleArduinoIDFsettings(env):
                 has_psram = True
             # Check for SPIRAM mentions in extra_flags
             elif any("SPIRAM" in str(flag) for flag in extra_flags):
-                has_psram = True
-            # For ESP32-S3, assume PSRAM capability (can be disabled later if not present)
-            elif mcu == "esp32s3":
                 has_psram = True
         
         if has_psram:
@@ -561,6 +557,9 @@ def HandleArduinoIDFsettings(env):
         # Use flash_memory_type for flash config
         if flash_memory_type and "opi" in flash_memory_type.lower():
             # OPI Flash configurations require specific settings
+            # According to ESP-IDF documentation, OPI flash must use DOUT mode for bootloader
+            # The bootloader starts in DOUT mode and switches to OPI at runtime
+            # Reference: ESP-IDF Programming Guide - SPI Flash Configuration
             board_config_flags.extend([
                 "# CONFIG_ESPTOOLPY_FLASHMODE_QIO is not set",
                 "# CONFIG_ESPTOOLPY_FLASHMODE_QOUT is not set", 
@@ -2522,7 +2521,9 @@ env["BUILDERS"]["ElfToBin"].action = action
 #
 
 ulp_dir = str(Path(PROJECT_DIR) / "ulp")
-if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "esp32c3", "esp32h2"):
+# ULP support: ESP32, ESP32-S2, ESP32-S3, ESP32-C6, ESP32-P4
+# No ULP: ESP32-C2, ESP32-C3, ESP32-C5, ESP32-H2
+if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "esp32c3", "esp32c5", "esp32h2"):
     env.SConscript("ulp.py", exports="env sdk_config project_config app_includes idf_variant")
 
 #
