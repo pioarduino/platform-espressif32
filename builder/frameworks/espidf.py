@@ -372,9 +372,11 @@ def HandleArduinoIDFsettings(env):
             common_cpu_freqs = ["80", "160", "240"]
             for freq in common_cpu_freqs:
                 if freq != cpu_freq:
+                    board_config_flags.append(f"# CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_{freq} is not set")
                     board_config_flags.append(f"# CONFIG_{mcu_upper}_DEFAULT_CPU_FREQ_{freq} is not set")
             
-            # Enable the specific CPU frequency
+            # Enable the specific CPU frequency (both generic and MCU-specific)
+            board_config_flags.append(f"CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_{cpu_freq}=y")
             board_config_flags.append(f"CONFIG_{mcu_upper}_DEFAULT_CPU_FREQ_{cpu_freq}=y")
 
         # Set flash size with platformio.ini override support
@@ -428,31 +430,42 @@ def HandleArduinoIDFsettings(env):
             f_boot = board.get("build.f_boot", None)
         
         # Determine the frequencies to use
+        # ESP32-P4: f_flash for Flash, f_boot for PSRAM (if set)
+        # Other chips: f_boot overrides f_flash for both Flash and PSRAM
         esptool_flash_freq = f_flash  # Always use f_flash for esptool compatibility
-        compile_freq = f_boot if f_boot else f_flash  # Use f_boot for compile-time if available
         
-        if f_flash and compile_freq:
+        if mcu == "esp32p4":
+            # ESP32-P4: f_flash is always used for Flash frequency
+            flash_compile_freq = f_flash
+            # f_boot is used for PSRAM frequency (if set), otherwise use f_flash
+            psram_compile_freq = f_boot if f_boot else f_flash
+        else:
+            # Other chips: f_boot overrides f_flash for compile-time (both Flash and PSRAM)
+            compile_freq = f_boot if f_boot else f_flash
+            flash_compile_freq = compile_freq
+            psram_compile_freq = compile_freq
+        
+        if f_flash and flash_compile_freq and psram_compile_freq:
             # Validate and parse frequency values
             try:
-                compile_freq_val = int(str(compile_freq).replace("000000L", ""))
+                flash_freq_val = int(str(flash_compile_freq).replace("000000L", ""))
+                psram_freq_val = int(str(psram_compile_freq).replace("000000L", ""))
             except (ValueError, AttributeError):
-                print(f"Warning: Invalid compile frequency value: {compile_freq}, skipping frequency configuration")
-                compile_freq_val = None
+                print(f"Warning: Invalid frequency values, skipping frequency configuration")
+                flash_freq_val = None
+                psram_freq_val = None
             
-            if compile_freq_val:
-                # Determine frequency strings based on value
-                if compile_freq_val >= 80:
-                    # Above 80MHz, both Flash and PSRAM must use same frequency
-                    unified_freq = compile_freq_val
-                    flash_freq_str = f"{unified_freq}m"
-                    psram_freq_str = str(unified_freq)
-                    
-                    print(f"Info: Unified frequency mode (>= 80MHz): {unified_freq}MHz for both Flash and PSRAM")
+            if flash_freq_val and psram_freq_val:
+                # Determine frequency strings
+                flash_freq_str = f"{flash_freq_val}m"
+                psram_freq_str = str(psram_freq_val)
+                
+                # Info message
+                if mcu == "esp32p4":
+                    print(f"Info: ESP32-P4 frequency mode: Flash={flash_freq_val}MHz, PSRAM={psram_freq_val}MHz")
+                elif flash_freq_val >= 80:
+                    print(f"Info: Unified frequency mode (>= 80MHz): {flash_freq_val}MHz for both Flash and PSRAM")
                 else:
-                    # Below 80MHz, frequencies can differ
-                    flash_freq_str = str(compile_freq).replace("000000L", "m")
-                    psram_freq_str = str(compile_freq).replace("000000L", "")
-                    
                     print(f"Info: Independent frequency mode (< 80MHz): Flash={flash_freq_str}, PSRAM={psram_freq_str}")
                 
                 # Configure Flash frequency
@@ -464,11 +477,12 @@ def HandleArduinoIDFsettings(env):
                 # Then set the specific frequency configs
                 board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ=\"{flash_freq_str}\"")
                 board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_{flash_freq_str.upper()}=y")
-                # ESP32-P4 requires FLASHFREQ_VAL
-                if mcu == "esp32p4":
-                    board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_VAL={compile_freq_val}")
                 
-                # Configure PSRAM frequency (same as Flash for >= 80MHz)
+                # ESP32-P4 requires additional FLASHFREQ_VAL setting
+                if mcu == "esp32p4":
+                    board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_VAL={flash_freq_val}")
+                
+                # Configure PSRAM frequency
                 # Disable other SPIRAM speed options first
                 psram_freqs = ["20", "40", "80", "120", "200"]
                 for freq in psram_freqs:
@@ -478,8 +492,8 @@ def HandleArduinoIDFsettings(env):
                 board_config_flags.append(f"CONFIG_SPIRAM_SPEED={psram_freq_str}")
                 board_config_flags.append(f"CONFIG_SPIRAM_SPEED_{psram_freq_str}M=y")
                 
-                # Enable experimental features for frequencies > 80MHz
-                if compile_freq_val > 80:
+                # Enable experimental features for Flash frequencies > 80MHz
+                if flash_freq_val > 80:
                     board_config_flags.append("CONFIG_IDF_EXPERIMENTAL_FEATURES=y")
                     board_config_flags.append("CONFIG_SPI_FLASH_HPM_ENABLE=y")
                     board_config_flags.append("CONFIG_SPI_FLASH_HPM_AUTO=y")
@@ -523,13 +537,21 @@ def HandleArduinoIDFsettings(env):
             # Priority 3: Check build.psram_type field as fallback
             elif not psram_type and "psram_type" in board.get("build", {}):
                 psram_type = board.get("build.psram_type", "qio").lower()
-            # Priority 4: Default to qio
+            # Priority 4: Default based on MCU
             elif not psram_type:
-                psram_type = "qio"
+                # ESP32-P4 defaults to HEX (only type available)
+                if mcu == "esp32p4":
+                    psram_type = "hex"
+                else:
+                    psram_type = "qio"
             
             # Configure PSRAM mode based on detected type
-            if psram_type == "opi":
-                # Octal PSRAM configuration (for ESP32-S3 only)
+            if psram_type == "hex":
+                # HEX PSRAM configuration (ESP32-P4 only)
+                board_config_flags.append("CONFIG_SPIRAM_MODE_HEX=y")
+                
+            elif psram_type == "opi":
+                # Octal PSRAM configuration (for ESP32-S3)
                 if mcu == "esp32s3":
                     board_config_flags.extend([
                         "CONFIG_IDF_EXPERIMENTAL_FEATURES=y",
@@ -537,13 +559,8 @@ def HandleArduinoIDFsettings(env):
                         "CONFIG_SPIRAM_MODE_OCT=y",
                         "CONFIG_SPIRAM_TYPE_AUTO=y"
                     ])
-                elif mcu == "esp32p4":
-                    # HEX PSRAM configuration (for ESP32-P4)
-                    board_config_flags.extend([
-                        "CONFIG_SPIRAM_MODE_HEX=y"
-                    ])
                 else:
-                    # Fallback to QUAD for non-S3 chips
+                    # Fallback to QUAD for other chips
                     board_config_flags.extend([
                         "# CONFIG_SPIRAM_MODE_OCT is not set",
                         "CONFIG_SPIRAM_MODE_QUAD=y"
@@ -555,11 +572,6 @@ def HandleArduinoIDFsettings(env):
                     board_config_flags.extend([
                         "# CONFIG_SPIRAM_MODE_OCT is not set",
                         "CONFIG_SPIRAM_MODE_QUAD=y"
-                    ])
-                elif mcu == "esp32p4":
-                    # HEX PSRAM configuration (for ESP32-P4)
-                    board_config_flags.extend([
-                        "CONFIG_SPIRAM_MODE_HEX=y"
                     ])
                 elif mcu == "esp32":
                     board_config_flags.extend([
