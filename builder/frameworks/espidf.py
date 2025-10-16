@@ -429,16 +429,27 @@ def HandleArduinoIDFsettings(env):
         if not f_boot:
             f_boot = board.get("build.f_boot", None)
         
+        # Get f_psram with override support (ESP32-P4 specific)
+        f_psram = None
+        if hasattr(env, 'GetProjectOption'):
+            try:
+                f_psram = env.GetProjectOption("board_build.f_psram", None)
+            except:
+                pass
+        if not f_psram:
+            f_psram = board.get("build.f_psram", None)
+        
         # Determine the frequencies to use
-        # ESP32-P4: f_flash for Flash, f_boot for PSRAM (if set)
+        # ESP32-P4: f_flash for Flash, f_psram for PSRAM (doesn't affect bootloader name)
         # Other chips: f_boot overrides f_flash for both Flash and PSRAM
         esptool_flash_freq = f_flash  # Always use f_flash for esptool compatibility
         
         if mcu == "esp32p4":
             # ESP32-P4: f_flash is always used for Flash frequency
+            # f_psram is used for PSRAM frequency (if set), otherwise use f_flash
+            # Note: f_boot is NOT used for P4 as it affects bootloader filename
             flash_compile_freq = f_flash
-            # f_boot is used for PSRAM frequency (if set), otherwise use f_flash
-            psram_compile_freq = f_boot if f_boot else f_flash
+            psram_compile_freq = f_psram if f_psram else f_flash
         else:
             # Other chips: f_boot overrides f_flash for compile-time (both Flash and PSRAM)
             compile_freq = f_boot if f_boot else f_flash
