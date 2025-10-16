@@ -589,6 +589,11 @@ def HandleArduinoIDFsettings(env):
                         "# CONFIG_SPIRAM_MODE_OCT is not set",
                         "# CONFIG_SPIRAM_MODE_QUAD is not set"
                     ])
+        else:
+            # Explicitly disable PSRAM if not present
+            board_config_flags.extend([
+                "# CONFIG_SPIRAM is not set"
+            ])
 
         # Use flash_memory_type for flash config
         if flash_memory_type and "opi" in flash_memory_type.lower():
