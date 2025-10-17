@@ -74,7 +74,7 @@ def has_internet_connection(timeout=5):
         True if at least one path appears reachable; otherwise False.
     """
     # 1) Test TCP connectivity to the proxy endpoint.
-    proxy = os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
+    proxy = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy") or os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
     if proxy:
         try:
             u = urlparse(proxy if "://" in proxy else f"http://{proxy}")
