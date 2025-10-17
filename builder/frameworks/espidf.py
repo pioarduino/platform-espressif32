@@ -441,8 +441,6 @@ def HandleArduinoIDFsettings(env):
         
         # Determine the frequencies to use
         # ESP32-P4: f_flash for Flash, f_psram for PSRAM (doesn't affect bootloader name)
-        # Other chips: f_boot overrides f_flash for both Flash and PSRAM
-        esptool_flash_freq = f_flash  # Always use f_flash for esptool compatibility
         
         if mcu == "esp32p4":
             # ESP32-P4: f_flash is always used for Flash frequency
@@ -462,7 +460,7 @@ def HandleArduinoIDFsettings(env):
                 flash_freq_val = int(str(flash_compile_freq).replace("000000L", ""))
                 psram_freq_val = int(str(psram_compile_freq).replace("000000L", ""))
             except (ValueError, AttributeError):
-                print(f"Warning: Invalid frequency values, skipping frequency configuration")
+                print("Warning: Invalid frequency values, skipping frequency configuration")
                 flash_freq_val = None
                 psram_freq_val = None
             
