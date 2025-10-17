@@ -21,6 +21,7 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 from platformio.package.version import pepver_to_semver
 from platformio.compat import IS_WINDOWS
@@ -60,16 +61,44 @@ python_deps = {
 }
 
 
-def has_internet_connection(host="1.1.1.1", port=53, timeout=2):
+def has_internet_connection(timeout=5):
     """
-    Checks if an internet connection is available (default: Cloudflare DNS server).
-    Returns True if a connection is possible, otherwise False.
+    Checks practical internet reachability for dependency installation.
+    1) If HTTPS/HTTP proxy environment variable is set, test TCP connectivity to the proxy endpoint.
+    2) Otherwise, test direct TCP connectivity to common HTTPS endpoints (port 443).
+    
+    Args:
+        timeout (int): Timeout duration in seconds for the connection test.
+
+    Returns:
+        True if at least one path appears reachable; otherwise False.
     """
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
+    # 1) Test TCP connectivity to the proxy endpoint.
+    proxy = os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
+    if proxy:
+        try:
+            u = urlparse(proxy if "://" in proxy else f"http://{proxy}")
+            host = u.hostname
+            port = u.port or (443 if u.scheme == "https" else 80)
+            if host and port:
+                socket.create_connection((host, port), timeout=timeout).close()
+                return True
+        except Exception:
+            # If proxy connection fails, fall back to direct connection test
+            pass
+
+    # 2) Test direct TCP connectivity to common HTTPS endpoints (port 443).
+    https_hosts = ("pypi.org", "files.pythonhosted.org", "github.com")
+    for host in https_hosts:
+        try:
+            socket.create_connection((host, 443), timeout=timeout).close()
             return True
-    except OSError:
-        return False
+        except Exception:
+            continue
+
+    # Direct DNS:53 connection is abolished due to many false positives on enterprise networks
+    # (add it at the end if necessary)
+    return False
 
 
 def get_executable_path(penv_dir, executable_name):
