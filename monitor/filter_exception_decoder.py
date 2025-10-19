@@ -173,24 +173,27 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 )
                 return None
             
-            # Search for ROM ELF files matching the chip
-            # Pattern: <chip_name>_rev<rev>_rom.elf
-            pattern = os.path.join(rom_elfs_dir, f"{chip_name}_rev*.elf")
-            rom_files = glob.glob(pattern)
+            # Patterns commonly seen: <chip>_rev<rev>_rom.elf, <chip>_rev<rev>.elf, <chip>_rom.elf
+            patterns = [
+                os.path.join(rom_elfs_dir, f"{chip_name}_rev*_rom.elf"),
+                os.path.join(rom_elfs_dir, f"{chip_name}_rev*.elf"),
+                os.path.join(rom_elfs_dir, f"{chip_name}*_rom.elf"),
+                os.path.join(rom_elfs_dir, f"{chip_name}*.elf"),
+            ]
+            rom_files = []
+            for p in patterns:
+                rom_files.extend(glob.glob(p))
+            # de-dup
+            rom_files = sorted(set(rom_files))
             
-            if not rom_files:
-                sys.stderr.write(
-                    "%s: No ROM ELF files found for chip %s in %s\n"
-                    % (self.__class__.__name__, chip_name, rom_elfs_dir)
-                )
-                return None
-            
-            # Sort by revision number and return the lowest (most compatible)
-            # This handles cases where specific revision isn't available
-            rom_files.sort()
+            # Sort by numeric revision (lowest first) if present; otherwise push to the end
+            def _rev_key(path):
+                m = re.search(r"_rev(\d+)", os.path.basename(path))
+                return int(m.group(1)) if m else 10**9
+            rom_files.sort(key=_rev_key)
             return rom_files[0]
             
-        except Exception as e:
+        except (PlatformioException, OSError) as e:
             sys.stderr.write(
                 "%s: Error accessing ROM ELF package: %s\n"
                 % (self.__class__.__name__, e)
