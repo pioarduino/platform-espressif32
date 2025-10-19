@@ -112,7 +112,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         the board name and MCU configuration.
         
         Args:
-             Build metadata dictionary containing board and MCU information
+            data: Build metadata dictionary containing board and MCU information
             
         Returns:
             str: Chip name (e.g., "esp32", "esp32s3") or "esp32" as fallback
