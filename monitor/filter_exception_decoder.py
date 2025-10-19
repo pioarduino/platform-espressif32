@@ -49,6 +49,7 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
     # Patterns that indicate we're in an exception/backtrace context
     BACKTRACE_KEYWORDS = re.compile(
         r"(Backtrace:|"
+        r"\bPC:\s*0x[0-9a-fA-F]{8}\b|"
         r"abort\(\) was called at PC|"
         r"Guru Meditation Error:|"
         r"panic'ed|"
@@ -68,6 +69,7 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         "esp32s3": "esp32s3",
         "esp32c2": "esp32c2",
         "esp32c3": "esp32c3",
+        "esp32c5": "esp32c5",
         "esp32c6": "esp32c6",
         "esp32h2": "esp32h2",
         "esp32p4": "esp32p4",
