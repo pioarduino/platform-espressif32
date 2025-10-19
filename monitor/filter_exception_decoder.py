@@ -24,19 +24,35 @@ from platformio.public import (
     load_build_metadata,
 )
 
-# By design, __init__ is called inside miniterm and we can't pass context to it.
-# pylint: disable=attribute-defined-outside-init
-
 
 class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
     NAME = "esp32_exception_decoder"
 
-    ADDR_PATTERN = re.compile(r"((?:0x[0-9a-fA-F]{8}[: ]?)+)")
+    # More specific pattern for PC:SP pairs in backtraces
+    ADDR_PATTERN = re.compile(r"((?:0x[0-9a-fA-F]{8}:0x[0-9a-fA-F]{8}(?: |$))+)")
     ADDR_SPLIT = re.compile(r"[ :]")
     PREFIX_RE = re.compile(r"^ *")
+    
+    # Patterns that indicate we're in an exception/backtrace context
+    BACKTRACE_KEYWORDS = re.compile(
+        r"(Backtrace:|"
+        r"abort\(\) was called at PC|"
+        r"Guru Meditation Error:|"
+        r"panic'ed|"
+        r"register dump:|"
+        r"Stack smashing protect failure!|"
+        r"CORRUPT HEAP:|"
+        r"assertion .* failed:|"
+        r"Debug exception reason:|"
+        r"Undefined behavior of type)",
+        re.IGNORECASE
+    )
 
     def __call__(self):
         self.buffer = ""
+        self.in_backtrace_context = False
+        self.lines_since_context = 0
+        self.max_context_lines = 50  # Maximum lines to process after context keyword
 
         self.firmware_path = None
         self.addr2line_path = None
@@ -72,6 +88,12 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 if os.path.isfile(path):
                     self.addr2line_path = path
                     return True
+            elif "-clang" in cc_path:
+                # Support for Clang toolchain
+                path = cc_path.replace("-clang", "-addr2line")
+                if os.path.isfile(path):
+                    self.addr2line_path = path
+                    return True
         except PlatformioException as e:
             sys.stderr.write(
                 "%s: disabling, exception while looking for addr2line: %s\n"
@@ -81,6 +103,36 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         sys.stderr.write(
             "%s: disabling, failed to find addr2line.\n" % self.__class__.__name__
         )
+        return False
+
+    def is_backtrace_context(self, line):
+        """Check if the line indicates we're entering a backtrace context."""
+        return self.BACKTRACE_KEYWORDS.search(line) is not None
+
+    def should_process_line(self, line):
+        """
+        Determine if a line should be processed for address decoding.
+        Returns True only if:
+        1. We're in a backtrace context, OR
+        2. The line itself contains backtrace keywords
+        """
+        # Check if this line starts a backtrace context
+        if self.is_backtrace_context(line):
+            self.in_backtrace_context = True
+            self.lines_since_context = 0
+            return True
+        
+        # If we're in context, track how many lines we've processed
+        if self.in_backtrace_context:
+            self.lines_since_context += 1
+            
+            # Exit context after max_context_lines or if we see an empty line
+            if self.lines_since_context > self.max_context_lines or line.strip() == "":
+                self.in_backtrace_context = False
+                return False
+            
+            return True
+        
         return False
 
     def rx(self, text):
@@ -101,6 +153,10 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 self.buffer = ""
             last = idx + 1
 
+            # Only process line if it's in the right context
+            if not self.should_process_line(line):
+                continue
+
             m = self.ADDR_PATTERN.search(line)
             if m is None:
                 continue
@@ -114,8 +170,8 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     def is_address_ignored(self, address):
         return address in ("", "0x00000000")
 
-    def filter_addresses(self, adresses_str):
-        addresses = self.ADDR_SPLIT.split(adresses_str)
+    def filter_addresses(self, addresses_str):
+        addresses = self.ADDR_SPLIT.split(addresses_str)
         size = len(addresses)
         while size > 1 and self.is_address_ignored(addresses[size-1]):
             size -= 1
