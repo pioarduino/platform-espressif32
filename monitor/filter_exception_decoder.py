@@ -122,14 +122,18 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         # Try to get from board definition
         board = data.get("board", "").lower()
         
+        # Sort by length (longest first) to match more specific chips first
+        # This prevents "esp32" from matching in "esp32s3", "esp32c3", etc.
+        sorted_chips = sorted(self.CHIP_NAME_MAP.keys(), key=len, reverse=True)
+        
         # Check if board name contains chip identifier
-        for chip_key in self.CHIP_NAME_MAP.keys():
+        for chip_key in sorted_chips:
             if chip_key in board:
                 return self.CHIP_NAME_MAP[chip_key]
         
         # Try to get from MCU
         mcu = data.get("mcu", "").lower()
-        for chip_key in self.CHIP_NAME_MAP.keys():
+        for chip_key in sorted_chips:
             if chip_key in mcu:
                 return self.CHIP_NAME_MAP[chip_key]
         
