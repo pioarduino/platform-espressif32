@@ -422,8 +422,8 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             # Newlines happen with inlined methods
             output = output.replace("\n", "\n     ")
             
-            # Check if address was found in ELF
-            if output == "?? ??:0":
+            # Check if address was found in ELF (handle common variants)
+            if output in ("?? ??:0", "??:0") or output.strip().startswith("?? ") or output.strip() == "??":
                 return None
             
             return output
