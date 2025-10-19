@@ -143,6 +143,9 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         The package must be defined as a dependency in platform.json and
         will be automatically installed when the platform is installed.
         
+        Searches for ROM ELF files with various naming patterns and selects
+        the one with the lowest revision number for maximum compatibility.
+        
         Args:
             chip_name: Name of the ESP32 chip variant (e.g., "esp32s3")
             
@@ -173,23 +176,33 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 )
                 return None
             
-            # Patterns commonly seen: <chip>_rev<rev>_rom.elf, <chip>_rev<rev>.elf, <chip>_rom.elf
+            # Patterns commonly seen: <chip>_rev<rev>_rom.elf, <chip>_rev<rev>.elf, <chip>*_rom.elf
             patterns = [
                 os.path.join(rom_elfs_dir, f"{chip_name}_rev*_rom.elf"),
                 os.path.join(rom_elfs_dir, f"{chip_name}_rev*.elf"),
                 os.path.join(rom_elfs_dir, f"{chip_name}*_rom.elf"),
                 os.path.join(rom_elfs_dir, f"{chip_name}*.elf"),
             ]
+            
             rom_files = []
-            for p in patterns:
-                rom_files.extend(glob.glob(p))
-            # de-dup
+            for pattern in patterns:
+                rom_files.extend(glob.glob(pattern))
+            
+            # Remove duplicates and sort
             rom_files = sorted(set(rom_files))
+            
+            if not rom_files:
+                sys.stderr.write(
+                    "%s: No ROM ELF files found for chip %s in %s\n"
+                    % (self.__class__.__name__, chip_name, rom_elfs_dir)
+                )
+                return None
             
             # Sort by numeric revision (lowest first) if present; otherwise push to the end
             def _rev_key(path):
                 m = re.search(r"_rev(\d+)", os.path.basename(path))
                 return int(m.group(1)) if m else 10**9
+            
             rom_files.sort(key=_rev_key)
             return rom_files[0]
             
