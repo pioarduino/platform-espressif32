@@ -24,7 +24,6 @@ from platformio.public import (
     DeviceMonitorFilterBase,
     load_build_metadata,
 )
-from platformio import fs
 from platformio.package.manager.tool import ToolPackageManager
 
 # By design, __init__ is called inside miniterm and we can't pass context to it.
