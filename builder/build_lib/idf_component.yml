@@ -1,8 +1,6 @@
 dependencies:
   # Required IDF version
   idf: ">=5.1"
-  espressif/cmake_utilities:
-    version: "0.*"
   espressif/fb_gfx:
     version: "master"
     path: components/fb_gfx
