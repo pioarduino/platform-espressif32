@@ -698,8 +698,6 @@ class Espressif32Platform(PlatformBase):
         if self._check_exception_decoder_filter(variables):
             logger.info("esp32_exception_decoder filter detected, installing tool-esp-rom-elfs")
             self.install_tool("tool-esp-rom-elfs")
-        else:
-            logger.debug("esp32_exception_decoder not configured, skipping tool-esp-rom-elfs")
 
     def _configure_check_tools(self, variables: Dict) -> None:
         """Configure static analysis and check tools based on configuration."""
