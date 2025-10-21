@@ -508,8 +508,12 @@ def HandleArduinoIDFsettings(env):
                     board_config_flags.append("CONFIG_SPI_FLASH_HPM_AUTO=y")
 
         # Check for PSRAM support based on board flags
-        extra_flags = board.get("build.extra_flags", [])
-        has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
+        extra_flags = board.get("build.extra_flags", "")
+        # Handle both string and list formats
+        if isinstance(extra_flags, str):
+            has_psram = "-DBOARD_HAS_PSRAM" in extra_flags
+        else:
+            has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
         
         # Additional PSRAM detection methods
         if not has_psram:
@@ -520,7 +524,9 @@ def HandleArduinoIDFsettings(env):
             elif "psram_type" in board.get("build", {}):
                 has_psram = True
             # Check for SPIRAM mentions in extra_flags
-            elif any("SPIRAM" in str(flag) for flag in extra_flags):
+            elif isinstance(extra_flags, str) and "PSRAM" in extra_flags:
+                has_psram = True
+            elif not isinstance(extra_flags, str) and any("PSRAM" in str(flag) for flag in extra_flags):
                 has_psram = True
         
         if has_psram:
