@@ -1,8 +1,5 @@
 {
   "build": {
-    "arduino": {
-      "ldscript": "esp32c3_out.ld"
-    },
     "core": "esp32",
     "extra_flags": [
       "-DARDUINO_XIAO_ESP32C3",
@@ -20,7 +17,7 @@
       [
         "0x303a",
         "0x1001"
-      ] 
+      ]
     ],
     "mcu": "esp32c3",
     "variant": "XIAO_ESP32C3"
