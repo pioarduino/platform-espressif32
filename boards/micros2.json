@@ -1,7 +1,6 @@
 {
   "build": {
-    "arduino":{
-      "ldscript": "esp32s2_out.ld",
+    "arduino": {
       "partitions": "ffat.csv"
     },
     "core": "esp32",

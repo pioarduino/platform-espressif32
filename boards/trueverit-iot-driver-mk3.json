@@ -1,8 +1,5 @@
 {
   "build": {
-    "arduino": {
-      "ldscript": "esp32_out.ld"
-    },
     "core": "esp32",
     "extra_flags": "-DARDUINO_Trueverit_ESP32_Universal_IoT_Driver_MK_III",
     "f_cpu": "240000000L",
@@ -35,4 +32,3 @@
   "url": "https://trueverit.com/",
   "vendor": "Trueverit"
 }
-
