@@ -12,11 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Python Version Check
+import sys
+
+if not ((3, 10) <= sys.version_info < (3, 14)):
+    print("ERROR: Python version must be between 3.10 and 3.13.", file=sys.stderr)
+    print(f"Current Python version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}", file=sys.stderr)
+    print("Supported versions: 3.10, 3.11, 3.12, 3.13", file=sys.stderr)
+    raise SystemExit(1)
+
 # LZMA support check
 try:
     import lzma as _lzma
 except ImportError:
-    import sys
     print("ERROR: Python's lzma module is unavailable or broken in this interpreter.", file=sys.stderr)
     print("LZMA (liblzma) support is required for tool/toolchain installation.", file=sys.stderr)
     print("Please install Python built with LZMA support.", file=sys.stderr)
@@ -34,7 +42,6 @@ import requests
 import shutil
 import socket
 import subprocess
-import sys
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Union
 
