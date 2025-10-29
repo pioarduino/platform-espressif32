@@ -23,7 +23,7 @@ Prerequisites:
 
 ## Usage
 1. Setup new VSCode pioarduino project.
-1. Configure a platform option in platformio.ini file:
+1. Check the `platform` settings in platformio.ini file:
 
 ## Documentation
 [pioarduino Wiki](https://deepwiki.com/pioarduino/platform-espressif32)
