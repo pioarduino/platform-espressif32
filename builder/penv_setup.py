@@ -59,16 +59,26 @@ python_deps = {
 }
 
 
-def has_internet_connection(host="1.1.1.1", port=53, timeout=2):
+def has_internet_connection(timeout=2):
     """
-    Checks if an internet connection is available (default: Cloudflare DNS server).
+    Checks if an internet connection is available by trying to connect domains via HTTP. 
     Returns True if a connection is possible, otherwise False.
     """
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
+    endpoints = [
+        ("www.google.com", 443),      # Google HTTPS
+        ("github.com", 443),           # GitHub HTTPS  
+        ("www.cloudflare.com", 443),   # Cloudflare HTTPS
+        ("pypi.org", 443),             # PyPI HTTPS (relevant for Python packages)
+    ]
+    
+    for host, port in endpoints:
+        try:
+            with socket.create_connection((host, port), timeout=timeout):
+                return True
+        except OSError:
+            continue
+    
+    return False
 
 
 def get_executable_path(penv_dir, executable_name):
