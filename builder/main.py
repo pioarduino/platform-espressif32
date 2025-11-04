@@ -596,8 +596,8 @@ def firmware_metrics(target, source, env):
         source: SCons source
         env: SCons environment object
     """
-    if terminal_cp != "utf-8":
-        print("Firmware metrics can not be shown. Set the terminal codepage to \"utf-8\"")
+    if terminal_cp not in ["utf-8", "cp65001"]:
+        print("Firmware metrics can not be shown. Set the terminal codepage to \"utf-8\" or \"cp65001\" on Windows.")
         return
 
     map_file = str(Path(env.subst("$BUILD_DIR")) / (env.subst("$PROGNAME") + ".map"))
