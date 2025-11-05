@@ -1,8 +1,5 @@
 {
   "build": {
-    "arduino": {
-      "ldscript": "esp32_out.ld"
-    },
     "core": "esp32",
     "extra_flags": [
       "-DARDUINO_LILYGO_T_DISPLAY",
@@ -39,6 +36,6 @@
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "hhttps://www.lilygo.cc/products/lilygo%C2%AE-ttgo-t-display-1-14-inch-lcd-esp32-control-board",
+  "url": "https://lilygo.cc/products/t-display",
   "vendor": "LilyGo"
 }

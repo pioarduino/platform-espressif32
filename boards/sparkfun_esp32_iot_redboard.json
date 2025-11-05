@@ -1,8 +1,5 @@
 {
   "build": {
-    "arduino": {
-      "ldscript": "esp32_out.ld"
-    },
     "core": "esp32",
     "extra_flags": [
       "-DARDUINO_ESP32_IOT_REDBOARD",
@@ -29,7 +26,7 @@
     "espidf"
   ],
   "name": "SparkFun ESP32 IoT RedBoard",
-    "upload": {
+  "upload": {
     "flash_size": "4MB",
     "maximum_ram_size": 327680,
     "maximum_size": 4194304,

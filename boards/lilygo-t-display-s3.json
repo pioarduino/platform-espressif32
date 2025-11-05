@@ -1,7 +1,6 @@
 {
   "build": {
     "arduino": {
-      "ldscript": "esp32s3_out.ld",
       "memory_type": "qio_opi",
       "partitions": "default_16MB.csv"
     },
@@ -44,6 +43,6 @@
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://www.lilygo.cc/products/t-display-s3",
+  "url": "https://lilygo.cc/products/t-display-s3",
   "vendor": "LilyGo"
 }

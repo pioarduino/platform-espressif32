@@ -13,7 +13,7 @@ Espressif Systems is a privately held, fabless semiconductor company renowned fo
 * No support for the Arduino Nora Nano board, issues needs to be solved by the community
 ## IDE Preparation
 Prerequisites:
--	Python >= 3.10 and git is required for pioarduino to function properly.
+-	Python (3.10, 3.11, 3.12, 3.13) and git is required for pioarduino to function properly.
 
 ## Installation
 - [Download and install Microsoft Visual Studio Code](https://code.visualstudio.com/). pioarduino IDE is on top of it.
@@ -23,14 +23,14 @@ Prerequisites:
 
 ## Usage
 1. Setup new VSCode pioarduino project.
-1. Configure a platform option in platformio.ini file:
+1. Check the `platform` setting in platformio.ini file:
 
 ## Documentation
 [pioarduino Wiki](https://deepwiki.com/pioarduino/platform-espressif32)
 The Wiki is AI generated and insane detailed and accurate.
 
 ### Stable Arduino
-currently espressif Arduino 3.3.2 and IDF 5.5.1.250929
+currently espressif Arduino 3.3.3 and IDF 5.5.1.251017
 
 ```ini
 [env:stable]

@@ -1,8 +1,5 @@
 {
   "build": {
-    "arduino": {
-      "ldscript": "esp32s2_out.ld"
-    },
     "core": "esp32",
     "extra_flags": [
       "-DARDUINO_FEATHERS2",

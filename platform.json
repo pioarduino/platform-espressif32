@@ -18,7 +18,7 @@
     "type": "git",
     "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "55.03.32",
+  "version": "55.03.33",
   "frameworks": {
     "arduino": {
       "script": "builder/frameworks/arduino.py"
@@ -33,13 +33,13 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.2/esp32-3.3.2.tar.xz"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.3/esp32-3.3.3.tar.xz"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.2/esp32-3.3.2-libs.tar.xz"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.3/esp32-3.3.3-libs.tar.xz"
     },
     "framework-arduino-c2-skeleton-lib": {
       "type": "framework",
@@ -51,7 +51,7 @@
       "type": "framework",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.5.1.250929/esp-idf-v5.5.1.tar.xz"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.5.1.251017/esp-idf-v5.5.1.tar.xz"
     },
     "toolchain-xtensa-esp-elf": {
       "type": "toolchain",

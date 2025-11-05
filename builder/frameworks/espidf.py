@@ -78,7 +78,7 @@ config = env.GetProjectConfig()
 board = env.BoardConfig()
 mcu = board.get("build.mcu", "esp32")
 flash_speed = board.get("build.f_flash", "40000000L")
-flash_frequency = str(flash_speed.replace("000000L", "m"))
+flash_frequency = str(flash_speed.replace("000000L", ""))
 flash_mode = board.get("build.flash_mode", "dio")
 idf_variant = mcu.lower()
 flag_custom_sdkonfig = False
@@ -218,6 +218,26 @@ if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig"):
 if "espidf.custom_sdkconfig" in board:
     flag_custom_sdkonfig = True
 
+
+# Check for board-specific configurations that require sdkconfig generation
+def has_board_specific_config():
+    """Check if board has configuration that needs to be applied to sdkconfig."""
+    # Check for PSRAM support
+    extra_flags = board.get("build.extra_flags", [])
+    has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
+    
+    # Check for special memory types  
+    memory_type = None
+    build_section = board.get("build", {})
+    arduino_section = build_section.get("arduino", {})
+    if "memory_type" in arduino_section:
+        memory_type = arduino_section["memory_type"]
+    elif "memory_type" in build_section:
+        memory_type = build_section["memory_type"]
+    has_special_memory = memory_type and ("opi" in memory_type.lower())
+    
+    return has_psram or has_special_memory
+
 def HandleArduinoIDFsettings(env):
     """
     Handles Arduino IDF settings configuration with custom sdkconfig support.
@@ -284,48 +304,366 @@ def HandleArduinoIDFsettings(env):
             return line.split("=")[0]
         return None
 
+    def generate_board_specific_config():
+        """Generate board-specific sdkconfig settings from board.json manifest."""
+        board_config_flags = []
+
+        # Handle memory type configuration with platformio.ini override support
+        # Priority: platformio.ini > board.json manifest
+        memory_type = None
+        
+        # Check for memory_type override in platformio.ini
+        if hasattr(env, 'GetProjectOption'):
+            try:
+                memory_type = env.GetProjectOption("board_build.memory_type", None)
+            except:
+                pass
+        
+        # Fallback to board.json manifest
+        if not memory_type:
+            build_section = board.get("build", {})
+            arduino_section = build_section.get("arduino", {})
+            if "memory_type" in arduino_section:
+                memory_type = arduino_section["memory_type"]
+            elif "memory_type" in build_section:
+                memory_type = build_section["memory_type"]
+
+        flash_memory_type = None
+        psram_memory_type = None
+        if memory_type:
+            parts = memory_type.split("_")
+            if len(parts) == 2:
+                flash_memory_type, psram_memory_type = parts
+            else:
+                flash_memory_type = memory_type
+                
+        # Check for additional flash configuration indicators
+        boot_mode = board.get("build", {}).get("boot", None)
+        flash_mode = board.get("build", {}).get("flash_mode", None)
+        
+        # Override flash_memory_type if boot mode indicates OPI
+        if boot_mode == "opi" or flash_mode in ["dout", "opi"]:
+            if not flash_memory_type or flash_memory_type.lower() != "opi":
+                flash_memory_type = "opi"
+                print(f"Info: Detected OPI Flash via boot_mode='{boot_mode}' or flash_mode='{flash_mode}'")
+
+        # Set CPU frequency with platformio.ini override support
+        # Priority: platformio.ini > board.json manifest
+        f_cpu = None
+        if hasattr(env, 'GetProjectOption'):
+            # Check for board_build.f_cpu override in platformio.ini
+            try:
+                f_cpu = env.GetProjectOption("board_build.f_cpu", None)
+            except:
+                pass
+        
+        # Fallback to board.json manifest
+        if not f_cpu:
+            f_cpu = board.get("build.f_cpu", None)
+        
+        if f_cpu:
+            cpu_freq = str(f_cpu).replace("000000L", "")
+            board_config_flags.append(f"CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ={cpu_freq}")
+            
+            # MCU name mapping for config flags (uppercase MCU name)
+            mcu_upper = mcu.upper().replace("-", "")
+            
+            # Disable other CPU frequency options and enable the specific one
+            common_cpu_freqs = ["80", "160", "240"]
+            for freq in common_cpu_freqs:
+                if freq != cpu_freq:
+                    board_config_flags.append(f"# CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_{freq} is not set")
+                    board_config_flags.append(f"# CONFIG_{mcu_upper}_DEFAULT_CPU_FREQ_{freq} is not set")
+            
+            # Enable the specific CPU frequency (both generic and MCU-specific)
+            board_config_flags.append(f"CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_{cpu_freq}=y")
+            board_config_flags.append(f"CONFIG_{mcu_upper}_DEFAULT_CPU_FREQ_{cpu_freq}=y")
+
+        # Set flash size with platformio.ini override support
+        # Priority: platformio.ini > board.json manifest
+        flash_size = None
+        if hasattr(env, 'GetProjectOption'):
+            # Check for board_upload.flash_size override in platformio.ini
+            try:
+                flash_size = env.GetProjectOption("board_upload.flash_size", None)
+            except:
+                pass
+        
+        # Fallback to board.json manifest
+        if not flash_size:
+            flash_size = board.get("upload", {}).get("flash_size", None)
+        
+        if flash_size:
+            # Configure both string and boolean flash size formats
+            # Disable other flash size options first
+            flash_sizes = ["4MB", "8MB", "16MB", "32MB", "64MB", "128MB"]
+            for size in flash_sizes:
+                if size != flash_size:
+                    board_config_flags.append(f"# CONFIG_ESPTOOLPY_FLASHSIZE_{size} is not set")
+            
+            # Set the specific flash size configs
+            board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHSIZE=\"{flash_size}\"")
+            board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHSIZE_{flash_size}=y")
+
+        # Handle Flash and PSRAM frequency configuration with platformio.ini override support
+        # Priority: platformio.ini > board.json manifest
+        # From 80MHz onwards, Flash and PSRAM frequencies must be identical
+        
+        # Get f_flash with override support
+        f_flash = None
+        if hasattr(env, 'GetProjectOption'):
+            try:
+                f_flash = env.GetProjectOption("board_build.f_flash", None)
+            except:
+                pass
+        if not f_flash:
+            f_flash = board.get("build.f_flash", None)
+        
+        # Get f_boot with override support
+        f_boot = None
+        if hasattr(env, 'GetProjectOption'):
+            try:
+                f_boot = env.GetProjectOption("board_build.f_boot", None)
+            except:
+                pass
+        if not f_boot:
+            f_boot = board.get("build.f_boot", None)
+        
+        # Get f_psram with override support (ESP32-P4 specific)
+        f_psram = None
+        if hasattr(env, 'GetProjectOption'):
+            try:
+                f_psram = env.GetProjectOption("board_build.f_psram", None)
+            except:
+                pass
+        if not f_psram:
+            f_psram = board.get("build.f_psram", None)
+        
+        # Determine the frequencies to use
+        # ESP32-P4: f_flash for Flash, f_psram for PSRAM (doesn't affect bootloader name)
+        
+        if mcu == "esp32p4":
+            # ESP32-P4: f_flash is always used for Flash frequency
+            # f_psram is used for PSRAM frequency (if set), otherwise use f_flash
+            # Note: f_boot is NOT used for P4 as it affects bootloader filename
+            flash_compile_freq = f_flash
+            psram_compile_freq = f_psram if f_psram else f_flash
+        else:
+            # Other chips: f_boot overrides f_flash for compile-time (both Flash and PSRAM)
+            compile_freq = f_boot if f_boot else f_flash
+            flash_compile_freq = compile_freq
+            psram_compile_freq = compile_freq
+        
+        if f_flash and flash_compile_freq and psram_compile_freq:
+            # Validate and parse frequency values
+            try:
+                flash_freq_val = int(str(flash_compile_freq).replace("000000L", ""))
+                psram_freq_val = int(str(psram_compile_freq).replace("000000L", ""))
+            except (ValueError, AttributeError):
+                print("Warning: Invalid frequency values, skipping frequency configuration")
+                flash_freq_val = None
+                psram_freq_val = None
+            
+            if flash_freq_val and psram_freq_val:
+                # Determine frequency strings
+                flash_freq_str = f"{flash_freq_val}m"
+                psram_freq_str = str(psram_freq_val)
+                
+                # Info message
+                if mcu == "esp32p4":
+                    print(f"Info: ESP32-P4 frequency mode: Flash={flash_freq_val}MHz, PSRAM={psram_freq_val}MHz")
+                elif flash_freq_val >= 80:
+                    print(f"Info: Unified frequency mode (>= 80MHz): {flash_freq_val}MHz for both Flash and PSRAM")
+                else:
+                    print(f"Info: Independent frequency mode (< 80MHz): Flash={flash_freq_str}, PSRAM={psram_freq_str}")
+                
+                # Configure Flash frequency
+                # Disable other flash frequency options first
+                flash_freqs = ["20m", "26m", "40m", "80m", "120m"]
+                for freq in flash_freqs:
+                    if freq != flash_freq_str:
+                        board_config_flags.append(f"# CONFIG_ESPTOOLPY_FLASHFREQ_{freq.upper()} is not set")
+                # Then set the specific frequency configs
+                board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ=\"{flash_freq_str}\"")
+                board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_{flash_freq_str.upper()}=y")
+                
+                # ESP32-P4 requires additional FLASHFREQ_VAL setting
+                if mcu == "esp32p4":
+                    board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_VAL={flash_freq_val}")
+                
+                # Configure PSRAM frequency
+                # Disable other SPIRAM speed options first
+                psram_freqs = ["20", "40", "80", "120", "200"]
+                for freq in psram_freqs:
+                    if freq != psram_freq_str:
+                        board_config_flags.append(f"# CONFIG_SPIRAM_SPEED_{freq}M is not set")
+                # Then set the specific SPIRAM configs
+                board_config_flags.append(f"CONFIG_SPIRAM_SPEED={psram_freq_str}")
+                board_config_flags.append(f"CONFIG_SPIRAM_SPEED_{psram_freq_str}M=y")
+                
+                # Enable experimental features for Flash frequencies > 80MHz
+                if flash_freq_val > 80:
+                    board_config_flags.append("CONFIG_IDF_EXPERIMENTAL_FEATURES=y")
+                    board_config_flags.append("CONFIG_SPI_FLASH_HPM_ENABLE=y")
+                    board_config_flags.append("CONFIG_SPI_FLASH_HPM_AUTO=y")
+
+        # Check for PSRAM support based on board flags
+        extra_flags = board.get("build.extra_flags", "")
+        # Handle both string and list formats
+        if isinstance(extra_flags, str):
+            has_psram = "-DBOARD_HAS_PSRAM" in extra_flags
+        else:
+            has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
+        
+        # Additional PSRAM detection methods
+        if not has_psram:
+            # Check if memory_type contains psram indicators
+            if memory_type and ("opi" in memory_type.lower() or "psram" in memory_type.lower()):
+                has_psram = True
+            # Check build.psram_type
+            elif "psram_type" in board.get("build", {}):
+                has_psram = True
+            # Check for SPIRAM mentions in extra_flags
+            elif isinstance(extra_flags, str) and "PSRAM" in extra_flags:
+                has_psram = True
+            elif not isinstance(extra_flags, str) and any("PSRAM" in str(flag) for flag in extra_flags):
+                has_psram = True
+        
+        if has_psram:
+            # Enable basic SPIRAM support
+            board_config_flags.append("CONFIG_SPIRAM=y")
+            
+            # Determine PSRAM type with platformio.ini override support
+            # Priority: platformio.ini > memory_type > build.psram_type > default
+            psram_type = None
+            
+            # Priority 1: Check for platformio.ini override
+            if hasattr(env, 'GetProjectOption'):
+                try:
+                    psram_type = env.GetProjectOption("board_build.psram_type", None)
+                    if psram_type:
+                        psram_type = psram_type.lower()
+                except:
+                    pass
+            
+            # Priority 2: Check psram_memory_type from memory_type field (e.g., "qio_opi")
+            if not psram_type and psram_memory_type:
+                psram_type = psram_memory_type.lower()
+            # Priority 3: Check build.psram_type field as fallback
+            elif not psram_type and "psram_type" in board.get("build", {}):
+                psram_type = board.get("build.psram_type", "qio").lower()
+            # Priority 4: Default based on MCU
+            elif not psram_type:
+                # ESP32-P4 defaults to HEX (only type available)
+                if mcu == "esp32p4":
+                    psram_type = "hex"
+                else:
+                    psram_type = "qio"
+            
+            # Configure PSRAM mode based on detected type
+            if psram_type == "hex":
+                # HEX PSRAM configuration (ESP32-P4 only)
+                board_config_flags.append("CONFIG_SPIRAM_MODE_HEX=y")
+                
+            elif psram_type == "opi":
+                # Octal PSRAM configuration (for ESP32-S3)
+                if mcu == "esp32s3":
+                    board_config_flags.extend([
+                        "CONFIG_IDF_EXPERIMENTAL_FEATURES=y",
+                        "# CONFIG_SPIRAM_MODE_QUAD is not set",
+                        "CONFIG_SPIRAM_MODE_OCT=y",
+                        "CONFIG_SPIRAM_TYPE_AUTO=y"
+                    ])
+                else:
+                    # Fallback to QUAD for other chips
+                    board_config_flags.extend([
+                        "# CONFIG_SPIRAM_MODE_OCT is not set",
+                        "CONFIG_SPIRAM_MODE_QUAD=y"
+                    ])
+                    
+            elif psram_type in ["qio", "qspi"]:
+                # Quad PSRAM configuration
+                if mcu in ["esp32s2", "esp32s3"]:
+                    board_config_flags.extend([
+                        "# CONFIG_SPIRAM_MODE_OCT is not set",
+                        "CONFIG_SPIRAM_MODE_QUAD=y"
+                    ])
+                elif mcu == "esp32":
+                    board_config_flags.extend([
+                        "# CONFIG_SPIRAM_MODE_OCT is not set",
+                        "# CONFIG_SPIRAM_MODE_QUAD is not set"
+                    ])
+        else:
+            # Explicitly disable PSRAM if not present
+            board_config_flags.extend([
+                "# CONFIG_SPIRAM is not set"
+            ])
+
+        # Use flash_memory_type for flash config
+        if flash_memory_type and "opi" in flash_memory_type.lower():
+            # OPI Flash configurations require specific settings
+            # According to ESP-IDF documentation, OPI flash must use DOUT mode for bootloader
+            # The bootloader starts in DOUT mode and switches to OPI at runtime
+            # Reference: ESP-IDF Programming Guide - SPI Flash Configuration
+            board_config_flags.extend([
+                "# CONFIG_ESPTOOLPY_FLASHMODE_QIO is not set",
+                "# CONFIG_ESPTOOLPY_FLASHMODE_QOUT is not set",
+                "# CONFIG_ESPTOOLPY_FLASHMODE_DIO is not set",
+                "CONFIG_ESPTOOLPY_FLASHMODE_DOUT=y",
+                "CONFIG_ESPTOOLPY_OCT_FLASH=y",
+                "# CONFIG_ESPTOOLPY_FLASH_SAMPLE_MODE_STR is not set",
+                "CONFIG_ESPTOOLPY_FLASH_SAMPLE_MODE_DTR=y"
+            ])
+
+        return board_config_flags
+
     def build_idf_config_flags():
         """Build complete IDF configuration flags from all sources."""
         flags = []
         
-        # Add board-specific flags first
-        if "espidf.custom_sdkconfig" in board:
-            board_flags = board.get("espidf.custom_sdkconfig", [])
-            if board_flags:
-                flags.extend(board_flags)
+        # FIRST: Add board-specific flags derived from board.json manifest
+        board_flags = generate_board_specific_config()
+        if board_flags:
+            flags.extend(board_flags)
         
-        # Add custom sdkconfig file content
+        # SECOND: Add board-specific flags from board manifest (espidf.custom_sdkconfig)
+        if "espidf.custom_sdkconfig" in board:
+            board_manifest_flags = board.get("espidf.custom_sdkconfig", [])
+            if board_manifest_flags:
+                flags.extend(board_manifest_flags)
+        
+        # THIRD: Add custom sdkconfig file content
         custom_file_content = load_custom_sdkconfig_file()
         if custom_file_content:
             flags.append(custom_file_content)
         
-        # Add project-level custom sdkconfig
+        # FOURTH: Add project-level custom sdkconfig (highest precedence for user overrides)
         if config.has_option("env:" + env["PIOENV"], "custom_sdkconfig"):
             custom_flags = env.GetProjectOption("custom_sdkconfig").rstrip("\n")
             if custom_flags:
                 flags.append(custom_flags)
         
+        # FIFTH: Apply ESP32-specific compatibility fixes
+        all_flags_str = "\n".join(flags) + "\n" if flags else ""
+        esp32_compatibility_flags = apply_esp32_compatibility_fixes(all_flags_str)
+        if esp32_compatibility_flags:
+            flags.extend(esp32_compatibility_flags)
+        
         return "\n".join(flags) + "\n" if flags else ""
 
-    def add_flash_configuration(config_flags):
-        """Add flash frequency and mode configuration."""
-        if flash_frequency != "80m":
-            config_flags += "# CONFIG_ESPTOOLPY_FLASHFREQ_80M is not set\n"
-            config_flags += f"CONFIG_ESPTOOLPY_FLASHFREQ_{flash_frequency.upper()}=y\n"
-            config_flags += f"CONFIG_ESPTOOLPY_FLASHFREQ=\"{flash_frequency}\"\n"
-        
-        if flash_mode != "qio":
-            config_flags += "# CONFIG_ESPTOOLPY_FLASHMODE_QIO is not set\n"
-        
-        flash_mode_flag = f"CONFIG_ESPTOOLPY_FLASHMODE_{flash_mode.upper()}=y\n"
-        if flash_mode_flag not in config_flags:
-            config_flags += flash_mode_flag
+    def apply_esp32_compatibility_fixes(config_flags_str):
+        """Apply ESP32-specific compatibility fixes based on final configuration."""
+        compatibility_flags = []
         
         # ESP32 specific SPIRAM configuration
-        if mcu == "esp32" and "CONFIG_FREERTOS_UNICORE=y" in config_flags:
-            config_flags += "# CONFIG_SPIRAM is not set\n"
+        # On ESP32, SPIRAM is not used with UNICORE mode
+        if mcu == "esp32" and "CONFIG_FREERTOS_UNICORE=y" in config_flags_str:
+            if "CONFIG_SPIRAM=y" in config_flags_str:
+                compatibility_flags.append("# CONFIG_SPIRAM is not set")
+                print("Info: ESP32 SPIRAM disabled since solo1 core mode is enabled")
         
-        return config_flags
+        return compatibility_flags
+
 
     def write_sdkconfig_file(idf_config_flags, checksum_source):
         if "arduino" not in env.subst("$PIOFRAMEWORK"):
@@ -346,7 +684,9 @@ def HandleArduinoIDFsettings(env):
             dst.write(f"# TASMOTA__{checksum}\n")
             
             # Process each line from source sdkconfig
-            for line in src:
+            src_lines = src.readlines()
+            
+            for line in src_lines:
                 flag_name = extract_flag_name(line)
                 
                 if flag_name is None:
@@ -375,20 +715,25 @@ def HandleArduinoIDFsettings(env):
                 print(f"Add: {cleaned_flag}")
                 dst.write(cleaned_flag + "\n")
 
+    
     # Main execution logic
     has_custom_config = (
         config.has_option("env:" + env["PIOENV"], "custom_sdkconfig") or
         "espidf.custom_sdkconfig" in board
     )
     
-    if not has_custom_config:
+    has_board_config = has_board_specific_config()
+    
+    if not has_custom_config and not has_board_config:
         return
     
-    print("*** Add \"custom_sdkconfig\" settings to IDF sdkconfig.defaults ***")
+    if has_board_config and not has_custom_config:
+        print("*** Apply board-specific settings to IDF sdkconfig.defaults ***")
+    else:
+        print("*** Add \"custom_sdkconfig\" settings to IDF sdkconfig.defaults ***")
     
     # Build complete configuration
     idf_config_flags = build_idf_config_flags()
-    idf_config_flags = add_flash_configuration(idf_config_flags)
     
     # Convert to list for processing
     idf_config_list = [line for line in idf_config_flags.splitlines() if line.strip()]
@@ -1678,8 +2023,7 @@ def install_python_deps():
         # https://github.com/platformio/platform-espressif32/issues/635
         "cryptography": "~=44.0.0",
         "pyparsing": ">=3.1.0,<4",
-        "pydantic": "~=2.11.10",
-        "idf-component-manager": "~=2.2",
+        "idf-component-manager": "~=2.4",
         "esp-idf-kconfig": "~=2.5.0"
     }
 
@@ -2222,7 +2566,9 @@ env["BUILDERS"]["ElfToBin"].action = action
 #
 
 ulp_dir = str(Path(PROJECT_DIR) / "ulp")
-if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "esp32c3", "esp32h2"):
+# ULP support: ESP32, ESP32-S2, ESP32-S3, ESP32-C6, ESP32-P4
+# No ULP: ESP32-C2, ESP32-C3, ESP32-C5, ESP32-H2
+if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "esp32c3", "esp32c5", "esp32h2"):
     env.SConscript("ulp.py", exports="env sdk_config project_config app_includes idf_variant")
 
 #
@@ -2320,12 +2666,19 @@ if "espidf" in env.subst("$PIOFRAMEWORK") and (flag_custom_component_add == True
             try:
                 shutil.copy(str(Path(PROJECT_SRC_DIR) / "idf_component.yml.orig"), str(Path(PROJECT_SRC_DIR) / "idf_component.yml"))
                 print("*** Original \"idf_component.yml\" restored ***")
-            except (FileNotFoundError, PermissionError, OSError): # no "idf_component.yml" in source folder
-                try:
-                    os.remove(str(Path(PROJECT_SRC_DIR) / "idf_component.yml"))
-                    print("*** pioarduino generated \"idf_component.yml\" removed ***")
-                except (FileNotFoundError, PermissionError, OSError):
-                    print("*** no custom \"idf_component.yml\" found for removing ***")
+            except (FileNotFoundError, PermissionError, OSError):
+                # Only remove idf_component.yml if a .orig backup exists
+                # This indicates the file was created/modified by pioarduino
+                orig_file = Path(PROJECT_SRC_DIR) / "idf_component.yml.orig"
+                yml_file = Path(PROJECT_SRC_DIR) / "idf_component.yml"
+                if orig_file.exists() and yml_file.exists():
+                    try:
+                        os.remove(str(yml_file))
+                        print("*** pioarduino generated \"idf_component.yml\" removed ***")
+                    except (FileNotFoundError, PermissionError, OSError):
+                        print("*** Failed to remove pioarduino generated \"idf_component.yml\" ***")
+                elif yml_file.exists():
+                    print("*** User-created \"idf_component.yml\" preserved (no .orig backup found) ***")
         if "arduino" in env.subst("$PIOFRAMEWORK"):
             # Restore original pioarduino-build.py, only used with Arduino
             from component_manager import ComponentManager
