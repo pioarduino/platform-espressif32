@@ -1,7 +1,4 @@
 dependencies:
   espressif/esp_matter:
     version: ">=1.4.0"
-  espressif/cmake_utilities:
-    version: "0.*"
-    rules:
-      - if: "target in [esp32c2]"
+    require: public
