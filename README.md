@@ -30,7 +30,7 @@ Prerequisites:
 The Wiki is AI generated and insane detailed and accurate.
 
 ### Stable Arduino
-currently espressif Arduino 3.3.3 and IDF 5.5.1.251017
+currently espressif Arduino 3.3.4 and IDF 5.5.1.251106
 
 ```ini
 [env:stable]
