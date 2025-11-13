@@ -575,13 +575,29 @@ def has_unicore_flags():
                or flag in board_sdkconfig for flag in UNICORE_FLAGS)
 
 
-# Esp32-solo1 libs settings
-if flag_custom_sdkconfig and has_unicore_flags():
+def has_psram_config():
+    """Check if PSRAM is configured in extra_flags, entry_custom_sdkconfig or board_sdkconfig"""
+    return ("PSRAM" in extra_flags or "PSRAM" in entry_custom_sdkconfig
+            or "PSRAM" in board_sdkconfig or "CONFIG_SPIRAM=y" in extra_flags
+            or "CONFIG_SPIRAM=y" in entry_custom_sdkconfig
+            or "CONFIG_SPIRAM=y" in board_sdkconfig)
+
+
+# Esp32 settings for solo1 and PSRAM
+if flag_custom_sdkconfig:
     if not env.get('BUILD_UNFLAGS'):  # Initialize if not set
         env['BUILD_UNFLAGS'] = []
 
-    build_unflags = (" ".join(env['BUILD_UNFLAGS']) +
-                     " -mdisable-hardware-atomics -ustart_app_other_cores")
+    build_unflags = " ".join(env['BUILD_UNFLAGS'])
+
+    # -mdisable-hardware-atomics: always for solo1, or when PSRAM is NOT configured
+    if has_unicore_flags() or not has_psram_config():
+        build_unflags += " -mdisable-hardware-atomics"
+
+    # -ustart_app_other_cores only and always for solo1
+    if has_unicore_flags():
+        build_unflags += " -ustart_app_other_cores"
+
     new_build_unflags = build_unflags.split()
     env.Replace(BUILD_UNFLAGS=new_build_unflags)
 
