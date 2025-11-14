@@ -1272,7 +1272,7 @@ class ComponentManager:
         """
         self.logger.print_changes_summary()
 
-    def remove_lto_flags(self) -> bool:
+    def remove_no_lto_flags(self) -> bool:
         """
         Remove all -fno-lto flags from pioarduino-build.py.
         

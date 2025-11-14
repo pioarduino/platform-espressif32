@@ -602,6 +602,8 @@ if flag_custom_sdkconfig:
     new_build_unflags = build_unflags.split()
     env.Replace(BUILD_UNFLAGS=new_build_unflags)
     
+    if not env.get('BUILD_FLAGS'):  # Initialize if not set
+        env['BUILD_FLAGS'] = []
     # Check if BUILD_FLAGS contains -flto=auto
     build_flags = env.get('BUILD_FLAGS', [])
     if isinstance(build_flags, str):
@@ -933,7 +935,7 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
     # Handle LTO flags if flag_lto is set
     if flag_lto:
         # First remove existing -fno-lto flags, then add LTO flags
-        component_manager.remove_lto_flags()
+        component_manager.remove_no_lto_flags()
         component_manager.add_lto_flags()
     
     silent_action = env.Action(component_manager.restore_pioarduino_build_py)
