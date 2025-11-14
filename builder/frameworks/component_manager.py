@@ -1315,7 +1315,7 @@ class ComponentManager:
         Add LTO flags to pioarduino-build.py.
         
         Adds -flto=auto to CCFLAGS, CFLAGS, CXXFLAGS and -flto to LINKFLAGS
-        in the Arduino build script.
+        in the Arduino build script. Flags are inserted right after the opening bracket.
         
         Returns:
             bool: True if successful, False otherwise
@@ -1333,68 +1333,41 @@ class ComponentManager:
             original_content = content
             modified = False
             
-            # Pattern to find CCFLAGS list and add -flto=auto if not present
-            if 'CCFLAGS=[' in content and '"-flto' not in content[content.find('CCFLAGS=['):content.find('],', content.find('CCFLAGS=['))]:
-                # Find the closing bracket for CCFLAGS
-                start = content.find('CCFLAGS=[')
-                end = content.find('],', start) + 1
-                ccflags_section = content[start:end]
-                
-                # Add -flto=auto before the closing bracket
-                new_ccflags = ccflags_section.replace('],', ',\n        "-flto=auto"\n    ],')
-                content = content[:start] + new_ccflags + content[end:]
+            # Add -flto=auto to CCFLAGS right after the opening bracket
+            if 'CCFLAGS=[' in content:
+                ccflags_start = content.find('CCFLAGS=[')
+                ccflags_section_start = ccflags_start + len('CCFLAGS=[')
+                content = (content[:ccflags_section_start] + 
+                          '\n        "-flto=auto",' + 
+                          content[ccflags_section_start:])
                 modified = True
             
-            # Pattern to find CFLAGS list and add -flto=auto if not present
-            if 'CFLAGS=[' in content and '"-flto' not in content[content.find('CFLAGS=['):content.find('],', content.find('CFLAGS=['))]:
-                start = content.find('CFLAGS=[')
-                end = content.find('],', start) + 1
-                cflags_section = content[start:end]
-                
-                new_cflags = cflags_section.replace('],', ',\n        "-flto=auto"\n    ],')
-                content = content[:start] + new_cflags + content[end:]
+            # Add -flto=auto to CFLAGS right after the opening bracket
+            if 'CFLAGS=[' in content:
+                cflags_start = content.find('CFLAGS=[')
+                cflags_section_start = cflags_start + len('CFLAGS=[')
+                content = (content[:cflags_section_start] + 
+                          '\n        "-flto=auto",' + 
+                          content[cflags_section_start:])
                 modified = True
             
-            # Pattern to find CXXFLAGS list and add -flto=auto if not present
-            if 'CXXFLAGS=[' in content and '"-flto' not in content[content.find('CXXFLAGS=['):content.find('],', content.find('CXXFLAGS=['))]:
-                start = content.find('CXXFLAGS=[')
-                end = content.find('],', start) + 1
-                cxxflags_section = content[start:end]
-                
-                new_cxxflags = cxxflags_section.replace('],', ',\n        "-flto=auto"\n    ],')
-                content = content[:start] + new_cxxflags + content[end:]
+            # Add -flto=auto to CXXFLAGS right after the opening bracket
+            if 'CXXFLAGS=[' in content:
+                cxxflags_start = content.find('CXXFLAGS=[')
+                cxxflags_section_start = cxxflags_start + len('CXXFLAGS=[')
+                content = (content[:cxxflags_section_start] + 
+                          '\n        "-flto=auto",' + 
+                          content[cxxflags_section_start:])
                 modified = True
             
-            # Pattern to find LINKFLAGS list and add -flto if not present
-            # Note: remove_no_lto_flags() needs to be called before
+            # Add -flto to LINKFLAGS right after the opening bracket
             if 'LINKFLAGS=[' in content:
-                start = content.find('LINKFLAGS=[')
-                # Find the end of LINKFLAGS - look for the matching bracket
-                bracket_count = 0
-                pos = start + len('LINKFLAGS=[') - 1
-                while pos < len(content):
-                    if content[pos] == '[':
-                        bracket_count += 1
-                    elif content[pos] == ']':
-                        bracket_count -= 1
-                        if bracket_count == 0:
-                            end = pos + 1
-                            break
-                    pos += 1
-                
-                linkflags_section = content[start:end]
-                
-                # Check if -flto is already present
-                if '"-flto"' not in linkflags_section:
-                    # Add -flto before the closing bracket
-                    new_linkflags = linkflags_section.rstrip()
-                    if new_linkflags.endswith(','):
-                        new_linkflags = new_linkflags + '\n        "-flto"'
-                    else:
-                        new_linkflags = new_linkflags[:-1] + ',\n        "-flto"\n    ]'
-                    
-                    content = content[:start] + new_linkflags + content[end:]
-                    modified = True
+                linkflags_start = content.find('LINKFLAGS=[')
+                linkflags_section_start = linkflags_start + len('LINKFLAGS=[')
+                content = (content[:linkflags_section_start] + 
+                          '\n        "-flto",' + 
+                          content[linkflags_section_start:])
+                modified = True
             
             if modified:
                 with open(build_py_path, 'w', encoding='utf-8') as f:
