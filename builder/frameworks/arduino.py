@@ -532,6 +532,7 @@ flag_custom_sdkconfig = False
 flag_custom_component_remove = False
 flag_custom_component_add = False
 flag_lib_ignore = False
+flag_lto = False
 
 if mcu == "esp32c2":
     flag_custom_sdkconfig = True
@@ -597,6 +598,10 @@ if flag_custom_sdkconfig:
     # -ustart_app_other_cores only and always for solo1
     if has_unicore_flags():
         build_unflags += " -ustart_app_other_cores"
+
+    # Check for enabling LTO for Arduino HybridCompile part by unflagging -fno-lto
+    if '-fno-lto' in build_unflags:
+        flag_lto = True
 
     new_build_unflags = build_unflags.split()
     env.Replace(BUILD_UNFLAGS=new_build_unflags)
@@ -916,6 +921,13 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
     from component_manager import ComponentManager
     component_manager = ComponentManager(env)
     component_manager.handle_component_settings()
+    
+    # Handle LTO flags if flag_lto is set
+    if flag_lto:
+        # First remove existing -fno-lto flags, then add LTO flags
+        component_manager.remove_no_lto_flags()
+        component_manager.add_lto_flags()
+    
     silent_action = env.Action(component_manager.restore_pioarduino_build_py)
     # silence scons command output
     silent_action.strfunction = lambda target, source, env: ''
