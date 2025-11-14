@@ -1275,37 +1275,36 @@ class ComponentManager:
     def remove_no_lto_flags(self) -> bool:
         """
         Remove all -fno-lto flags from pioarduino-build.py.
-        
+
         Removes all occurrences of -fno-lto from CCFLAGS, CFLAGS, CXXFLAGS,
         and LINKFLAGS in the Arduino build script.
-        
+
         Returns:
             bool: True if successful, False otherwise
         """
         build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
-        
+
         if not os.path.exists(build_py_path):
             print(f"Warning: pioarduino-build.py not found at {build_py_path}")
             return False
-        
+
         try:
             with open(build_py_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-            
+
             # Remove all -fno-lto flags
             modified_content = re.sub(r'["\']?-fno-lto["\']?,?\s*', '', content)
-            
+
             # Clean up any resulting empty strings or double commas
             modified_content = re.sub(r',\s*,', ',', modified_content)
             modified_content = re.sub(r'\[\s*,', '[', modified_content)
             modified_content = re.sub(r',\s*\]', ']', modified_content)
-            
+
             with open(build_py_path, 'w', encoding='utf-8') as f:
                 f.write(modified_content)
-            
-            print("*** Removed -fno-lto flags from pioarduino-build.py ***")
+
             return True
-            
+
         except (IOError, OSError) as e:
             print(f"Error removing -fno-lto flags: {e}")
             return False
@@ -1313,26 +1312,26 @@ class ComponentManager:
     def add_lto_flags(self) -> bool:
         """
         Add LTO flags to pioarduino-build.py.
-        
+
         Adds -flto=auto to CCFLAGS, CFLAGS, CXXFLAGS and -flto to LINKFLAGS
         in the Arduino build script. Flags are inserted right after the opening bracket.
-        
+
         Returns:
             bool: True if successful, False otherwise
         """
         build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
-        
+
         if not os.path.exists(build_py_path):
             print(f"Warning: pioarduino-build.py not found at {build_py_path}")
             return False
-        
+
         try:
             with open(build_py_path, 'r', encoding='utf-8') as f:
                 content = f.read()
-            
+
             original_content = content
             modified = False
-            
+
             # Add -flto=auto to CCFLAGS right after the opening bracket
             if 'CCFLAGS=[' in content:
                 ccflags_start = content.find('CCFLAGS=[')
@@ -1341,7 +1340,7 @@ class ComponentManager:
                           '\n        "-flto=auto",' + 
                           content[ccflags_section_start:])
                 modified = True
-            
+
             # Add -flto=auto to CFLAGS right after the opening bracket
             if 'CFLAGS=[' in content:
                 cflags_start = content.find('CFLAGS=[')
@@ -1350,7 +1349,7 @@ class ComponentManager:
                           '\n        "-flto=auto",' + 
                           content[cflags_section_start:])
                 modified = True
-            
+
             # Add -flto=auto to CXXFLAGS right after the opening bracket
             if 'CXXFLAGS=[' in content:
                 cxxflags_start = content.find('CXXFLAGS=[')
@@ -1359,7 +1358,7 @@ class ComponentManager:
                           '\n        "-flto=auto",' + 
                           content[cxxflags_section_start:])
                 modified = True
-            
+
             # Add -flto to LINKFLAGS right after the opening bracket
             if 'LINKFLAGS=[' in content:
                 linkflags_start = content.find('LINKFLAGS=[')
@@ -1368,21 +1367,14 @@ class ComponentManager:
                           '\n        "-flto",' + 
                           content[linkflags_section_start:])
                 modified = True
-            
+
             if modified:
                 with open(build_py_path, 'w', encoding='utf-8') as f:
                     f.write(content)
-                
-                print("*** Added LTO flags to pioarduino-build.py ***")
-                print("    CCFLAGS: -flto=auto")
-                print("    CFLAGS: -flto=auto")
-                print("    CXXFLAGS: -flto=auto")
-                print("    LINKFLAGS: -flto")
+
+                print("*** Added LTO flags for Arduino compile ***")
                 return True
-            else:
-                print("*** LTO flags already present in pioarduino-build.py ***")
-                return True
-            
+
         except (IOError, OSError) as e:
             print(f"Error adding LTO flags: {e}")
             return False
