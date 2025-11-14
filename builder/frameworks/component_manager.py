@@ -1271,3 +1271,126 @@ class ComponentManager:
         session, useful for build reporting and debugging.
         """
         self.logger.print_changes_summary()
+
+    def remove_lto_flags(self) -> bool:
+        """
+        Remove all -fno-lto flags from pioarduino-build.py.
+        
+        Removes all occurrences of -fno-lto from CCFLAGS, CFLAGS, CXXFLAGS,
+        and LINKFLAGS in the Arduino build script.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
+        
+        if not os.path.exists(build_py_path):
+            print(f"Warning: pioarduino-build.py not found at {build_py_path}")
+            return False
+        
+        try:
+            with open(build_py_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Remove all -fno-lto flags
+            modified_content = re.sub(r'["\']?-fno-lto["\']?,?\s*', '', content)
+            
+            # Clean up any resulting empty strings or double commas
+            modified_content = re.sub(r',\s*,', ',', modified_content)
+            modified_content = re.sub(r'\[\s*,', '[', modified_content)
+            modified_content = re.sub(r',\s*\]', ']', modified_content)
+            
+            with open(build_py_path, 'w', encoding='utf-8') as f:
+                f.write(modified_content)
+            
+            print("*** Removed -fno-lto flags from pioarduino-build.py ***")
+            return True
+            
+        except (IOError, OSError) as e:
+            print(f"Error removing -fno-lto flags: {e}")
+            return False
+
+    def add_lto_flags(self) -> bool:
+        """
+        Add LTO flags to pioarduino-build.py.
+        
+        Adds -flto=auto to CCFLAGS, CFLAGS, CXXFLAGS and -flto to LINKFLAGS
+        in the Arduino build script.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
+        
+        if not os.path.exists(build_py_path):
+            print(f"Warning: pioarduino-build.py not found at {build_py_path}")
+            return False
+        
+        try:
+            with open(build_py_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            modified = False
+            new_lines = []
+            
+            for line in lines:
+                # Add LTO flags to compiler flags
+                if 'CCFLAGS=' in line and '-flto' not in line:
+                    line = line.rstrip()
+                    if line.endswith(','):
+                        line = line[:-1] + ', "-flto=auto",\n'
+                    elif line.endswith(']'):
+                        line = line[:-1] + ', "-flto=auto"]\n'
+                    else:
+                        line = line + '\n'
+                    modified = True
+                    
+                elif 'CFLAGS=' in line and 'CCFLAGS' not in line and '-flto' not in line:
+                    line = line.rstrip()
+                    if line.endswith(','):
+                        line = line[:-1] + ', "-flto=auto",\n'
+                    elif line.endswith(']'):
+                        line = line[:-1] + ', "-flto=auto"]\n'
+                    else:
+                        line = line + '\n'
+                    modified = True
+                    
+                elif 'CXXFLAGS=' in line and '-flto' not in line:
+                    line = line.rstrip()
+                    if line.endswith(','):
+                        line = line[:-1] + ', "-flto=auto",\n'
+                    elif line.endswith(']'):
+                        line = line[:-1] + ', "-flto=auto"]\n'
+                    else:
+                        line = line + '\n'
+                    modified = True
+                    
+                elif 'LINKFLAGS=' in line and '-flto' not in line:
+                    line = line.rstrip()
+                    if line.endswith(','):
+                        line = line[:-1] + ', "-flto",\n'
+                    elif line.endswith(']'):
+                        line = line[:-1] + ', "-flto"]\n'
+                    else:
+                        line = line + '\n'
+                    modified = True
+                
+                new_lines.append(line)
+            
+            if modified:
+                with open(build_py_path, 'w', encoding='utf-8') as f:
+                    f.writelines(new_lines)
+                
+                print("*** Added LTO flags to pioarduino-build.py ***")
+                print("    CCFLAGS: -flto=auto")
+                print("    CFLAGS: -flto=auto")
+                print("    CXXFLAGS: -flto=auto")
+                print("    LINKFLAGS: -flto")
+                return True
+            else:
+                print("*** LTO flags already present in pioarduino-build.py ***")
+                return True
+            
+        except (IOError, OSError) as e:
+            print(f"Error adding LTO flags: {e}")
+            return False
