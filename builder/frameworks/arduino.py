@@ -599,6 +599,7 @@ if flag_custom_sdkconfig:
     if has_unicore_flags():
         build_unflags += " -ustart_app_other_cores"
 
+    # Check for enabling LTO for Arduino HybridCompile part by unflagging -fno-lto
     if '-fno-lto' in build_unflags:
         flag_lto = True
 
