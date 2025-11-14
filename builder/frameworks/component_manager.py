@@ -1329,7 +1329,6 @@ class ComponentManager:
             with open(build_py_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-            original_content = content
             modified = False
 
             # Add -flto=auto to CCFLAGS right after the opening bracket
