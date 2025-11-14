@@ -599,22 +599,11 @@ if flag_custom_sdkconfig:
     if has_unicore_flags():
         build_unflags += " -ustart_app_other_cores"
 
+    if '-fno-lto' in build_unflags:
+        flag_lto = True
+
     new_build_unflags = build_unflags.split()
     env.Replace(BUILD_UNFLAGS=new_build_unflags)
-    
-    if not env.get('BUILD_FLAGS'):  # Initialize if not set
-        env['BUILD_FLAGS'] = []
-    # Check if BUILD_FLAGS contains -flto=auto
-    build_flags = env.get('BUILD_FLAGS', [])
-    if isinstance(build_flags, str):
-        build_flags = build_flags.split()
-    
-    if '-flto=auto' in build_flags:
-        # Remove -flto=auto from BUILD_FLAGS
-        build_flags = [flag for flag in build_flags if flag != '-flto=auto']
-        env.Replace(BUILD_FLAGS=build_flags)
-        flag_lto = True
-        print("*** Detected -flto=auto in BUILD_FLAGS, will apply LTO management ***")
 
 
 def get_MD5_hash(phrase):
