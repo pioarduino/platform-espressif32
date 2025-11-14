@@ -532,6 +532,7 @@ flag_custom_sdkconfig = False
 flag_custom_component_remove = False
 flag_custom_component_add = False
 flag_lib_ignore = False
+flag_lto = False
 
 if mcu == "esp32c2":
     flag_custom_sdkconfig = True
@@ -600,6 +601,18 @@ if flag_custom_sdkconfig:
 
     new_build_unflags = build_unflags.split()
     env.Replace(BUILD_UNFLAGS=new_build_unflags)
+    
+    # Check if BUILD_FLAGS contains -flto=auto
+    build_flags = env.get('BUILD_FLAGS', [])
+    if isinstance(build_flags, str):
+        build_flags = build_flags.split()
+    
+    if '-flto=auto' in build_flags:
+        # Remove -flto=auto from BUILD_FLAGS
+        build_flags = [flag for flag in build_flags if flag != '-flto=auto']
+        env.Replace(BUILD_FLAGS=build_flags)
+        flag_lto = True
+        print("*** Detected -flto=auto in BUILD_FLAGS, will apply LTO management ***")
 
 
 def get_MD5_hash(phrase):
@@ -916,6 +929,13 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
     from component_manager import ComponentManager
     component_manager = ComponentManager(env)
     component_manager.handle_component_settings()
+    
+    # Handle LTO flags if flag_lto is set
+    if flag_lto:
+        # First remove existing -fno-lto flags, then add LTO flags
+        component_manager.remove_lto_flags()
+        component_manager.add_lto_flags()
+    
     silent_action = env.Action(component_manager.restore_pioarduino_build_py)
     # silence scons command output
     silent_action.strfunction = lambda target, source, env: ''
