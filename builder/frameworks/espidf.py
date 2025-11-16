@@ -80,6 +80,7 @@ mcu = board.get("build.mcu", "esp32")
 flash_speed = board.get("build.f_flash", "40000000L")
 flash_frequency = str(flash_speed.replace("000000L", ""))
 flash_mode = board.get("build.flash_mode", "dio")
+boot_mode = board.get("build.boot", None)
 idf_variant = mcu.lower()
 flag_custom_sdkonfig = False
 flag_custom_component_add = False
@@ -337,9 +338,16 @@ def HandleArduinoIDFsettings(env):
             else:
                 flash_memory_type = memory_type
                 
-        # Check for additional flash configuration indicators
-        boot_mode = board.get("build", {}).get("boot", None)
-        flash_mode = board.get("build", {}).get("flash_mode", None)
+        # Add flash mode to sdkconfig
+        if flash_mode:
+            flash_mode_lower = flash_mode.lower()
+            board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHMODE_{flash_mode.upper()}=y")
+
+            # Disable other flash mode options
+            flash_modes = ["qio", "qout", "dio", "dout"]
+            for mode in flash_modes:
+                if mode != flash_mode_lower:
+                    board_config_flags.append(f"# CONFIG_ESPTOOLPY_FLASHMODE_{mode.upper()} is not set")
         
         # Override flash_memory_type if boot mode indicates OPI
         if boot_mode == "opi" or flash_mode in ["dout", "opi"]:
