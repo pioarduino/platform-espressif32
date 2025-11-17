@@ -571,7 +571,8 @@ FRAMEWORK_LIB_DIR = path_cache.framework_lib_dir
 
 SConscript("_embed_files.py", exports="env")
 
-flag_any_custom_sdkconfig = (FRAMEWORK_LIB_DIR is not None and exists(str(Path(FRAMEWORK_LIB_DIR) / "sdkconfig")))
+flag_any_custom_sdkconfig = (FRAMEWORK_LIB_DIR is not None and 
+                            exists(str(Path(FRAMEWORK_LIB_DIR) / "sdkconfig")))
 
 
 def has_unicore_flags():
