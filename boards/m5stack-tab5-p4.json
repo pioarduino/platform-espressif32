@@ -28,7 +28,7 @@
     "arduino",
     "espidf"
   ],
-  "name": "M5STACK Tab5 esp32-p4 Board (p4 pre rev.300)",
+  "name": "M5STACK Tab5 esp32-p4 Board (ES pre rev.300)",
   "upload": {
     "flash_size": "16MB",
     "maximum_ram_size": 512000,
