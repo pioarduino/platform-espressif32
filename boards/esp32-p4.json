@@ -9,6 +9,7 @@
     "f_psram": "200000000L",
     "flash_mode": "qio",
     "mcu": "esp32p4",
+    "chip_variant": "esp32p4_es",
     "variant": "esp32p4"
   },
   "connectivity": [
@@ -22,7 +23,7 @@
     "arduino",
     "espidf"
   ],
-  "name": "Espressif ESP32-P4 generic",
+  "name": "Espressif ESP32-P4 ES (pre rev.300) generic",
   "upload": {
     "flash_size": "4MB",
     "maximum_ram_size": 327680,
