@@ -73,7 +73,7 @@ def get_platform_default_threshold(mcu):
         "esp32s2": 32000,    # ESP32-S2
         "esp32s3": 32766,    # ESP32-S3
         "esp32c3": 32000,    # ESP32-C3
-        "esp32c2": 32000,    # ESP32-C2
+        "esp32c2": 31600,    # ESP32-C2
         "esp32c6": 31600,    # ESP32-C6
         "esp32h2": 32000,    # ESP32-H2
         "esp32p4": 32000,    # ESP32-P4
@@ -236,7 +236,7 @@ def get_threshold_info(env, config, current_env_section):
     Returns:
         dict: Information about threshold configuration
     """
-    mcu = env.BoardConfig().get("build.mcu", "esp32")
+    mcu = env.BoardConfig().get("build.mcu", "esp32").lower()
     setting_name = "custom_include_path_length_threshold"
 
     info = {
@@ -285,9 +285,12 @@ def get_threshold_info(env, config, current_env_section):
 
 # Cache class for frequently used paths
 class PathCache:
-    def __init__(self, platform, mcu):
+    def __init__(self, platform, mcu, chip_variant):
         self.platform = platform
         self.mcu = mcu
+        chip_variant = env.BoardConfig().get("build.chip_variant", "").lower()
+        chip_variant = chip_variant if chip_variant else mcu
+        self.chip_variant = chip_variant
         self._framework_dir = None
         self._framework_lib_dir = None
         self._sdk_dir = None
@@ -310,7 +313,7 @@ class PathCache:
     def sdk_dir(self):
         if self._sdk_dir is None:
             self._sdk_dir = fs.to_unix_path(
-                str(Path(self.framework_lib_dir) / self.mcu / "include")
+                str(Path(self.framework_lib_dir) / self.chip_variant / "include")
             )
         return self._sdk_dir
 
@@ -520,9 +523,11 @@ board = env.BoardConfig()
 
 # Cached values
 mcu = board.get("build.mcu", "esp32")
+chip_variant = env.BoardConfig().get("build.chip_variant", "").lower()
+chip_variant = chip_variant if chip_variant else mcu
 pioenv = env["PIOENV"]
 project_dir = env.subst("$PROJECT_DIR")
-path_cache = PathCache(platform, mcu)
+path_cache = PathCache(platform, mcu, chip_variant)
 current_env_section = f"env:{pioenv}"
 
 # Board configuration
@@ -566,8 +571,7 @@ FRAMEWORK_LIB_DIR = path_cache.framework_lib_dir
 
 SConscript("_embed_files.py", exports="env")
 
-flag_any_custom_sdkconfig = (FRAMEWORK_LIB_DIR is not None and 
-                            exists(str(Path(FRAMEWORK_LIB_DIR) / "sdkconfig")))
+flag_any_custom_sdkconfig = (FRAMEWORK_LIB_DIR is not None and exists(str(Path(FRAMEWORK_LIB_DIR) / "sdkconfig")))
 
 
 def has_unicore_flags():
@@ -921,13 +925,13 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
     from component_manager import ComponentManager
     component_manager = ComponentManager(env)
     component_manager.handle_component_settings()
-    
+
     # Handle LTO flags if flag_lto is set
     if flag_lto:
         # First remove existing -fno-lto flags, then add LTO flags
         component_manager.remove_no_lto_flags()
         component_manager.add_lto_flags()
-    
+
     silent_action = env.Action(component_manager.restore_pioarduino_build_py)
     # silence scons command output
     silent_action.strfunction = lambda target, source, env: ''
