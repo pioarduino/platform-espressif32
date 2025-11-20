@@ -5,7 +5,7 @@
     "f_flash": "80000000L",
     "flash_mode": "qio",
     "mcu": "esp32c6",
-    "variant": "esp32c6"
+    "variant": "arduino_nesso_n1"
   },
   "connectivity": [
     "bluetooth",
