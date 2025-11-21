@@ -2592,11 +2592,11 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
             dst_p.parent.mkdir(parents=True, exist_ok=True)
             try:
                 shutil.copy2(src, dst)
-            except (OSError, IOError) as e:
+            except (OSError, IOError):
                 # Gracefully handle missing source files (e.g., PSRAM libs in non-PSRAM builds)
                 # This is expected when copying variant-specific libraries
                 pass
-            except Exception as e:
+            except Exception:
                 print(f"Warning: Failed to copy {src} to {dst}: {e}")
         env_build = str(Path(env["PROJECT_BUILD_DIR"]) / env["PIOENV"])
         sdkconfig_h_path = str(Path(env_build) / "config" / "sdkconfig.h")
