@@ -75,6 +75,7 @@ def get_platform_default_threshold(mcu):
         "esp32c3": 32000,    # ESP32-C3
         "esp32c2": 31600,    # ESP32-C2
         "esp32c6": 31600,    # ESP32-C6
+        "esp32c61": 31600,   # ESP32-C61
         "esp32h2": 32000,    # ESP32-H2
         "esp32p4": 32000,    # ESP32-P4
     }
@@ -110,6 +111,7 @@ def validate_threshold(threshold, mcu):
         "esp32s3": {"min": 30000, "max": 32767},
         "esp32p4": {"min": 30000, "max": 32767},
         "esp32c6": {"min": 30000, "max": 32767},
+        "esp32c61": {"min": 30000, "max": 32767},
         "esp32h2": {"min": 30000, "max": 32767},
     }
 
@@ -537,7 +539,7 @@ flag_custom_component_add = False
 flag_lib_ignore = False
 flag_lto = False
 
-if mcu == "esp32c2":
+if mcu == "esp32c2" or mcu == "esp32c61":
     flag_custom_sdkconfig = True
 
 # pio lib_ignore check
