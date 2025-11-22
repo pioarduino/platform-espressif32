@@ -60,7 +60,7 @@ board = esp32-c2-devkitm-1
 monitor_speed = 115200
 
 [env:esp32-c61-devkitc1-n8r2]
-platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
+platform = https://github.com/pioarduino/platform-espressif32.git#develop
 framework = arduino
 board = esp32-c61-devkitc1-n8r2
 monitor_speed = 115200
