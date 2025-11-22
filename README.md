@@ -49,21 +49,28 @@ board = ...
 ...
 ```
 
-### ESP32-solo1 and ESP32-C2 Arduino support (with pioarduino only feature: *Hybrid compile*)
+###  ESP32-C2, ESP32-C61 and ESP32-solo1 Arduino support (via pioarduino only feature: *Hybrid compile*)
 Example configuration:
 
 ```ini
+[env:esp32-c2-devkitm-1]
+platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
+framework = arduino
+board = esp32-c2-devkitm-1
+monitor_speed = 115200
+
+[env:esp32-c61-devkitc1-n8r2]
+platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
+framework = arduino
+board = esp32-c61-devkitc1-n8r2
+monitor_speed = 115200
+
 [env:esp32solo1]
 platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
 framework = arduino
 board = esp32-solo1
 monitor_speed = 115200
 
-[env:esp32-c2-devkitm-1]
-platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
-framework = arduino
-board = esp32-c2-devkitm-1
-monitor_speed = 115200
 ```
 
 Looking for sponsor button? There is none. If you want to donate, please spend a litte to a charity organization.
