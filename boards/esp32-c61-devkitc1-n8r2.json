@@ -34,6 +34,11 @@
     "require_upload_port": true,
     "speed": 460800
   },
+  "espidf": {
+    "custom_sdkconfig": [
+      "CONFIG_IDF_TARGET=\"esp32c61\"" 
+    ]
+  },
   "url": "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c61/esp32-c61-devkitc-1/user_guide.html",
   "vendor": "Espressif"
 }
