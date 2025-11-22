@@ -191,6 +191,18 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
             arduino_c2_dir = Path(_arduino_c2_dir)
             ARDUINO_C2_DIR = str(arduino_c2_dir / chip_variant)
             shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
+
+    if mcu == "esp32c61":
+        ARDUINO_FRMWRK_C61_LIB_DIR = str(ARDUINO_FRMWRK_LIB_DIR_PATH / chip_variant)
+        if not os.path.exists(ARDUINO_FRMWRK_C61_LIB_DIR):
+            _arduino_c61_dir = platform.get_package_dir("framework-arduino-c61-skeleton-lib")
+            if not _arduino_c61_dir:
+                sys.stderr.write("Error: Missing framework-arduino-c61-skeleton-lib package\n")
+                env.Exit(1)
+            arduino_c61_dir = Path(_arduino_c61_dir)
+            ARDUINO_C61_DIR = str(arduino_c61_dir / chip_variant)
+            shutil.copytree(ARDUINO_C61_DIR, ARDUINO_FRMWRK_C61_LIB_DIR, dirs_exist_ok=True)
+
     arduino_libs_mcu = str(ARDUINO_FRMWRK_LIB_DIR_PATH / chip_variant)
 
 BUILD_DIR = env.subst("$BUILD_DIR")
