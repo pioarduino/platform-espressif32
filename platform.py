@@ -594,6 +594,8 @@ class Espressif32Platform(PlatformBase):
             self.packages["framework-espidf"]["optional"] = False
             if mcu == "esp32c2":
                 self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
+            if mcu == "esp32c61":
+                self.packages["framework-arduino-c61-skeleton-lib"]["optional"] = False  
 
     def _get_mcu_config(self, mcu: str) -> Optional[Dict]:
         """Get MCU configuration with optimized caching and search."""
