@@ -234,11 +234,10 @@ if "espidf.custom_sdkconfig" in board:
     flag_custom_sdkonfig = True
 
 pio_orig_frwrk = env.GetProjectOption("framework")
-print("***** Framework read from Project Config:", pio_orig_frwrk)
-
+# Disable HybridCompile for espidf and arduino, espidf projects
+# HybridCompile is always "framework = arduino" !
 if "espidf" in pio_orig_frwrk:
     flag_custom_sdkonfig = False
-    print("**** HybridCompile switched off ****")
 
 # Check for board-specific configurations that require sdkconfig generation
 def has_board_specific_config():
