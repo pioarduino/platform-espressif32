@@ -539,9 +539,6 @@ flag_custom_component_add = False
 flag_lib_ignore = False
 flag_lto = False
 
-if mcu == "esp32c2" or mcu == "esp32c61":
-    flag_custom_sdkconfig = True
-
 # pio lib_ignore check
 if config.has_option(current_env_section, "lib_ignore"):
     flag_lib_ignore = True
