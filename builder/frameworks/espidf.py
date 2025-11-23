@@ -233,8 +233,9 @@ if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig"):
 if "espidf.custom_sdkconfig" in board:
     flag_custom_sdkonfig = True
 
-pio_orig_frwrk = config.get("framework")
+pio_orig_frwrk = env.GetProjectOption("framework")
 print("***** Framework read from Project Config:", pio_orig_frwrk)
+
 if "espidf" in pio_orig_frwrk:
     flag_custom_sdkonfig = False
     print("**** HybridCompile switched off ****")
