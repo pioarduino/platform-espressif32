@@ -2356,7 +2356,8 @@ app_includes = get_app_includes(elf_config)
 # Compile bootloader
 #
 
-if flag_custom_sdkonfig == False:
+# if flag_custom_sdkonfig == False:
+if not ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PIOFRAMEWORK")):
     env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", build_bootloader(sdk_config))
 
 #
