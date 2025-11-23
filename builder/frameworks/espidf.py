@@ -233,6 +233,11 @@ if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig"):
 if "espidf.custom_sdkconfig" in board:
     flag_custom_sdkonfig = True
 
+pio_orig_frwrk = config.get("framework")
+print("***** Framework read from Project Config:", pio_orig_frwrk)
+if "espidf" in pio_orig_frwrk:
+    flag_custom_sdkonfig = False
+    print("**** HybridCompile switched off ****")
 
 # Check for board-specific configurations that require sdkconfig generation
 def has_board_specific_config():
@@ -2356,8 +2361,7 @@ app_includes = get_app_includes(elf_config)
 # Compile bootloader
 #
 
-# if flag_custom_sdkonfig == False:
-if not ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PIOFRAMEWORK")):
+if flag_custom_sdkonfig == False:
     env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", build_bootloader(sdk_config))
 
 #
