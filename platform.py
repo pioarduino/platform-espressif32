@@ -557,7 +557,7 @@ class Espressif32Platform(PlatformBase):
 
         return self.install_tool(tool_name)
 
-    def _configure_arduino_framework(self, frameworks: List[str]) -> None:
+    def _configure_arduino_framework(self, frameworks: List[str], mcu: str) -> None:
         """Configure Arduino framework dependencies."""
         if "arduino" not in frameworks:
             return
