@@ -76,6 +76,7 @@ os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 
 config = env.GetProjectConfig()
 board = env.BoardConfig()
+pio_orig_frwrk = env.GetProjectOption("framework")
 mcu = board.get("build.mcu", "esp32")
 chip_variant = board.get("build.chip_variant", "").lower()
 chip_variant = chip_variant if chip_variant else mcu
@@ -181,7 +182,7 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
     ARDUINO_FRMWRK_LIB_DIR_PATH = arduino_lib_dir.resolve()
     ARDUINO_FRMWRK_LIB_DIR = str(ARDUINO_FRMWRK_LIB_DIR_PATH)
 
-    if mcu == "esp32c2":
+    if mcu == "esp32c2" and not ("espidf" in pio_orig_frwrk):
         ARDUINO_FRMWRK_C2_LIB_DIR = str(ARDUINO_FRMWRK_LIB_DIR_PATH / chip_variant)
         if not os.path.exists(ARDUINO_FRMWRK_C2_LIB_DIR):
             _arduino_c2_dir = platform.get_package_dir("framework-arduino-c2-skeleton-lib")
@@ -192,7 +193,7 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
             ARDUINO_C2_DIR = str(arduino_c2_dir / chip_variant)
             shutil.copytree(ARDUINO_C2_DIR, ARDUINO_FRMWRK_C2_LIB_DIR, dirs_exist_ok=True)
 
-    if mcu == "esp32c61":
+    if mcu == "esp32c61" and not ("espidf" in pio_orig_frwrk):
         ARDUINO_FRMWRK_C61_LIB_DIR = str(ARDUINO_FRMWRK_LIB_DIR_PATH / chip_variant)
         if not os.path.exists(ARDUINO_FRMWRK_C61_LIB_DIR):
             _arduino_c61_dir = platform.get_package_dir("framework-arduino-c61-skeleton-lib")
@@ -233,7 +234,6 @@ if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig"):
 if "espidf.custom_sdkconfig" in board:
     flag_custom_sdkonfig = True
 
-pio_orig_frwrk = env.GetProjectOption("framework")
 # Disable HybridCompile for espidf and arduino, espidf projects
 # HybridCompile is always "framework = arduino" !
 if "espidf" in pio_orig_frwrk:
