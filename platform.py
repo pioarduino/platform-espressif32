@@ -557,7 +557,7 @@ class Espressif32Platform(PlatformBase):
 
         return self.install_tool(tool_name)
 
-    def _configure_arduino_framework(self, frameworks: List[str]) -> None:
+    def _configure_arduino_framework(self, frameworks: List[str], mcu: str) -> None:
         """Configure Arduino framework dependencies."""
         if "arduino" not in frameworks:
             return
@@ -566,7 +566,6 @@ class Espressif32Platform(PlatformBase):
         safe_remove_directory_pattern(Path(self.packages_dir), f"framework-arduinoespressif32.*")
         self.packages["framework-arduinoespressif32"]["optional"] = False
         self.packages["framework-arduinoespressif32-libs"]["optional"] = False
-
         if is_internet_available():
             try:
                 response = requests.get(ARDUINO_ESP32_PACKAGE_URL, timeout=30)
@@ -576,6 +575,10 @@ class Espressif32Platform(PlatformBase):
                 self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
             except (requests.RequestException, KeyError, IndexError) as e:
                 logger.error(f"Failed to fetch Arduino framework library URL: {e}")
+        if mcu == "esp32c2":
+            self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
+        if mcu == "esp32c61":
+            self.packages["framework-arduino-c61-skeleton-lib"]["optional"] = False
 
     def _configure_espidf_framework(
         self, frameworks: List[str], variables: Dict, board_config: Dict, mcu: str
@@ -592,10 +595,6 @@ class Espressif32Platform(PlatformBase):
             safe_remove_directory_pattern(Path(self.packages_dir), f"framework-espidf@*")
             safe_remove_directory_pattern(Path(self.packages_dir), f"framework-espidf.*")
             self.packages["framework-espidf"]["optional"] = False
-            if mcu == "esp32c2":
-                self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
-            if mcu == "esp32c61":
-                self.packages["framework-arduino-c61-skeleton-lib"]["optional"] = False  
 
     def _get_mcu_config(self, mcu: str) -> Optional[Dict]:
         """Get MCU configuration with optimized caching and search."""
@@ -831,7 +830,7 @@ class Espressif32Platform(PlatformBase):
             self._esptool_path = esptool_path
             
             # Configuration steps (now with penv available)
-            self._configure_arduino_framework(frameworks)
+            self._configure_arduino_framework(frameworks, mcu)
             self._configure_espidf_framework(frameworks, variables, board_config, mcu)
             self._configure_mcu_toolchains(mcu, variables, targets)
             self._handle_littlefs_tool(for_download=False)  # Ensure mklittlefs is installed
