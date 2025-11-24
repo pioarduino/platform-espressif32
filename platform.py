@@ -830,7 +830,7 @@ class Espressif32Platform(PlatformBase):
             self._esptool_path = esptool_path
             
             # Configuration steps (now with penv available)
-            self._configure_arduino_framework(frameworks)
+            self._configure_arduino_framework(frameworks, mcu)
             self._configure_espidf_framework(frameworks, variables, board_config, mcu)
             self._configure_mcu_toolchains(mcu, variables, targets)
             self._handle_littlefs_tool(for_download=False)  # Ensure mklittlefs is installed
