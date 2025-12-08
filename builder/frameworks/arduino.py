@@ -946,7 +946,7 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
                 original_object = env.Object
                 result_holder = {"result": None, "called": False}
             
-                def custom_object_wrapper(node_arg, **kwargs):
+                def custom_object_wrapper(_node, **kwargs):
                     # User middleware called env.Object - capture it
                     result_holder["called"] = True
                     result_holder["kwargs"] = kwargs
@@ -957,21 +957,8 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
                 env.Object = custom_object_wrapper
             
                 # Call user middleware - it will call our wrapper
-                for middleware_func, pattern in existing_middlewares:
-                    # Mirror PlatformIO: callbacks may be def f(node) or def f(env, node)
-                    try:
-                        argcount = middleware_func.__code__.co_argcount
-                    except AttributeError:
-                        argcount = 1
-                    if argcount == 2:
-                        result = middleware_func(env, node)
-                    else:
-                        result = middleware_func(node)
-                    # Honor return value: None drops the node
-                    if result is None:
-                        return None
-                    if result is not node:
-                        node = result
+                for middleware_func, _ in existing_middlewares:
+                    middleware_func(env, node)
             
                 # Restore original env.Object
                 env.Object = original_object
