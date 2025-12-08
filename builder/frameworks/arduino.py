@@ -936,7 +936,9 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
     env.AddPostAction("checkprogsize", silent_action)
 
     if IS_WINDOWS:
-        env.AddBuildMiddleware(smart_include_length_shorten)
+        if not env.get("__PIO_BUILD_MIDDLEWARES"):
+            env["__PIO_BUILD_MIDDLEWARES"] = []
+            env["__PIO_BUILD_MIDDLEWARES"].append(env.AddBuildMiddleware(smart_include_length_shorten))
 
     build_script_path = str(Path(FRAMEWORK_DIR) / "tools" / "pioarduino-build.py")
     SConscript(build_script_path)
