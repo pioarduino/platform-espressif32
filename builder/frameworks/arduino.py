@@ -936,9 +936,63 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
     env.AddPostAction("checkprogsize", silent_action)
 
     if IS_WINDOWS:
-        if not env.get("__PIO_BUILD_MIDDLEWARES"):
+        # Integrate smart_include_length_shorten with existing middlewares
+        existing_middlewares = list(env.get("__PIO_BUILD_MIDDLEWARES", []))
+    
+        if existing_middlewares:
+            # Wrap user middlewares to work together with smart_include_length_shorten
+            def integrated_middleware(env, node):
+                # Create a custom env.Object wrapper that intercepts calls
+                original_object = env.Object
+                result_holder = {"result": None, "called": False}
+            
+                def custom_object_wrapper(node_arg, **kwargs):
+                    # User middleware called env.Object - capture it
+                    result_holder["called"] = True
+                    result_holder["kwargs"] = kwargs
+                    # Don't actually compile yet, just return a marker
+                    return None
+            
+                # Temporarily replace env.Object
+                env.Object = custom_object_wrapper
+            
+                # Call user middleware - it will call our wrapper
+                for middleware_func, _ in existing_middlewares:
+                    middleware_func(env, node)
+            
+                # Restore original env.Object
+                env.Object = original_object
+            
+                # Now compile with smart_include_length_shorten
+                if result_holder["called"] and result_holder.get("kwargs"):
+                    # User middleware wants custom flags - merge them
+                    user_kwargs = result_holder["kwargs"]
+                
+                    # Temporarily apply user's custom flags to env
+                    old_values = {}
+                    for key, value in user_kwargs.items():
+                        if key in env:
+                            old_values[key] = env[key]
+                            env[key] = value
+                
+                    # Compile with smart_include_length_shorten
+                    result = smart_include_length_shorten(env, node)
+                
+                    # Restore original env values
+                    for key, value in old_values.items():
+                        env[key] = value
+                
+                    return result
+                else:
+                    # No custom flags, just use smart_include_length_shorten
+                    return smart_include_length_shorten(env, node)
+        
+            # Replace all middlewares with the integrated one
             env["__PIO_BUILD_MIDDLEWARES"] = []
-        env["__PIO_BUILD_MIDDLEWARES"].append(env.AddBuildMiddleware(smart_include_length_shorten))
+            env.AddBuildMiddleware(integrated_middleware)
+        else:
+            # No user middlewares, just add smart_include_length_shorten
+            env.AddBuildMiddleware(smart_include_length_shorten)
 
     build_script_path = str(Path(FRAMEWORK_DIR) / "tools" / "pioarduino-build.py")
     SConscript(build_script_path)
