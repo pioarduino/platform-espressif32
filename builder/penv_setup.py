@@ -38,7 +38,7 @@ if sys.version_info < (3, 10):
 github_actions = bool(os.getenv("GITHUB_ACTIONS"))
 
 PLATFORMIO_URL_VERSION_RE = re.compile(
-    r'/v?(\d+\.\d+\.\d+(?:[.-]\w+)?(?:\.\d+)?)(?:\.(?:zip|tar\.gz|tar\.bz2))?$',
+    r'/v?(\d+\.\d+\.\d+(?:[.-](?:alpha|beta|rc|dev|post|pre)\d*)?(?:\.\d+)?)(?:\.(?:zip|tar\.gz|tar\.bz2))?$',
     re.IGNORECASE,
 )
 
