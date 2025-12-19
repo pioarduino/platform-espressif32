@@ -1,0 +1,44 @@
+{
+  "build": {
+    "arduino": {
+        "partitions": "default_8MB.csv",
+        "memory_type": "qio_qspi"
+    },
+    "core": "esp32",
+    "extra_flags": [
+      "-DBOARD_HAS_PSRAM"
+    ],    
+    "f_cpu": "160000000L",
+    "f_flash": "80000000L",
+    "flash_mode": "qio",
+    "psram_type": "qio",
+    "mcu": "esp32c61",
+    "variant": "esp32c61"
+  },
+  "connectivity": [
+    "bluetooth",
+    "wifi"
+  ],
+  "debug": {
+    "openocd_target": "esp32c61.cfg"
+  },
+  "frameworks": [
+    "arduino",
+    "espidf"
+  ],
+  "name": "Espressif ESP32-C61-DevKitC-1 N8R2 (8 MB Flash Quad, 2 MB PSRAM Quad)",
+  "upload": {
+    "flash_size": "8MB",
+    "maximum_ram_size": 327680,
+    "maximum_size": 8388608,
+    "require_upload_port": true,
+    "speed": 460800
+  },
+  "espidf": {
+    "custom_sdkconfig": [
+      "CONFIG_IDF_TARGET=\"esp32c61\"" 
+    ]
+  },
+  "url": "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c61/esp32-c61-devkitc-1/user_guide.html",
+  "vendor": "Espressif"
+}

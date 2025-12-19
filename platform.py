@@ -40,7 +40,6 @@ import logging
 import os
 import requests
 import shutil
-import socket
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Union
@@ -70,7 +69,7 @@ tl_install_name = "tool-esp_install"
 
 # MCUs that support ESP-builtin debug
 ESP_BUILTIN_DEBUG_MCUS = frozenset([
-    "esp32c3", "esp32c5", "esp32c6", "esp32s3", "esp32h2", "esp32p4"
+    "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32s3", "esp32h2", "esp32p4"
 ])
 
 # MCU configuration mapping
@@ -82,7 +81,7 @@ MCU_TOOLCHAIN_CONFIG = {
     },
     "riscv": {
         "mcus": frozenset([
-            "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32h2", "esp32p4"
+            "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32p4"
         ]),
         "toolchains": ["toolchain-riscv32-esp"],
         "debug_tools": ["tool-riscv32-esp-elf-gdb"]
@@ -556,7 +555,7 @@ class Espressif32Platform(PlatformBase):
 
         return self.install_tool(tool_name)
 
-    def _configure_arduino_framework(self, frameworks: List[str]) -> None:
+    def _configure_arduino_framework(self, frameworks: List[str], mcu: str) -> None:
         """Configure Arduino framework dependencies."""
         if "arduino" not in frameworks:
             return
@@ -565,6 +564,10 @@ class Espressif32Platform(PlatformBase):
         safe_remove_directory_pattern(Path(self.packages_dir), f"framework-arduinoespressif32.*")
         self.packages["framework-arduinoespressif32"]["optional"] = False
         self.packages["framework-arduinoespressif32-libs"]["optional"] = False
+        if mcu == "esp32c2":
+            self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
+        if mcu == "esp32c61":
+            self.packages["framework-arduino-c61-skeleton-lib"]["optional"] = False
 
     def _configure_espidf_framework(
         self, frameworks: List[str], variables: Dict, board_config: Dict, mcu: str
@@ -581,8 +584,6 @@ class Espressif32Platform(PlatformBase):
             safe_remove_directory_pattern(Path(self.packages_dir), f"framework-espidf@*")
             safe_remove_directory_pattern(Path(self.packages_dir), f"framework-espidf.*")
             self.packages["framework-espidf"]["optional"] = False
-            if mcu == "esp32c2":
-                self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
 
     def _get_mcu_config(self, mcu: str) -> Optional[Dict]:
         """Get MCU configuration with optimized caching and search."""
@@ -818,7 +819,7 @@ class Espressif32Platform(PlatformBase):
             self._esptool_path = esptool_path
             
             # Configuration steps (now with penv available)
-            self._configure_arduino_framework(frameworks)
+            self._configure_arduino_framework(frameworks, mcu)
             self._configure_espidf_framework(frameworks, variables, board_config, mcu)
             self._configure_mcu_toolchains(mcu, variables, targets)
             self._handle_littlefs_tool(for_download=False)  # Ensure mklittlefs is installed
