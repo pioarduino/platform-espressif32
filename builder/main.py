@@ -919,7 +919,7 @@ def download_littlefs(target, source, env):
     ]
     
     try:
-        result = subprocess.run(esptool_cmd, check=True)
+        result = subprocess.run(esptool_cmd, check=False)
         if result.returncode != 0:
             print(f"Error: Failed to download partition table")
             return 1
@@ -1003,7 +1003,7 @@ def download_littlefs(target, source, env):
     ]
     
     try:
-        result = subprocess.run(esptool_cmd, check=True)
+        result = subprocess.run(esptool_cmd, check=False)
         if result.returncode != 0:
             print(f"Error: Download failed with code {result.returncode}")
             return 1
