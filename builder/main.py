@@ -921,11 +921,8 @@ def download_littlefs(target, source, env):
     try:
         result = subprocess.run(esptool_cmd, check=False)
         if result.returncode != 0:
-            print(f"Error: Failed to download partition table")
+            print("Error: Failed to download partition table")
             return 1
-    except subprocess.CalledProcessError as e:
-        print(f"Error: Download failed: {e}")
-        return 1
     except Exception as e:
         print(f"Error: {e}")
         return 1
@@ -947,21 +944,18 @@ def download_littlefs(target, source, env):
         if len(entry) < 32:
             continue
         
-        # Partition entry format (after 0xAA 0x50 magic):
-        # The entry structure after split is:
-        # Byte 0: Unknown/padding
-        # Byte 1: Type/Subtype combined
-        # Bytes 2-4: Offset (3 bytes, little-endian)
-        # Bytes 5: Unknown/padding  
-        # Bytes 6-8: Size (3 bytes, little-endian)
+        # Byte 0: Type (0x01 for data partitions)
+        # Byte 1: SubType (0x82=SPIFFS, 0x83=LittleFS)
+        # Bytes 2-5: Offset (4 bytes, little-endian)
+        # Bytes 6-9: Size (4 bytes, little-endian)
         
-        part_type = entry[1]
+        part_subtype = entry[1]
         
         # Check for SPIFFS (0x82) or LITTLEFS (0x83)
-        if part_type in [0x82, 0x83]:
-            fs_start = int.from_bytes(entry[2:5], byteorder='little', signed=False)
-            fs_size = int.from_bytes(entry[6:9], byteorder='little', signed=False)
-            fs_subtype = part_type
+        if part_subtype in [0x82, 0x83]:
+            fs_start = int.from_bytes(entry[2:6], byteorder='little', signed=False)
+            fs_size = int.from_bytes(entry[6:10], byteorder='little', signed=False)
+            fs_subtype = part_subtype
             break
     
     if fs_start is None or fs_size is None:
@@ -1007,9 +1001,6 @@ def download_littlefs(target, source, env):
         if result.returncode != 0:
             print(f"Error: Download failed with code {result.returncode}")
             return 1
-    except subprocess.CalledProcessError as e:
-        print(f"Error: Download failed: {e}")
-        return 1
     except Exception as e:
         print(f"Error: {e}")
         return 1
