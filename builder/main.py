@@ -529,12 +529,12 @@ def check_lib_archive_exists():
 
 def switch_off_ldf():
     """
-    Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, and buildfs targets.
+    Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, buildfs, download_littlefs, and erase targets.
 
     This optimization prevents unnecessary library dependency scanning and compilation
     when only filesystem operations are performed.
     """
-    fs_targets = {"uploadfs", "uploadfsota", "buildfs", "erase"}
+    fs_targets = {"uploadfs", "uploadfsota", "buildfs", "erase", "download_littlefs"}
     if fs_targets & set(COMMAND_LINE_TARGETS):
         # Disable LDF by modifying project configuration directly
         env_section = "env:" + env["PIOENV"]
@@ -876,6 +876,203 @@ def coredump_analysis(target, source, env):
         print(f"Error: Failed to run coredump analysis: {e}")
         print(f'Make sure esp-coredump is installed: uv pip install --python "{PYTHON_EXE}" esp-coredump')
 
+
+def download_littlefs(target, source, env):
+    """
+    Download Little filesystem from device and extract to directory.
+    Only supports LittleFS filesystem.
+    Usage: pio run -t download_littlefs
+    
+    Args:
+        target: SCons target
+        source: SCons source
+        env: SCons environment object
+    """
+    # Get unpack directory from project config or use default
+    unpack_dir = env.GetProjectOption("custom_unpack_dir", "unpacked_fs")
+    
+    # Ensure upload port is set
+    if not env.subst("$UPLOAD_PORT"):
+        env.AutodetectUploadPort()
+    
+    upload_port = env.subst("$UPLOAD_PORT")
+    download_speed = board.get("download.speed", "115200")
+    
+    # Download partition table from device
+    print(f"Downloading partition table from {upload_port}...")
+    
+    build_dir = Path(env.subst("$BUILD_DIR"))
+    build_dir.mkdir(parents=True, exist_ok=True)
+    partition_file = build_dir / "partition_table_from_flash.bin"
+    
+    esptool_cmd = [
+        uploader_path.strip('"'),
+        "--chip", mcu,
+        "--port", upload_port,
+        "--baud", str(download_speed),
+        "--before", "default-reset",
+        "--after", "hard-reset",
+        "read-flash",
+        "0x8000",  # Partition table offset
+        "0x1000",  # Partition table size (4KB)
+        str(partition_file)
+    ]
+    
+    try:
+        result = subprocess.run(esptool_cmd, check=False)
+        if result.returncode != 0:
+            print("Error: Failed to download partition table")
+            return 1
+    except Exception as e:
+        print(f"Error: {e}")
+        return 1
+    
+    # Parse partition table to find filesystem partition
+    print("Parsing partition table...")
+    
+    with open(partition_file, 'rb') as f:
+        partition_data = f.read()
+    
+    # Parse partition entries (format: 0xAA 0x50 followed by entry data)
+    entries = [e for e in partition_data.split(b'\xaaP') if len(e) > 0]
+    
+    fs_start = None
+    fs_size = None
+    fs_subtype = None
+    
+    for entry in entries:
+        if len(entry) < 32:
+            continue
+        
+        # Byte 0: Type (0x01 for data partitions)
+        # Byte 1: SubType (0x82=SPIFFS, 0x83=LittleFS)
+        # Bytes 2-5: Offset (4 bytes, little-endian)
+        # Bytes 6-9: Size (4 bytes, little-endian)
+        
+        part_subtype = entry[1]
+        
+        # Check for SPIFFS (0x82) or LITTLEFS (0x83)
+        if part_subtype in [0x82, 0x83]:
+            fs_start = int.from_bytes(entry[2:6], byteorder='little', signed=False)
+            fs_size = int.from_bytes(entry[6:10], byteorder='little', signed=False)
+            fs_subtype = part_subtype
+            break
+    
+    if fs_start is None or fs_size is None:
+        print("Error: No filesystem partition found in partition table")
+        return 1
+    
+    # Check if filesystem is supported
+    # Note: LittleFS can use subtype 0x82 or 0x83
+    # We only support LittleFS extraction, not SPIFFS
+    # The actual filesystem type will be detected when mounting
+    if fs_subtype not in [0x82, 0x83]:
+        print(f"Error: Unsupported filesystem partition type")
+        return 1
+    
+    block_size = 0x1000  # 4KB
+    
+    print(f"Found filesystem partition (subtype {hex(fs_subtype)}):")
+    print(f"  Start: {hex(fs_start)}")
+    print(f"  Size: {hex(fs_size)} ({fs_size} bytes)")
+    print(f"  Block size: {hex(block_size)}")
+    print(f"Note: This tool only supports LittleFS extraction")
+    
+    # Download filesystem image
+    fs_file = build_dir / f"downloaded_fs_{hex(fs_start)}_{hex(fs_size)}.bin"
+    
+    print(f"\nDownloading filesystem from device...")
+    
+    esptool_cmd = [
+        uploader_path.strip('"'),
+        "--chip", mcu,
+        "--port", upload_port,
+        "--baud", str(download_speed),
+        "--before", "default-reset",
+        "--after", "hard-reset",
+        "read-flash",
+        hex(fs_start),
+        hex(fs_size),
+        str(fs_file)
+    ]
+    
+    try:
+        result = subprocess.run(esptool_cmd, check=False)
+        if result.returncode != 0:
+            print(f"Error: Download failed with code {result.returncode}")
+            return 1
+    except Exception as e:
+        print(f"Error: {e}")
+        return 1
+    
+    print(f"Downloaded to {fs_file}")
+    
+    # Extract filesystem
+    print(f"\nExtracting LittleFS filesystem to {unpack_dir}...")
+    
+    # Remove old unpack directory
+    unpack_path = Path(get_project_dir()) / unpack_dir
+    if unpack_path.exists():
+        import shutil
+        shutil.rmtree(unpack_path)
+    unpack_path.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # Read the downloaded filesystem image
+        with open(fs_file, 'rb') as f:
+            fs_data = f.read()
+        
+        # Calculate block count
+        block_count = fs_size // block_size
+        
+        # Create LittleFS instance and mount the image
+        fs = LittleFS(
+            block_size=block_size,
+            block_count=block_count,
+            mount=False
+        )
+        fs.context.buffer = bytearray(fs_data)
+        fs.mount()
+        
+        # Extract all files
+        file_count = 0
+        print("\nExtracted files:")
+        for root, dirs, files in fs.walk("/"):
+            if not root.endswith("/"):
+                root += "/"
+            
+            # Create directories
+            for dir_name in dirs:
+                src_path = root + dir_name
+                dst_path = unpack_path / src_path[1:]  # Remove leading '/'
+                dst_path.mkdir(parents=True, exist_ok=True)
+                print(f"  [DIR]  {src_path}")
+            
+            # Extract files
+            for file_name in files:
+                src_path = root + file_name
+                dst_path = unpack_path / src_path[1:]  # Remove leading '/'
+                dst_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                with fs.open(src_path, "rb") as src:
+                    file_data = src.read()
+                    dst_path.write_bytes(file_data)
+                
+                print(f"  [FILE] {src_path} ({len(file_data)} bytes)")
+                file_count += 1
+        
+        fs.unmount()
+        print(f"\nSuccessfully extracted {file_count} file(s) to {unpack_dir}")
+        return 0
+        
+    except Exception as e:
+        print(f"Error: Failed to extract LittleFS filesystem: {e}")
+        print("This tool only supports LittleFS. If you have SPIFFS, please convert to LittleFS.")
+        print("Make sure the device has a valid LittleFS filesystem.")
+        import traceback
+        traceback.print_exc()
+        return 1
+
 #
 # Target: Build executable and linkable firmware or FS image
 #
@@ -1111,6 +1308,14 @@ env.AddPlatformTarget(
     target_firm,
     upload_actions,
     "Upload Filesystem Image OTA",
+)
+
+# Target: Download LittleFS (no build required)
+env.AddPlatformTarget(
+    "download_littlefs",
+    None,
+    download_littlefs,
+    "Download and extract LittleFS filesystem from device",
 )
 
 # Target: Erase Flash and Upload
