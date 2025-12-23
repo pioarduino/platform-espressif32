@@ -881,7 +881,7 @@ def download_littlefs(target, source, env):
     """
     Download Little filesystem from device and extract to directory.
     Only supports LittleFS filesystem.
-    Usage: pio run -t downloadfs
+    Usage: pio run -t download_littlefs
     
     Args:
         target: SCons target
