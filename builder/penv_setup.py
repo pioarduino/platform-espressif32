@@ -45,6 +45,7 @@ PLATFORMIO_URL_VERSION_RE = re.compile(
 # Python dependencies required for ESP32 platform builds
 python_deps = {
     "platformio": "https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.18.zip",
+    "littlefs-python": ">=0.16.0",
     "pyyaml": ">=6.0.2",
     "rich-click": ">=1.8.6",
     "zopfli": ">=0.2.2",

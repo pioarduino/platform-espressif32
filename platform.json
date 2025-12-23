@@ -128,20 +128,6 @@
       "package-version": "2.1200.20250707",
       "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20250707.zip"
     },
-    "tool-mklittlefs": {
-      "type": "uploader",
-      "optional": true,
-      "owner": "pioarduino",
-      "package-version": "3.2.0",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/mklittlefs-3.2.0-new.zip"
-    },
-    "tool-mklittlefs4": {
-      "type": "uploader",
-      "optional": true,
-      "owner": "pioarduino",
-      "package-version": "4.0.2",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/mklittlefs-4.0.2.zip"
-    },
     "tool-mkspiffs": {
       "type": "uploader",
       "optional": true,

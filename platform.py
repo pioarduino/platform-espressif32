@@ -718,66 +718,13 @@ class Espressif32Platform(PlatformBase):
             if any(tool in package for tool in check_tools):
                 self.install_tool(package)
 
-    def _ensure_mklittlefs_version(self) -> None:
-        """Ensure correct mklittlefs version is installed."""
-        piopm_path = Path(self.packages_dir) / "tool-mklittlefs" / ".piopm"
-
-        if piopm_path.exists():
-            try:
-                with open(piopm_path, 'r', encoding='utf-8') as f:
-                    package_data = json.load(f)
-                version = package_data.get('version', '')
-                if not version.startswith("3."):
-                    safe_remove_file(piopm_path)
-                    logger.info(f"Incompatible mklittlefs version {version} removed (required: 3.x)")
-            except (json.JSONDecodeError, KeyError):
-                logger.exception("Error reading mklittlefs package metadata")
-
-    def _setup_mklittlefs_for_download(self) -> None:
-        """Setup mklittlefs for download functionality with version 4.x."""
-        mklittlefs_dir = Path(self.packages_dir) / "tool-mklittlefs"
-        mklittlefs4_dir = Path(self.packages_dir) / "tool-mklittlefs4"
-
-        # Ensure mklittlefs 3.x is installed
-        if not mklittlefs_dir.exists():
-            self.install_tool("tool-mklittlefs")
-        if (mklittlefs_dir / "tools.json").exists():
-            self.install_tool("tool-mklittlefs")
-
-        # Install mklittlefs 4.x
-        if not mklittlefs4_dir.exists():
-            self.install_tool("tool-mklittlefs4")
-        if (mklittlefs4_dir / "tools.json").exists():
-            self.install_tool("tool-mklittlefs4")
-
-        # Copy mklittlefs 4.x over 3.x
-        if mklittlefs4_dir.exists():
-            # Copy 3.x package.json into 4.x before mirroring 4.x -> 3.x,
-            # so 3.x dir ends up with 4.x binaries and 3.x metadata.
-            package_src = mklittlefs_dir / "package.json"
-            package_dst = mklittlefs4_dir / "package.json"
-            safe_copy_file(package_src, package_dst)
-            shutil.copytree(mklittlefs4_dir, mklittlefs_dir, dirs_exist_ok=True)
-            self.packages.pop("tool-mkfatfs", None)
-
-    def _handle_littlefs_tool(self, for_download: bool) -> None:
-        """Handle LittleFS tool installation with special download configuration."""
-        if for_download:
-            self._setup_mklittlefs_for_download()
-        else:
-            self._ensure_mklittlefs_version()
-            self.install_tool("tool-mklittlefs")
-
-    def _install_filesystem_tool(self, filesystem: str, for_download: bool = False) -> None:
+    def _install_filesystem_tool(self, filesystem: str) -> None:
         """Install filesystem-specific tools based on the filesystem type."""
-        tool_mapping = {
-            "default": lambda: self._handle_littlefs_tool(for_download),
-            "fatfs": lambda: self.install_tool("tool-mkfatfs"),
-            "spiffs": lambda: self.install_tool("tool-mkspiffs")
-        }
-
-        handler = tool_mapping.get(filesystem, tool_mapping["default"])
-        handler()
+        # LittleFS is handled by littlefs-python, only install tools for other filesystems
+        if filesystem == "fatfs":
+            self.install_tool("tool-mkfatfs")
+        elif filesystem == "spiffs":
+            self.install_tool("tool-mkspiffs")
 
     def _handle_dfuutil_tool(self, variables: Dict, for_download: bool = False) -> None:
         """Install dfuutil tool for Arduino Nano ESP32 board."""
@@ -789,11 +736,8 @@ class Espressif32Platform(PlatformBase):
         """Configure filesystem tools based on build targets and filesystem type."""
         filesystem = variables.get("board_build.filesystem", "littlefs")
 
-        if any(target in targets for target in ["buildfs", "uploadfs"]):
-            self._install_filesystem_tool(filesystem, for_download=False)
-
-        if "downloadfs" in targets:
-            self._install_filesystem_tool(filesystem, for_download=True)
+        if any(target in targets for target in ["buildfs", "uploadfs", "downloadfs"]):
+            self._install_filesystem_tool(filesystem)
 
     def setup_python_env(self, env):
         """Configure SCons environment with centrally managed Python executable paths."""
@@ -833,7 +777,6 @@ class Espressif32Platform(PlatformBase):
             self._configure_arduino_framework(frameworks, mcu)
             self._configure_espidf_framework(frameworks, variables, board_config, mcu)
             self._configure_mcu_toolchains(mcu, variables, targets)
-            self._handle_littlefs_tool(for_download=False)  # Ensure mklittlefs is installed
 
             if "espidf" in frameworks:
                 self._install_common_idf_packages()

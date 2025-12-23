@@ -21,6 +21,7 @@ import subprocess
 import sys
 from os.path import isfile, join
 from pathlib import Path
+from littlefs import LittleFS
 
 from SCons.Script import (
     ARGUMENTS,
@@ -414,6 +415,105 @@ def __fetch_fs_size(target, source, env):
     return (target, source)
 
 
+def build_fs_image(target, source, env):
+    """
+    Build filesystem image using littlefs-python.
+
+    Args:
+        target: SCons target (output .bin file)
+        source: SCons source (directory with files)
+        env: SCons environment object
+
+    Returns:
+        int: 0 on success, 1 on failure
+    """
+
+    # Get parameters
+    source_dir = str(source[0])
+    target_file = str(target[0])
+    fs_size = env["FS_SIZE"]
+    block_size = env.get("FS_BLOCK", 4096)
+
+    # Calculate block count
+    block_count = fs_size // block_size
+
+    # Get disk version from board config or project options
+    # Default to LittleFS version 2.1 (0x00020001)
+    disk_version_str = "2.1"
+    
+    # Try to read from project config (env-specific or common section)
+    for section in ["env:" + env["PIOENV"], "common"]:
+        if projectconfig.has_option(section, "board_build.littlefs_version"):
+            disk_version_str = projectconfig.get(section, "board_build.littlefs_version")
+            break
+    
+    # Parse version string and create proper version integer
+    # LittleFS version format: (major << 16) | (minor << 0)
+    try:
+        version_parts = str(disk_version_str).split(".")
+        major = int(version_parts[0])
+        minor = int(version_parts[1]) if len(version_parts) > 1 else 0
+        # Format: major in upper 16 bits, minor in lower 16 bits
+        disk_version = (major << 16) | minor
+    except (ValueError, IndexError):
+        print(f"Warning: Invalid littlefs version '{disk_version_str}', using default 2.1")
+        disk_version = (2 << 16) | 1
+
+    try:
+        # Create LittleFS instance with Arduino / IDF compatible parameters
+        fs = LittleFS(
+            block_size=block_size,
+            block_count=block_count,
+            read_size=1,              # Minimum read size
+            prog_size=1,              # Minimum program size
+            cache_size=block_size,    # Cache size = block size
+            lookahead_size=32,        # Default lookahead buffer
+            block_cycles=500,         # Wear leveling cycles
+            name_max=64,              # ESP-IDF default filename length
+            disk_version=disk_version,
+            mount=True
+        )
+
+        # Add all files from source directory
+        source_path = Path(source_dir)
+        if source_path.exists():
+            for item in source_path.rglob("*"):
+                rel_path = item.relative_to(source_path)
+                fs_path = rel_path.as_posix()
+                
+                if item.is_dir():
+                    fs.makedirs(fs_path, exist_ok=True)
+                    # Set directory mtime attribute
+                    try:
+                        mtime = int(item.stat().st_mtime)
+                        fs.setattr(fs_path, 't', mtime.to_bytes(4, 'little'))
+                    except Exception:
+                        pass  # Ignore timestamp errors
+                else:
+                    # Ensure parent directories exist
+                    if rel_path.parent != Path("."):
+                        fs.makedirs(rel_path.parent.as_posix(), exist_ok=True)
+                    # Copy file
+                    with fs.open(fs_path, "wb") as dest:
+                        dest.write(item.read_bytes())
+                    # Set file mtime attribute (ESP-IDF compatible)
+                    try:
+                        mtime = int(item.stat().st_mtime)
+                        fs.setattr(fs_path, 't', mtime.to_bytes(4, 'little'))
+                    except Exception:
+                        pass  # Ignore timestamp errors
+
+        # Write filesystem image
+        with open(target_file, "wb") as f:
+            f.write(fs.context.buffer)
+
+        return 0
+
+    except Exception as e:
+        print(f"Error building filesystem image: {e}")
+        return 1
+
+
 def check_lib_archive_exists():
     """
     Check if lib_archive is set in platformio.ini configuration.
@@ -559,11 +659,11 @@ env.Append(
         ),
         DataToBin=Builder(
             action=env.VerboseAction(
-                " ".join(
+                build_fs_image if filesystem == "littlefs" else " ".join(
                     ['"$MKFSTOOL"', "-c", "$SOURCES", "-s", "$FS_SIZE"]
                     + (
                         ["-p", "$FS_PAGE", "-b", "$FS_BLOCK"]
-                        if filesystem in ("littlefs", "spiffs")
+                        if filesystem == "spiffs"
                         else []
                     )
                     + ["$TARGET"]
