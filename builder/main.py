@@ -17,6 +17,7 @@ import locale
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from os.path import isfile, join
@@ -881,15 +882,21 @@ def download_littlefs(target, source, env):
     """
     Download Little filesystem from device and extract to directory.
     Only supports LittleFS filesystem.
-    Usage: pio run -t download_littlefs
+    Usage: pio run -e <env> -t download_littlefs
     
     Args:
         target: SCons target
         source: SCons source
         env: SCons environment object
     """
-    # Get unpack directory from project config or use default
-    unpack_dir = env.GetProjectOption("custom_unpack_dir", "unpacked_fs")
+    # Get unpack directory from board config or use default
+    unpack_dir = "unpacked_fs"
+    
+    # Read from project config (env-specific or common section)
+    for section in ["env:" + env["PIOENV"], "common"]:
+        if projectconfig.has_option(section, "board_build.unpack_dir"):
+            unpack_dir = projectconfig.get(section, "board_build.unpack_dir")
+            break
     
     # Ensure upload port is set
     if not env.subst("$UPLOAD_PORT"):
@@ -961,27 +968,19 @@ def download_littlefs(target, source, env):
     if fs_start is None or fs_size is None:
         print("Error: No filesystem partition found in partition table")
         return 1
-    
-    # Check if filesystem is supported
-    # Note: LittleFS can use subtype 0x82 or 0x83
-    # We only support LittleFS extraction, not SPIFFS
-    # The actual filesystem type will be detected when mounting
-    if fs_subtype not in [0x82, 0x83]:
-        print(f"Error: Unsupported filesystem partition type")
-        return 1
-    
+
     block_size = 0x1000  # 4KB
     
     print(f"Found filesystem partition (subtype {hex(fs_subtype)}):")
     print(f"  Start: {hex(fs_start)}")
     print(f"  Size: {hex(fs_size)} ({fs_size} bytes)")
     print(f"  Block size: {hex(block_size)}")
-    print(f"Note: This tool only supports LittleFS extraction")
+    print("Note: This tool only supports LittleFS extraction")
     
     # Download filesystem image
     fs_file = build_dir / f"downloaded_fs_{hex(fs_start)}_{hex(fs_size)}.bin"
     
-    print(f"\nDownloading filesystem from device...")
+    print("\nDownloading filesystem from device...")
     
     esptool_cmd = [
         uploader_path.strip('"'),
@@ -1013,7 +1012,6 @@ def download_littlefs(target, source, env):
     # Remove old unpack directory
     unpack_path = Path(get_project_dir()) / unpack_dir
     if unpack_path.exists():
-        import shutil
         shutil.rmtree(unpack_path)
     unpack_path.mkdir(parents=True, exist_ok=True)
     
@@ -1067,10 +1065,7 @@ def download_littlefs(target, source, env):
         
     except Exception as e:
         print(f"Error: Failed to extract LittleFS filesystem: {e}")
-        print("This tool only supports LittleFS. If you have SPIFFS, please convert to LittleFS.")
-        print("Make sure the device has a valid LittleFS filesystem.")
-        import traceback
-        traceback.print_exc()
+        print("No support for other filesystems than LittleFS!")
         return 1
 
 #
