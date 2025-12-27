@@ -620,6 +620,9 @@ class SpiffsFS(object):
             # Remove leading slash if present
             rel_path = file_info['name'].lstrip('/')
             file_path = os.path.join(output_dir, rel_path)
+            if not rel_path:
+                print(f"  Warning: Skipping file with empty path (obj_id={obj_id})")
+                continue
 
             # Create parent directories
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
