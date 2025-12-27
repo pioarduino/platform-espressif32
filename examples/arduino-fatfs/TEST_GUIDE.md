@@ -354,10 +354,12 @@ pio run -t download_fatfs
 
 # Check WL structure
 python -c "
+import glob
 from fatfs import is_esp32_wl_image, ESP32WearLeveling
 import struct
 
-with open('.pio/build/esp32dev/downloaded_fs_*.bin', 'rb') as f:
+files = glob.glob('.pio/build/esp32dev/downloaded_fs_*.bin')
+with open(files[0], 'rb') as f:
     data = f.read()
 
 if is_esp32_wl_image(data):
