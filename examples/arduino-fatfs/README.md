@@ -120,7 +120,7 @@ Structure:
 [WL State 1][WL State 2][FAT Data][Temp][WL State 3][WL State 4]
 ```
 
-See [WEAR_LEVELING.md](../platform-espressif32/WEAR_LEVELING.md) for details.
+See [WEAR_LEVELING.md](../../WEAR_LEVELING.md) for details.
 
 ## Troubleshooting
 
@@ -208,7 +208,7 @@ This project uses a custom platform with FAT filesystem support:
 
 ```ini
 [env:esp32dev]
-platform = https://github.com/Jason2866/platform-espressif32.git#fatfs_python
+platform = espressif32
 framework = arduino
 board = esp32dev
 board_build.filesystem = fatfs
@@ -220,5 +220,5 @@ board_build.partitions = partitions.csv
 - [ESP32 FFat Library](https://github.com/espressif/arduino-esp32/tree/master/libraries/FFat)
 - [ESP-IDF FAT Filesystem](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/storage/fatfs.html)
 - [ESP-IDF Wear Levelling](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/storage/wear-levelling.html)
-- [Platform-Espressif32 FAT Integration](../platform-espressif32/FATFS_INTEGRATION.md)
-- [Wear Leveling Implementation](../platform-espressif32/WEAR_LEVELING.md)
+- [Platform-Espressif32 FAT Integration](../../FATFS_INTEGRATION.md)
+- [Wear Leveling Implementation](../../platform-espressif32/WEAR_LEVELING.md)
