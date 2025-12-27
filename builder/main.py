@@ -1348,15 +1348,15 @@ def download_littlefs(target, source, env):
         return 1
 
 
-def download_spiffs(_target, _source, env):
+def download_spiffs(target, source, env):
     """
     Download SPIFFS filesystem from device and extract to directory.
     Only supports SPIFFS filesystem.
     Usage: pio run -e <env> -t download_spiffs
 
     Args:
-        _target: SCons target (unused)
-        _source: SCons source (unused)
+        target: SCons target (unused)
+        source: SCons source (unused)
         env: SCons environment object
     """
     # Get unpack directory from board config or use default
