@@ -10,10 +10,6 @@ The ESP32 Arduino Core expects FAT partitions to be wrapped with a wear leveling
 - **Without WL**: Raw FAT filesystem → **Mount fails**
 - **With WL**: WL State + FAT filesystem + WL metadata → **Mount succeeds**
 
-## Solution
-
-The `esp32_wl.py` module implements the ESP-IDF wear leveling structure to wrap FAT images.
-
 ## Wear Leveling Structure
 
 ```
