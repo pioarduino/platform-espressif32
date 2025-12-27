@@ -145,37 +145,6 @@ Unused areas are filled with `0xFF` (erased flash state):
 - FAT16 (medium partitions)
 - FAT32 (large partitions, >32MB)
 
-## Verification
-
-### Check WL State
-
-```python
-from esp32_wl import WearLevelingLayer
-
-wl = WearLevelingLayer()
-with open('fatfs.bin', 'rb') as f:
-    data = f.read()
-    
-# Verify first state sector
-state = data[:48]
-is_valid = wl.verify_wl_state(state)
-print(f"WL State valid: {is_valid}")
-```
-
-### Extract FAT Data
-
-```python
-from esp32_wl import extract_fat_from_wl_image
-
-with open('fatfs.bin', 'rb') as f:
-    wl_image = f.read()
-
-fat_data = extract_fat_from_wl_image(wl_image)
-if fat_data:
-    with open('fat_only.bin', 'wb') as f:
-        f.write(fat_data)
-```
-
 ## Troubleshooting
 
 ### "FFat Mount Failed"
