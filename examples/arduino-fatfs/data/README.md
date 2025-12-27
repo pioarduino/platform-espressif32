@@ -208,7 +208,7 @@ This project uses a custom platform with FAT filesystem support:
 
 ```ini
 [env:esp32dev]
-platform = https://github.com/Jason2866/platform-espressif32.git#fatfs_python
+platform = espressif32
 framework = arduino
 board = esp32dev
 board_build.filesystem = fatfs
