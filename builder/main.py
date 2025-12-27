@@ -23,6 +23,7 @@ from os.path import isfile, join
 from pathlib import Path
 from littlefs import LittleFS
 from fatfs import Partition, RamDisk, create_extended_partition
+import importlib.util
 
 from SCons.Script import (
     ARGUMENTS,
@@ -49,6 +50,15 @@ build_dir = Path(projectconfig.get("platformio", "build_dir"))
 
 # Configure Python environment through centralized platform management
 PYTHON_EXE, esptool_binary_path = platform.setup_python_env(env)
+
+# Load SPIFFS generator from local module
+spiffsgen_path = platform_dir / "builder" / "spiffsgen.py"
+spec = importlib.util.spec_from_file_location("spiffsgen", str(spiffsgen_path))
+spiffsgen = importlib.util.module_from_spec(spec)
+sys.modules["spiffsgen"] = spiffsgen
+spec.loader.exec_module(spiffsgen)
+SpiffsFS = spiffsgen.SpiffsFS
+SpiffsBuildConfig = spiffsgen.SpiffsBuildConfig
 
 # Load board configuration and determine MCU architecture
 board = env.BoardConfig()
@@ -509,6 +519,92 @@ def build_fs_image(target, source, env):
         return 1
 
 
+def build_spiffs_image(target, source, env):
+    """
+    Build SPIFFS filesystem image using spiffsgen.py.
+
+    Args:
+        target: SCons target (output .bin file)
+        source: SCons source (directory with files)
+        env: SCons environment object
+
+    Returns:
+        int: 0 on success, 1 on failure
+    """
+
+    # Get parameters
+    source_dir = str(source[0])
+    target_file = str(target[0])
+    fs_size = env["FS_SIZE"]
+    page_size = env.get("FS_PAGE", 256)
+    block_size = env.get("FS_BLOCK", 4096)
+
+    # Get SPIFFS configuration from project config or use defaults
+    obj_name_len = 32
+    meta_len = 4
+    use_magic = True
+    use_magic_len = True
+    aligned_obj_ix_tables = False
+
+    # Check common section first, then env-specific (so env-specific takes precedence)
+    for section in ["common", "env:" + env["PIOENV"]]:
+        if projectconfig.has_option(section, "board_build.spiffs.obj_name_len"):
+            obj_name_len = int(projectconfig.get(section, "board_build.spiffs.obj_name_len"))
+        if projectconfig.has_option(section, "board_build.spiffs.meta_len"):
+            meta_len = int(projectconfig.get(section, "board_build.spiffs.meta_len"))
+        if projectconfig.has_option(section, "board_build.spiffs.use_magic"):
+            use_magic = projectconfig.getboolean(section, "board_build.spiffs.use_magic")
+        if projectconfig.has_option(section, "board_build.spiffs.use_magic_len"):
+            use_magic_len = projectconfig.getboolean(section, "board_build.spiffs.use_magic_len")
+        if projectconfig.has_option(section, "board_build.spiffs.aligned_obj_ix_tables"):
+            aligned_obj_ix_tables = projectconfig.getboolean(section, "board_build.spiffs.aligned_obj_ix_tables")
+
+    try:
+        # Create SPIFFS build configuration
+        spiffs_build_config = SpiffsBuildConfig(
+            page_size=page_size,
+            page_ix_len=2,  # SPIFFS_PAGE_IX_LEN
+            block_size=block_size,
+            block_ix_len=2,  # SPIFFS_BLOCK_IX_LEN
+            meta_len=meta_len,
+            obj_name_len=obj_name_len,
+            obj_id_len=2,  # SPIFFS_OBJ_ID_LEN
+            span_ix_len=2,  # SPIFFS_SPAN_IX_LEN
+            packed=True,
+            aligned=True,
+            endianness='little',
+            use_magic=use_magic,
+            use_magic_len=use_magic_len,
+            aligned_obj_ix_tables=aligned_obj_ix_tables
+        )
+
+        # Create SPIFFS filesystem
+        spiffs = SpiffsFS(fs_size, spiffs_build_config)
+
+        # Add all files from source directory
+        source_path = Path(source_dir)
+        if source_path.exists():
+            for item in source_path.rglob("*"):
+                if item.is_file():
+                    rel_path = item.relative_to(source_path)
+                    img_path = "/" + rel_path.as_posix()
+                    spiffs.create_file(img_path, str(item))
+
+        # Generate binary image
+        image = spiffs.to_binary()
+
+        # Write to file
+        with open(target_file, "wb") as f:
+            f.write(image)
+
+        print(f"\nSuccessfully created SPIFFS image: {target_file}")
+        return 0
+
+    except Exception as e:
+        print(f"Error building SPIFFS image: {e}")
+        return 1
+
+
 def build_fatfs_image(target, source, env):
     """
     Build FatFS filesystem image with ESP32 Wear Leveling support.
@@ -663,8 +759,6 @@ def build_fatfs_image(target, source, env):
 
     except Exception as e:
         print(f"Error building FatFS image: {e}")
-        import traceback
-        traceback.print_exc()
         return 1
 
 
@@ -681,15 +775,29 @@ def check_lib_archive_exists():
     return False
 
 
+def build_fs_router(target, source, env):
+    """Route to appropriate filesystem builder based on filesystem type."""
+    fs_type = board.get("build.filesystem", "littlefs")
+    if fs_type == "littlefs":
+        return build_fs_image(target, source, env)
+    elif fs_type == "fatfs":
+        return build_fatfs_image(target, source, env)
+    elif fs_type == "spiffs":
+        return build_spiffs_image(target, source, env)
+    else:
+        print(f"Error: Unknown filesystem type '{fs_type}'. Supported types: littlefs, fatfs, spiffs")
+        return 1
+
+
 def switch_off_ldf():
     """
     Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, buildfs, 
-    download_littlefs, download_fatfs, and erase targets.
+    download_littlefs, download_spiffs, download_fatfs, and erase targets.
 
     This optimization prevents unnecessary library dependency scanning and compilation
     when only filesystem operations are performed.
     """
-    fs_targets = {"uploadfs", "uploadfsota", "buildfs", "erase", "download_littlefs", "download_fatfs"}
+    fs_targets = {"uploadfs", "uploadfsota", "buildfs", "erase", "download_littlefs", "download_spiffs", "download_fatfs"}
     if fs_targets & set(COMMAND_LINE_TARGETS):
         # Disable LDF by modifying project configuration directly
         env_section = "env:" + env["PIOENV"]
@@ -749,22 +857,6 @@ env.Replace(
     ERASEFLAGS=["--chip", mcu, "--port", '"$UPLOAD_PORT"'],
     ERASETOOL=uploader_path,
     ERASECMD='$ERASETOOL $ERASEFLAGS erase-flash',
-    MKFSTOOL="mk%s" % filesystem
-    + (
-        (
-            "_${PIOPLATFORM}_"
-            + (
-                "espidf"
-                if "espidf" in env.subst("$PIOFRAMEWORK")
-                else "${PIOFRAMEWORK}"
-            )
-        )
-        if filesystem == "spiffs"
-        else ""
-    ),
-    # Legacy `ESP32_SPIFFS_IMAGE_NAME` is used as the second fallback value
-    # for backward compatibility
-
     ESP32_FS_IMAGE_NAME=env.get(
         "ESP32_FS_IMAGE_NAME",
         env.get("ESP32_SPIFFS_IMAGE_NAME", filesystem),
@@ -814,17 +906,7 @@ env.Append(
         ),
         DataToBin=Builder(
             action=env.VerboseAction(
-                build_fs_image if filesystem == "littlefs" else (
-                    build_fatfs_image if filesystem == "fatfs" else " ".join(
-                        ['"$MKFSTOOL"', "-c", "$SOURCES", "-s", "$FS_SIZE"]
-                        + (
-                            ["-p", "$FS_PAGE", "-b", "$FS_BLOCK"]
-                            if filesystem == "spiffs"
-                            else []
-                        )
-                        + ["$TARGET"]
-                    )
-                ),
+                build_fs_router,
                 "Building FS image from '$SOURCES' directory to $TARGET",
             ),
             emitter=__fetch_fs_size,
@@ -1266,6 +1348,98 @@ def download_littlefs(target, source, env):
         return 1
 
 
+def download_spiffs(_target, _source, env):
+    """
+    Download SPIFFS filesystem from device and extract to directory.
+    Only supports SPIFFS filesystem.
+    Usage: pio run -e <env> -t download_spiffs
+
+    Args:
+        _target: SCons target (unused)
+        _source: SCons source (unused)
+        env: SCons environment object
+    """
+    # Get unpack directory from board config or use default
+    unpack_dir = _get_unpack_dir(env)
+
+    # Download partition image (SPIFFS=0x82)
+    fs_file, _fs_start, fs_size, _fs_subtype = _download_partition_image(env, [0x82])
+
+    if fs_file is None:
+        return 1
+
+    # Remove old unpack directory
+    unpack_path = _prepare_unpack_dir(unpack_dir)
+
+    try:
+        # Read the downloaded filesystem image
+        with open(fs_file, 'rb') as f:
+            fs_data = f.read()
+
+        # Get SPIFFS configuration
+        page_size = 256
+        block_size = 4096
+        obj_name_len = 32
+        meta_len = 4
+        use_magic = True
+        use_magic_len = True
+        aligned_obj_ix_tables = False
+
+        for section in ["common", "env:" + env["PIOENV"]]:
+            if projectconfig.has_option(section, "board_build.spiffs.page_size"):
+                page_size = int(projectconfig.get(section, "board_build.spiffs.page_size"))
+            if projectconfig.has_option(section, "board_build.spiffs.block_size"):
+                block_size = int(projectconfig.get(section, "board_build.spiffs.block_size"))
+            if projectconfig.has_option(section, "board_build.spiffs.obj_name_len"):
+                obj_name_len = int(projectconfig.get(section, "board_build.spiffs.obj_name_len"))
+            if projectconfig.has_option(section, "board_build.spiffs.meta_len"):
+                meta_len = int(projectconfig.get(section, "board_build.spiffs.meta_len"))
+            if projectconfig.has_option(section, "board_build.spiffs.use_magic"):
+                use_magic = projectconfig.getboolean(section, "board_build.spiffs.use_magic")
+            if projectconfig.has_option(section, "board_build.spiffs.use_magic_len"):
+                use_magic_len = projectconfig.getboolean(section, "board_build.spiffs.use_magic_len")
+            if projectconfig.has_option(section, "board_build.spiffs.aligned_obj_ix_tables"):
+                aligned_obj_ix_tables = projectconfig.getboolean(section, "board_build.spiffs.aligned_obj_ix_tables")
+
+        # Create SPIFFS build configuration
+        spiffs_build_config = SpiffsBuildConfig(
+            page_size=page_size,
+            page_ix_len=2,
+            block_size=block_size,
+            block_ix_len=2,
+            meta_len=meta_len,
+            obj_name_len=obj_name_len,
+            obj_id_len=2,
+            span_ix_len=2,
+            packed=True,
+            aligned=True,
+            endianness='little',
+            use_magic=use_magic,
+            use_magic_len=use_magic_len,
+            aligned_obj_ix_tables=aligned_obj_ix_tables
+        )
+
+        # Create SPIFFS filesystem and parse the image
+        spiffs = SpiffsFS(fs_size, spiffs_build_config)
+        spiffs.from_binary(fs_data)
+
+        # Extract files
+        print("\nExtracting files:\n")
+        file_count = spiffs.extract_files(str(unpack_path))
+
+        if file_count == 0:
+            print("\nNo files were extracted.")
+            print("The filesystem may be empty, freshly formatted, or contain only deleted entries.")
+        else:
+            print(f"\nSuccessfully extracted {file_count} file(s) to {unpack_dir}")
+
+        return 0
+
+    except Exception as e:
+        print(f"Error: Failed to extract SPIFFS filesystem: {e}")
+        return 1
+
+
 def download_fatfs(target, source, env):
     """
     Download FAT filesystem from device and extract to directory.
@@ -1365,8 +1539,6 @@ def download_fatfs(target, source, env):
 
     except Exception as e:
         print(f"Error: Failed to extract FatFS filesystem: {e}")
-        import traceback
-        traceback.print_exc()
         return 1
 
 #
@@ -1612,6 +1784,14 @@ env.AddPlatformTarget(
     None,
     download_littlefs,
     "Download and extract LittleFS filesystem from device",
+)
+
+# Target: Download SPIFFS (no build required)
+env.AddPlatformTarget(
+    "download_spiffs",
+    None,
+    download_spiffs,
+    "Download and extract SPIFFS filesystem from device",
 )
 
 # Target: Download FatFS (no build required)

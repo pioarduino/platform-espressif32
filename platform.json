@@ -128,13 +128,6 @@
       "package-version": "2.1200.20250707",
       "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20250707.zip"
     },
-    "tool-mkspiffs": {
-      "type": "uploader",
-      "optional": true,
-      "owner": "pioarduino",
-      "package-version": "2.230.0",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/mkspiffs-v2.230.0.zip"
-   },
     "tool-cppcheck": {
       "type": "tool",
       "optional": true,
