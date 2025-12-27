@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib.util
 import locale
 import os
 import re
@@ -23,6 +22,7 @@ import sys
 from os.path import isfile, join
 from pathlib import Path
 from littlefs import LittleFS
+from fatfs import Partition, RamDisk, create_extended_partition
 
 from SCons.Script import (
     ARGUMENTS,
@@ -393,12 +393,6 @@ def fetch_fs_size(env):
     env["FS_PAGE"] = int("0x100", 16)
     env["FS_BLOCK"] = int("0x1000", 16)
 
-    # FFat specific offsets, see:
-    # https://github.com/lorol/arduino-esp32fatfs-plugin#notes-for-fatfs
-    if filesystem == "fatfs":
-        env["FS_START"] += 4096
-        env["FS_SIZE"] -= 4096
-
 
 def __fetch_fs_size(target, source, env):
     """
@@ -515,6 +509,165 @@ def build_fs_image(target, source, env):
         return 1
 
 
+def build_fatfs_image(target, source, env):
+    """
+    Build FatFS filesystem image with ESP32 Wear Leveling support.
+    
+    Uses fatfs-ng module to create ESP-IDF compatible WL-wrapped FAT images.
+
+    Args:
+        target: SCons target (output .bin file)
+        source: SCons source (directory with files)
+        env: SCons environment object
+
+    Returns:
+        int: 0 on success, 1 on failure
+    """
+
+    # Get parameters
+    source_dir = str(source[0])
+    target_file = str(target[0])
+    fs_size = env["FS_SIZE"]
+    sector_size = env.get("FS_SECTOR", 4096)
+    
+    # ESP-IDF WL layout (following wl_fatfsgen.py):
+    # [dummy sector] [FAT data] [state1] [state2] [config]
+    # Total WL sectors: 1 dummy + 2 states + 1 config = 4 sectors
+    from fatfs import calculate_esp32_wl_overhead
+    wl_info = calculate_esp32_wl_overhead(fs_size, sector_size)
+    
+    wl_reserved_sectors = wl_info['wl_overhead_sectors']
+    fat_fs_size = wl_info['fat_size']
+    sector_count = wl_info['fat_sectors']
+
+    try:
+        # Create RAM disk with the FAT filesystem size (without WL overhead)
+        storage = bytearray(fat_fs_size)
+        disk = RamDisk(storage, sector_size=sector_size, sector_count=sector_count)
+
+        # Create partition, format, and mount
+        base_partition = Partition(disk)
+
+        # Format the filesystem with proper workarea size for LFN support
+        # Workarea needs to be at least sector_size, use 2x for safety with LFN
+        from fatfs.wrapper import pyf_mkfs, PY_FR_OK as FR_OK
+        workarea_size = sector_size * 2
+        
+        # Create filesystem with parameters matching ESP-IDF expectations:
+        # - n_fat=2: Two FAT copies for redundancy
+        # - align=0: Auto-align (let FATFS decide)
+        # - n_root=512: Number of root directory entries (FAT12/16 only, 0 for FAT32)
+        # - au_size=0: Auto allocation unit size
+        ret = pyf_mkfs(
+            base_partition.pname, 
+            n_fat=2, 
+            align=0,
+            n_root=512,  # Standard root entries for FAT16
+            au_size=0,   # Auto
+            workarea_size=workarea_size
+        )
+        if ret != FR_OK:
+            raise Exception(f"Failed to format filesystem: error code {ret}")
+
+        # Mount the filesystem
+        base_partition.mount()
+
+        # Wrap with extended partition for directory support
+        from fatfs.partition_extended import PartitionExtended
+        partition = PartitionExtended(base_partition)
+
+        # Track skipped files
+        skipped_files = []
+
+        # Add all files from source directory
+        source_path = Path(source_dir)
+        if source_path.exists():
+            for item in source_path.rglob("*"):
+                rel_path = item.relative_to(source_path)
+                fs_path = "/" + rel_path.as_posix()
+
+                if item.is_dir():
+                    try:
+                        partition.mkdir(fs_path)
+                    except Exception:
+                        # Directory might already exist or be root
+                        pass
+                else:
+                    # Ensure parent directories exist
+                    if rel_path.parent != Path("."):
+                        parent_path = "/" + rel_path.parent.as_posix()
+                        try:
+                            partition.mkdir(parent_path)
+                        except Exception:
+                            pass  # Directory might already exist
+
+                    # Copy file
+                    try:
+                        with partition.open(fs_path, "w") as dest:
+                            dest.write(item.read_bytes())
+                    except Exception as e:
+                        print(f"Warning: Failed to write file {rel_path}: {e}")
+                        skipped_files.append(str(rel_path))
+
+        # Unmount filesystem
+        base_partition.unmount()
+        
+        # Read boot sector parameters for validation
+        import struct
+        bytes_per_sector = struct.unpack('<H', storage[11:13])[0]
+        reserved_sectors = struct.unpack('<H', storage[14:16])[0]
+        num_fats = storage[16]
+        sectors_per_fat = struct.unpack('<H', storage[22:24])[0]
+        total_sectors = struct.unpack('<H', storage[19:21])[0]
+        
+        # Validate boot sector matches our expectations
+        if bytes_per_sector != sector_size:
+            raise Exception(f"Boot sector bytes_per_sector ({bytes_per_sector}) != sector_size ({sector_size})")
+        
+        print(f"\nBoot sector validation:")
+        print(f"  Bytes per sector: {bytes_per_sector}")
+        print(f"  Reserved sectors: {reserved_sectors}")
+        print(f"  Number of FATs: {num_fats}")
+        print(f"  Sectors per FAT: {sectors_per_fat}")
+        print(f"  Total sectors: {total_sectors}")
+        print(f"  ✓ Boot sector parameters validated")
+        
+        # Wrap FAT image with ESP-IDF wear leveling layer
+        # This uses the fatfs-ng module's ESP32WearLeveling implementation
+        print(f"\nWrapping FAT image with ESP-IDF wear leveling...")
+        print(f"  Layout: {wl_info['layout']}")
+        print(f"  Partition size: {fs_size} bytes")
+        print(f"  FAT filesystem size: {fat_fs_size} bytes ({sector_count} sectors)")
+        print(f"  WL overhead: {wl_reserved_sectors} sectors ({wl_info['wl_overhead_size']} bytes)")
+        
+        from fatfs import create_esp32_wl_image
+        wl_image = create_esp32_wl_image(bytes(storage), fs_size, sector_size)
+        
+        print(f"  ✓ WL-wrapped image created ({len(wl_image)} bytes)")
+
+        # Write WL-wrapped image to file
+        with open(target_file, "wb") as f:
+            f.write(wl_image)
+
+        # Print summary
+        if skipped_files:
+            print(f"\nWarning: {len(skipped_files)} file(s) skipped:")
+            for skipped in skipped_files[:10]:  # Show first 10
+                print(f"  - {skipped}")
+            if len(skipped_files) > 10:
+                print(f"  ... and {len(skipped_files) - 10} more")
+        
+        print(f"\nSuccessfully created ESP-IDF WL-wrapped FAT image: {target_file}")
+
+        return 0
+
+    except Exception as e:
+        print(f"Error building FatFS image: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
 def check_lib_archive_exists():
     """
     Check if lib_archive is set in platformio.ini configuration.
@@ -530,12 +683,13 @@ def check_lib_archive_exists():
 
 def switch_off_ldf():
     """
-    Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, buildfs, download_littlefs, and erase targets.
+    Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, buildfs, 
+    download_littlefs, download_fatfs, and erase targets.
 
     This optimization prevents unnecessary library dependency scanning and compilation
     when only filesystem operations are performed.
     """
-    fs_targets = {"uploadfs", "uploadfsota", "buildfs", "erase", "download_littlefs"}
+    fs_targets = {"uploadfs", "uploadfsota", "buildfs", "erase", "download_littlefs", "download_fatfs"}
     if fs_targets & set(COMMAND_LINE_TARGETS):
         # Disable LDF by modifying project configuration directly
         env_section = "env:" + env["PIOENV"]
@@ -660,14 +814,16 @@ env.Append(
         ),
         DataToBin=Builder(
             action=env.VerboseAction(
-                build_fs_image if filesystem == "littlefs" else " ".join(
-                    ['"$MKFSTOOL"', "-c", "$SOURCES", "-s", "$FS_SIZE"]
-                    + (
-                        ["-p", "$FS_PAGE", "-b", "$FS_BLOCK"]
-                        if filesystem == "spiffs"
-                        else []
+                build_fs_image if filesystem == "littlefs" else (
+                    build_fatfs_image if filesystem == "fatfs" else " ".join(
+                        ['"$MKFSTOOL"', "-c", "$SOURCES", "-s", "$FS_SIZE"]
+                        + (
+                            ["-p", "$FS_PAGE", "-b", "$FS_BLOCK"]
+                            if filesystem == "spiffs"
+                            else []
+                        )
+                        + ["$TARGET"]
                     )
-                    + ["$TARGET"]
                 ),
                 "Building FS image from '$SOURCES' directory to $TARGET",
             ),
@@ -878,40 +1034,70 @@ def coredump_analysis(target, source, env):
         print(f'Make sure esp-coredump is installed: uv pip install --python "{PYTHON_EXE}" esp-coredump')
 
 
-def download_littlefs(target, source, env):
+def _get_unpack_dir(env):
     """
-    Download Little filesystem from device and extract to directory.
-    Only supports LittleFS filesystem.
-    Usage: pio run -e <env> -t download_littlefs
-    
+    Get the unpack directory from project configuration.
+
     Args:
-        target: SCons target
-        source: SCons source
         env: SCons environment object
+
+    Returns:
+        str: Unpack directory path
     """
-    # Get unpack directory from board config or use default
     unpack_dir = "unpacked_fs"
-    
+
     # Read from project config (env-specific or common section)
     for section in ["env:" + env["PIOENV"], "common"]:
         if projectconfig.has_option(section, "board_build.unpack_dir"):
             unpack_dir = projectconfig.get(section, "board_build.unpack_dir")
             break
-    
+
+    return unpack_dir
+
+
+def _prepare_unpack_dir(unpack_dir):
+    """
+    Prepare the unpack directory by removing old content and creating fresh directory.
+
+    Args:
+        unpack_dir: Directory path to prepare
+
+    Returns:
+        Path: Path object for the unpack directory
+    """
+    unpack_path = Path(get_project_dir()) / unpack_dir
+    if unpack_path.exists():
+        shutil.rmtree(unpack_path)
+    unpack_path.mkdir(parents=True, exist_ok=True)
+    return unpack_path
+
+
+def _download_partition_image(env, fs_type_filter=None):
+    """
+    Common function to download partition table and filesystem image from device.
+
+    Args:
+        env: SCons environment object
+        fs_type_filter: List of partition subtypes to look for (e.g., [0x82, 0x83] for LittleFS/SPIFFS)
+                       or [0x81] for FAT. If None, accepts any data partition.
+
+    Returns:
+        tuple: (fs_file_path, fs_start, fs_size, fs_subtype) or (None, None, None, None) on error
+    """
     # Ensure upload port is set
     if not env.subst("$UPLOAD_PORT"):
         env.AutodetectUploadPort()
-    
+
     upload_port = env.subst("$UPLOAD_PORT")
     download_speed = board.get("download.speed", "115200")
-    
+
     # Download partition table from device
-    print(f"Downloading partition table from {upload_port}...")
-    
+    print(f"\nDownloading partition table from {upload_port}...\n")
+
     build_dir = Path(env.subst("$BUILD_DIR"))
     build_dir.mkdir(parents=True, exist_ok=True)
     partition_file = build_dir / "partition_table_from_flash.bin"
-    
+
     esptool_cmd = [
         uploader_path.strip('"'),
         "--chip", mcu,
@@ -924,64 +1110,57 @@ def download_littlefs(target, source, env):
         "0x1000",  # Partition table size (4KB)
         str(partition_file)
     ]
-    
+
     try:
         result = subprocess.run(esptool_cmd, check=False)
         if result.returncode != 0:
             print("Error: Failed to download partition table")
-            return 1
+            return None, None, None, None
     except Exception as e:
         print(f"Error: {e}")
-        return 1
-    
-    # Parse partition table to find filesystem partition
-    print("Parsing partition table...")
-    
+        return None, None, None, None
+
     with open(partition_file, 'rb') as f:
         partition_data = f.read()
-    
+
     # Parse partition entries (format: 0xAA 0x50 followed by entry data)
     entries = [e for e in partition_data.split(b'\xaaP') if len(e) > 0]
-    
+
     fs_start = None
     fs_size = None
     fs_subtype = None
-    
+
     for entry in entries:
         if len(entry) < 32:
             continue
-        
+
         # Byte 0: Type (0x01 for data partitions)
-        # Byte 1: SubType (0x82=SPIFFS, 0x83=LittleFS)
+        # Byte 1: SubType (0x81=FAT, 0x82=SPIFFS, 0x83=LittleFS)
         # Bytes 2-5: Offset (4 bytes, little-endian)
         # Bytes 6-9: Size (4 bytes, little-endian)
-        
+
         part_subtype = entry[1]
-        
-        # Check for SPIFFS (0x82) or LITTLEFS (0x83)
-        if part_subtype in [0x82, 0x83]:
+
+        # Check if this partition matches our filter
+        if fs_type_filter is None or part_subtype in fs_type_filter:
             fs_start = int.from_bytes(entry[2:6], byteorder='little', signed=False)
             fs_size = int.from_bytes(entry[6:10], byteorder='little', signed=False)
             fs_subtype = part_subtype
             break
-    
-    if fs_start is None or fs_size is None:
-        print("Error: No filesystem partition found in partition table")
-        return 1
 
-    block_size = 0x1000  # 4KB
-    
-    print(f"Found filesystem partition (subtype {hex(fs_subtype)}):")
+    if fs_start is None or fs_size is None:
+        print("Error: No matching filesystem partition found in partition table")
+        return None, None, None, None
+
+    print(f"\nFound filesystem partition (subtype {hex(fs_subtype)}):")
     print(f"  Start: {hex(fs_start)}")
     print(f"  Size: {hex(fs_size)} ({fs_size} bytes)")
-    print(f"  Block size: {hex(block_size)}")
-    print("Note: This tool only supports LittleFS extraction")
-    
+
     # Download filesystem image
     fs_file = build_dir / f"downloaded_fs_{hex(fs_start)}_{hex(fs_size)}.bin"
-    
-    print("\nDownloading filesystem from device...")
-    
+
+    print("\nDownloading filesystem from device...\n")
+
     esptool_cmd = [
         uploader_path.strip('"'),
         "--chip", mcu,
@@ -994,35 +1173,54 @@ def download_littlefs(target, source, env):
         hex(fs_size),
         str(fs_file)
     ]
-    
+
     try:
         result = subprocess.run(esptool_cmd, check=False)
         if result.returncode != 0:
             print(f"Error: Download failed with code {result.returncode}")
-            return 1
+            return None, None, None, None
     except Exception as e:
         print(f"Error: {e}")
+        return None, None, None, None
+
+    print(f"\nDownloaded to {fs_file}")
+
+    return fs_file, fs_start, fs_size, fs_subtype
+
+
+def download_littlefs(target, source, env):
+    """
+    Download Little filesystem from device and extract to directory.
+    Only supports LittleFS filesystem.
+    Usage: pio run -e <env> -t download_littlefs
+
+    Args:
+        target: SCons target
+        source: SCons source
+        env: SCons environment object
+    """
+    # Get unpack directory from board config or use default
+    unpack_dir = _get_unpack_dir(env)
+
+    # Download partition image (LittleFS=0x83, SPIFFS=0x82)
+    fs_file, fs_start, fs_size, fs_subtype = _download_partition_image(env, [0x82, 0x83])
+
+    if fs_file is None:
         return 1
-    
-    print(f"Downloaded to {fs_file}")
-    
-    # Extract filesystem
-    print(f"\nExtracting LittleFS filesystem to {unpack_dir}...")
-    
+
+    block_size = 0x1000  # 4KB
+
     # Remove old unpack directory
-    unpack_path = Path(get_project_dir()) / unpack_dir
-    if unpack_path.exists():
-        shutil.rmtree(unpack_path)
-    unpack_path.mkdir(parents=True, exist_ok=True)
-    
+    unpack_path = _prepare_unpack_dir(unpack_dir)
+
     try:
         # Read the downloaded filesystem image
         with open(fs_file, 'rb') as f:
             fs_data = f.read()
-        
+
         # Calculate block count
         block_count = fs_size // block_size
-        
+
         # Create LittleFS instance and mount the image
         fs = LittleFS(
             block_size=block_size,
@@ -1031,41 +1229,144 @@ def download_littlefs(target, source, env):
         )
         fs.context.buffer = bytearray(fs_data)
         fs.mount()
-        
+
         # Extract all files
         file_count = 0
         print("\nExtracted files:")
         for root, dirs, files in fs.walk("/"):
             if not root.endswith("/"):
                 root += "/"
-            
+
             # Create directories
             for dir_name in dirs:
                 src_path = root + dir_name
                 dst_path = unpack_path / src_path[1:]  # Remove leading '/'
                 dst_path.mkdir(parents=True, exist_ok=True)
                 print(f"  [DIR]  {src_path}")
-            
+
             # Extract files
             for file_name in files:
                 src_path = root + file_name
                 dst_path = unpack_path / src_path[1:]  # Remove leading '/'
                 dst_path.parent.mkdir(parents=True, exist_ok=True)
-                
+
                 with fs.open(src_path, "rb") as src:
                     file_data = src.read()
                     dst_path.write_bytes(file_data)
-                
+
                 print(f"  [FILE] {src_path} ({len(file_data)} bytes)")
                 file_count += 1
-        
+
         fs.unmount()
         print(f"\nSuccessfully extracted {file_count} file(s) to {unpack_dir}")
         return 0
-        
+
     except Exception as e:
         print(f"Error: Failed to extract LittleFS filesystem: {e}")
-        print("No support for other filesystems than LittleFS!")
+        return 1
+
+
+def download_fatfs(target, source, env):
+    """
+    Download FAT filesystem from device and extract to directory.
+    Handles ESP32 Wear Leveling layer automatically.
+    Only supports FatFS filesystem.
+    Usage: pio run -e <env> -t download_fatfs
+
+    Args:
+        target: SCons target
+        source: SCons source
+        env: SCons environment object
+    """
+
+    # Get unpack directory from board config or use default
+    unpack_dir = _get_unpack_dir(env)
+
+    # Download partition image (FAT=0x81)
+    fs_file, _fs_start, _fs_size, _fs_subtype = _download_partition_image(env, [0x81])
+
+    if fs_file is None:
+        return 1
+
+    # Remove old unpack directory
+    unpack_path = _prepare_unpack_dir(unpack_dir)
+
+    try:
+        # Read the downloaded filesystem image
+        with open(fs_file, 'rb') as f:
+            fs_data = bytearray(f.read())
+
+        # Check if the image looks like a valid FAT filesystem
+        if len(fs_data) < 512:
+            print("Error: Downloaded image is too small to be a valid FAT filesystem")
+            return 1
+
+        # Import ESP32 WL functions from fatfs
+        from fatfs import is_esp32_wl_image, extract_fat_from_esp32_wl
+        
+        # Try to detect and extract wear leveling layer
+        sector_size = 4096  # Default ESP32 sector size
+        
+        # Check if this is a wear-leveling wrapped image
+        if is_esp32_wl_image(fs_data, sector_size):
+            print("\nDetected Wear Leveling layer, extracting FAT data...")
+            fat_data = extract_fat_from_esp32_wl(fs_data, sector_size)
+            if fat_data is None:
+                print("Error: Failed to extract FAT data from wear-leveling image")
+                return 1
+            fs_data = bytearray(fat_data)
+            print(f"  Extracted FAT data: {len(fs_data)} bytes")
+        else:
+            print("\nNo Wear Leveling layer detected, treating as raw FAT image...")
+
+        # Read sector size from FAT boot sector (offset 0x0B, 2 bytes, little-endian)
+        sector_size = int.from_bytes(fs_data[0x0B:0x0D], byteorder='little')
+        # print(f"  Sector size from boot sector: {sector_size} bytes")
+
+        # Validate sector size
+        if sector_size not in [512, 1024, 2048, 4096]:
+            print(f"Error: Invalid sector size {sector_size}. Must be 512, 1024, 2048, or 4096")
+            return 1
+
+        # Mount with fatfs-python
+        from fatfs import RamDisk, create_extended_partition
+        fs_size_adjusted = len(fs_data)
+        sector_count = fs_size_adjusted // sector_size
+        disk = RamDisk(fs_data, sector_size=sector_size, sector_count=sector_count)
+        partition = create_extended_partition(disk)
+        partition.mount()
+
+        # Extract all files using PartitionExtended.walk() and read_file()
+        print("\nExtracting files:\n")
+        extracted_count = 0
+        for root, _dirs, files in partition.walk("/"):
+            # Create directories
+            rel_root = root[1:] if root.startswith("/") else root
+            abs_root = unpack_path / rel_root
+            abs_root.mkdir(parents=True, exist_ok=True)
+            for filename in files:
+                src_file = root.rstrip("/") + "/" + filename if root != "/" else "/" + filename
+                dst_file = abs_root / filename
+                try:
+                    data = partition.read_file(src_file)
+                    dst_file.write_bytes(data)
+                    print(f"  FILE: {src_file} ({len(data)} bytes)")
+                    extracted_count += 1
+                except Exception as e:
+                    print(f"  Warning: Failed to extract {src_file}: {e}")
+        partition.unmount()
+        # Summary
+        if extracted_count == 0:
+            print("\nNo files were extracted.")
+            print("The filesystem may be empty, freshly formatted, or contain only deleted entries.")
+        else:
+            print(f"\nSuccessfully extracted {extracted_count} file(s) to {unpack_dir}")
+        return 0
+
+    except Exception as e:
+        print(f"Error: Failed to extract FatFS filesystem: {e}")
+        import traceback
+        traceback.print_exc()
         return 1
 
 #
@@ -1311,6 +1612,14 @@ env.AddPlatformTarget(
     None,
     download_littlefs,
     "Download and extract LittleFS filesystem from device",
+)
+
+# Target: Download FatFS (no build required)
+env.AddPlatformTarget(
+    "download_fatfs",
+    None,
+    download_fatfs,
+    "Download and extract FatFS filesystem from device",
 )
 
 # Target: Erase Flash and Upload
