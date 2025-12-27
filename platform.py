@@ -720,10 +720,9 @@ class Espressif32Platform(PlatformBase):
 
     def _install_filesystem_tool(self, filesystem: str) -> None:
         """Install filesystem-specific tools based on the filesystem type."""
-        # LittleFS is handled by littlefs-python, only install tools for other filesystems
-        if filesystem == "fatfs":
-            self.install_tool("tool-mkfatfs")
-        elif filesystem == "spiffs":
+        # LittleFS and FatFS are handled by Python modules (littlefs-python, fatfs-python)
+        # Only install tools for other filesystems
+        if filesystem == "spiffs":
             self.install_tool("tool-mkspiffs")
 
     def _handle_dfuutil_tool(self, variables: Dict, for_download: bool = False) -> None:

@@ -135,13 +135,6 @@
       "package-version": "2.230.0",
       "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/mkspiffs-v2.230.0.zip"
    },
-    "tool-mkfatfs": {
-      "type": "uploader",
-      "optional": true,
-      "owner": "pioarduino",
-      "package-version": "2.0.1",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/mkfatfs-v2.0.1.zip"
-    },
     "tool-cppcheck": {
       "type": "tool",
       "optional": true,
