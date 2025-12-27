@@ -110,7 +110,7 @@ Successfully extracted 1 file(s) to unpacked_fs
 The WL_State CRC32 is calculated over the first 44 bytes (excluding the CRC field itself):
 
 ```python
-state_data = struct.pack('<IIIIIIII8s',
+state_data = struct.pack('<IIIIIIII12s',
     pos, max_pos, move_count, access_count, max_count,
     block_size, version, device_id, reserved)
 crc = zlib.crc32(state_data) & 0xFFFFFFFF
