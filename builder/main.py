@@ -1359,105 +1359,23 @@ def _parse_littlefs_superblock(fs_data):
 
 
 def _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir):
-    """Extract LittleFS filesystem with auto-detected parameters."""
+    """Extract LittleFS filesystem."""
     # Read the downloaded filesystem image
     with open(fs_file, 'rb') as f:
         fs_data = f.read()
 
-    # Try to auto-detect filesystem parameters from superblock
-    superblock = _parse_littlefs_superblock(fs_data)
-    
-    if superblock:
-        # Use detected parameters
-        block_size = superblock['block_size']
-        block_count = superblock['block_count']
-        name_max = superblock['name_max']
-        print("\nUsing auto-detected LittleFS parameters:")
-        print(f"  Block size: {block_size} bytes")
-        print(f"  Block count: {block_count}")
-        print(f"  Max filename length: {name_max}")
-    else:
-        # Try common configurations
-        print("\nWarning: Could not auto-detect LittleFS parameters")
-        print("Trying common configurations...")
-        
-        common_configs = [
-            # ESP-IDF defaults (most common)
-            {'block_size': 4096, 'name_max': 64},
-            # Alternative configurations
-            {'block_size': 4096, 'name_max': 32},
-            {'block_size': 8192, 'name_max': 64},
-            {'block_size': 8192, 'name_max': 32},
-        ]
-        
-        for config in common_configs:
-            block_size = config['block_size']
-            block_count = fs_size // block_size
-            name_max = config['name_max']
-            
-            try:
-                print(f"  Trying: block_size={block_size}, name_max={name_max}...", end=" ")
-                fs = LittleFS(
-                    block_size=block_size,
-                    block_count=block_count,
-                    name_max=name_max,
-                    mount=False
-                )
-                fs.context.buffer = bytearray(fs_data)
-                fs.mount()
-                print("Success!")
-                
-                # Extract files with this configuration
-                file_count = 0
-                print("\nExtracted files:")
-                for root, dirs, files in fs.walk("/"):
-                    if not root.endswith("/"):
-                        root += "/"
+    # Use ESP-IDF defaults
+    block_size = 0x1000  # 4KB
+    block_count = fs_size // block_size
 
-                    for dir_name in dirs:
-                        src_path = root + dir_name
-                        dst_path = unpack_path / src_path[1:]
-                        dst_path.mkdir(parents=True, exist_ok=True)
-                        print(f"  [DIR]  {src_path}")
-
-                    for file_name in files:
-                        src_path = root + file_name
-                        dst_path = unpack_path / src_path[1:]
-                        dst_path.parent.mkdir(parents=True, exist_ok=True)
-
-                        with fs.open(src_path, "rb") as src:
-                            file_data = src.read()
-                            dst_path.write_bytes(file_data)
-
-                        print(f"  [FILE] {src_path} ({len(file_data)} bytes)")
-                        file_count += 1
-
-                fs.unmount()
-                print(f"\nSuccessfully extracted {file_count} file(s) to {unpack_dir}")
-                return 0
-                
-            except Exception as e:
-                print(f"Failed: {e}")
-                continue
-        
-        # If all configs failed
-        print("\nError: Could not mount LittleFS with any common configuration")
-        print("The filesystem may be corrupted or use non-standard parameters")
-        return 1
-
-    # Create LittleFS instance and mount the image with detected parameters
-    try:
-        fs = LittleFS(
-            block_size=block_size,
-            block_count=block_count,
-            name_max=name_max,
-            mount=False
-        )
-        fs.context.buffer = bytearray(fs_data)
-        fs.mount()
-    except Exception as e:
-        print(f"\nError: Mount failed with detected parameters: {e}")
-        return 1
+    # Create LittleFS instance and mount the image
+    fs = LittleFS(
+        block_size=block_size,
+        block_count=block_count,
+        mount=False
+    )
+    fs.context.buffer = bytearray(fs_data)
+    fs.mount()
 
     # Extract all files
     file_count = 0
@@ -1469,14 +1387,14 @@ def _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir):
         # Create directories
         for dir_name in dirs:
             src_path = root + dir_name
-            dst_path = unpack_path / src_path[1:]
+            dst_path = unpack_path / src_path[1:]  # Remove leading '/'
             dst_path.mkdir(parents=True, exist_ok=True)
             print(f"  [DIR]  {src_path}")
 
         # Extract files
         for file_name in files:
             src_path = root + file_name
-            dst_path = unpack_path / src_path[1:]
+            dst_path = unpack_path / src_path[1:]  # Remove leading '/'
             dst_path.parent.mkdir(parents=True, exist_ok=True)
 
             with fs.open(src_path, "rb") as src:
