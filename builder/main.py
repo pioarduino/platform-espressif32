@@ -17,12 +17,18 @@ import os
 import re
 import shlex
 import shutil
+import struct
 import subprocess
 import sys
 from os.path import isfile, join
 from pathlib import Path
 from littlefs import LittleFS
 from fatfs import Partition, RamDisk, create_extended_partition
+from fatfs import create_esp32_wl_image
+from fatfs import calculate_esp32_wl_overhead
+from fatfs import is_esp32_wl_image, extract_fat_from_esp32_wl
+from fatfs.partition_extended import PartitionExtended
+from fatfs.wrapper import pyf_mkfs, PY_FR_OK as FR_OK
 import importlib.util
 
 from SCons.Script import (
@@ -629,7 +635,6 @@ def build_fatfs_image(target, source, env):
     # ESP-IDF WL layout (following wl_fatfsgen.py):
     # [dummy sector] [FAT data] [state1] [state2] [config]
     # Total WL sectors: 1 dummy + 2 states + 1 config = 4 sectors
-    from fatfs import calculate_esp32_wl_overhead
     wl_info = calculate_esp32_wl_overhead(fs_size, sector_size)
     
     wl_reserved_sectors = wl_info['wl_overhead_sectors']
@@ -646,7 +651,6 @@ def build_fatfs_image(target, source, env):
 
         # Format the filesystem with proper workarea size for LFN support
         # Workarea needs to be at least sector_size, use 2x for safety with LFN
-        from fatfs.wrapper import pyf_mkfs, PY_FR_OK as FR_OK
         workarea_size = sector_size * 2
         
         # Create filesystem with parameters matching ESP-IDF expectations:
@@ -669,7 +673,6 @@ def build_fatfs_image(target, source, env):
         base_partition.mount()
 
         # Wrap with extended partition for directory support
-        from fatfs.partition_extended import PartitionExtended
         partition = PartitionExtended(base_partition)
 
         # Track skipped files
@@ -709,7 +712,6 @@ def build_fatfs_image(target, source, env):
         base_partition.unmount()
         
         # Read boot sector parameters for validation
-        import struct
         bytes_per_sector = struct.unpack('<H', storage[11:13])[0]
         reserved_sectors = struct.unpack('<H', storage[14:16])[0]
         num_fats = storage[16]
@@ -735,8 +737,7 @@ def build_fatfs_image(target, source, env):
         print(f"  Partition size: {fs_size} bytes")
         print(f"  FAT filesystem size: {fat_fs_size} bytes ({sector_count} sectors)")
         print(f"  WL overhead: {wl_reserved_sectors} sectors ({wl_info['wl_overhead_size']} bytes)")
-        
-        from fatfs import create_esp32_wl_image
+
         wl_image = create_esp32_wl_image(bytes(storage), fs_size, sector_size)
         
         print(f"  ✓ WL-wrapped image created ({len(wl_image)} bytes)")
@@ -1474,9 +1475,6 @@ def _extract_fatfs(fs_file, unpack_path, unpack_dir):
     if len(fs_data) < 512:
         print("Error: Downloaded image is too small to be a valid FAT filesystem")
         return 1
-
-    # Import ESP32 WL functions from fatfs
-    from fatfs import is_esp32_wl_image, extract_fat_from_esp32_wl
     
     # Try to detect and extract wear leveling layer
     sector_size = 4096  # Default ESP32 sector size
@@ -1502,7 +1500,6 @@ def _extract_fatfs(fs_file, unpack_path, unpack_dir):
         return 1
 
     # Mount with fatfs-python
-    from fatfs import RamDisk, create_extended_partition
     fs_size_adjusted = len(fs_data)
     sector_count = fs_size_adjusted // sector_size
     disk = RamDisk(fs_data, sector_size=sector_size, sector_count=sector_count)
