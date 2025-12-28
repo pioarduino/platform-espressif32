@@ -722,7 +722,7 @@ def build_fatfs_image(target, source, env):
         if bytes_per_sector != sector_size:
             raise Exception(f"Boot sector bytes_per_sector ({bytes_per_sector}) != sector_size ({sector_size})")
         
-        print(f"\nBoot sector validation:")
+        print("\nBoot sector validation:")
         print(f"  Bytes per sector: {bytes_per_sector}")
         print(f"  Reserved sectors: {reserved_sectors}")
         print(f"  Number of FATs: {num_fats}")
@@ -731,7 +731,7 @@ def build_fatfs_image(target, source, env):
         
         # Wrap FAT image with ESP-IDF wear leveling layer
         # This uses the fatfs-ng module's ESP32WearLeveling implementation
-        print(f"\nWrapping FAT image with ESP-IDF wear leveling...")
+        print("\nWrapping FAT image with ESP-IDF wear leveling...")
         print(f"  Layout: {wl_info['layout']}")
         print(f"  Partition size: {fs_size} bytes")
         print(f"  FAT filesystem size: {fat_fs_size} bytes ({sector_count} sectors)")
@@ -1549,7 +1549,6 @@ def download_fs_action(target, source, env):
     except Exception as e:
         print(f"Error: {e}")
         return 1
-
 
 
 #
