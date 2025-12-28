@@ -1182,7 +1182,6 @@ def _download_partition_image(env, fs_type_filter=None):
 
     esptool_cmd = [
         uploader_path.strip('"'),
-        "--chip", mcu,
         "--port", upload_port,
         "--baud", str(download_speed),
         "--before", "default-reset",
@@ -1245,7 +1244,6 @@ def _download_partition_image(env, fs_type_filter=None):
 
     esptool_cmd = [
         uploader_path.strip('"'),
-        "--chip", mcu,
         "--port", upload_port,
         "--baud", str(download_speed),
         "--before", "default-reset",
@@ -1635,9 +1633,9 @@ def _extract_fatfs(fs_file, unpack_path, unpack_dir):
     return 0
 
 
-def download_fs_action():
+def download_fs_action(target, source, env):
     """Download and extract filesystem from device."""
-    # Get unpack directory
+    # Get unpack directory (use global env, not the parameter)
     unpack_dir = _get_unpack_dir(env)
     
     # Download partition image
