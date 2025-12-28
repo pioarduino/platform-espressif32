@@ -1285,7 +1285,7 @@ def download_fs(target, source, env):
     unpack_dir = _get_unpack_dir(env)
 
     # Download partition image (accept any data partition)
-    fs_file, fs_start, fs_size, fs_subtype = _download_partition_image(env, None)
+    fs_file, _fs_start, fs_size, fs_subtype = _download_partition_image(env, None)
 
     if fs_file is None:
         return 1
