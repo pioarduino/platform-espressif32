@@ -33,15 +33,15 @@ The Wiki is AI generated and insane detailed and accurate.
 
 ## Filesystem Support
 
-The platform natively supports following filesytems:
+pioarduino provides native support for multiple filesystem options, allowing you to choose the best solution for your project's needs:
 
-- **LittleFS** (default) - Wear-leveling filesystem optimized for flash memory
-- **SPIFFS** (outdated) - Legacy MCU filesystem
-- **FatFS** - Standard FAT filesystem with broad compatibility
+- **LittleFS** (default) - Modern wear-leveling filesystem designed specifically for flash memory. Offers excellent reliability and performance for ESP32 projects.
+- **SPIFFS** - Simple legacy filesystem. While still functional, LittleFS is recommended for new projects due to better wear-leveling and reliability.
+- **FatFS** - Industry-standard FAT filesystem with broad compatibility across platforms and operating systems. Ideal when you need to share data with SD cards or external systems.
 
 ### FatFS Integration
 
-FatFS is now fully integrated as a Python module, similar to LittleFS. See [FATFS_INTEGRATION.md](FATFS_INTEGRATION.md) for detailed documentation.
+FatFS support has been fully integrated as a Python module, providing the same seamless experience as LittleFS. Configuration is straightforward - simply specify your preferred filesystem in your project settings: See [FATFS_INTEGRATION.md](FATFS_INTEGRATION.md) for detailed documentation.
 
 **Quick Start:**
 
