@@ -1334,7 +1334,7 @@ def download_fs(target, source, env):
         if fs_type == "littlefs":
             return _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir)
         elif fs_type == "spiffs":
-            return _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir, env)
+            return _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir)
         elif fs_type == "fatfs":
             return _extract_fatfs(fs_file, unpack_path, unpack_dir)
         else:
@@ -1521,53 +1521,106 @@ def _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir):
     return 0
 
 
-def _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir, env):
-    """Extract SPIFFS filesystem."""
-    # Get SPIFFS configuration
-    page_size = 256
-    block_size = 4096
-    obj_name_len = 32
-    meta_len = 4
-    use_magic = True
-    use_magic_len = True
-    aligned_obj_ix_tables = False
+def _parse_spiffs_config(fs_data, fs_size):
+    """
+    Auto-detect SPIFFS configuration from the image.
+    Tries common configurations and validates against the image.
+    
+    Returns:
+        dict: SPIFFS configuration parameters or None
+    """
+    # Common ESP32/ESP8266 SPIFFS configurations
+    common_configs = [
+        # ESP32/ESP8266 defaults
+        {'page_size': 256, 'block_size': 4096, 'obj_name_len': 32},
+        # Alternative configurations
+        {'page_size': 256, 'block_size': 8192, 'obj_name_len': 32},
+        {'page_size': 512, 'block_size': 4096, 'obj_name_len': 32},
+        {'page_size': 256, 'block_size': 4096, 'obj_name_len': 64},
+    ]
+    
+    print("\nAuto-detecting SPIFFS configuration...")
+    
+    for config in common_configs:
+        try:
+            # Try to parse with this configuration
+            spiffs_build_config = SpiffsBuildConfig(
+                page_size=config['page_size'],
+                page_ix_len=2,
+                block_size=config['block_size'],
+                block_ix_len=2,
+                meta_len=4,
+                obj_name_len=config['obj_name_len'],
+                obj_id_len=2,
+                span_ix_len=2,
+                packed=True,
+                aligned=True,
+                endianness='little',
+                use_magic=True,
+                use_magic_len=True,
+                aligned_obj_ix_tables=False
+            )
+            
+            # Try to create and parse the filesystem
+            spiffs = SpiffsFS(fs_size, spiffs_build_config)
+            spiffs.from_binary(fs_data)
+            
+            # If we got here without exception, this config works
+            print("  Detected SPIFFS configuration:")
+            print(f"    Page size: {config['page_size']} bytes")
+            print(f"    Block size: {config['block_size']} bytes")
+            print(f"    Max filename length: {config['obj_name_len']}")
+            
+            return {
+                'page_size': config['page_size'],
+                'block_size': config['block_size'],
+                'obj_name_len': config['obj_name_len'],
+                'meta_len': 4,
+                'use_magic': True,
+                'use_magic_len': True,
+                'aligned_obj_ix_tables': False
+            }
+        except Exception:
+            continue
+    
+    # If no config worked, return defaults
+    print("  Could not auto-detect configuration, using ESP32/ESP8266 defaults")
+    return {
+        'page_size': 256,
+        'block_size': 4096,
+        'obj_name_len': 32,
+        'meta_len': 4,
+        'use_magic': True,
+        'use_magic_len': True,
+        'aligned_obj_ix_tables': False
+    }
 
-    for section in ["common", "env:" + env["PIOENV"]]:
-        if projectconfig.has_option(section, "board_build.spiffs.page_size"):
-            page_size = int(projectconfig.get(section, "board_build.spiffs.page_size"))
-        if projectconfig.has_option(section, "board_build.spiffs.block_size"):
-            block_size = int(projectconfig.get(section, "board_build.spiffs.block_size"))
-        if projectconfig.has_option(section, "board_build.spiffs.obj_name_len"):
-            obj_name_len = int(projectconfig.get(section, "board_build.spiffs.obj_name_len"))
-        if projectconfig.has_option(section, "board_build.spiffs.meta_len"):
-            meta_len = int(projectconfig.get(section, "board_build.spiffs.meta_len"))
-        if projectconfig.has_option(section, "board_build.spiffs.use_magic"):
-            use_magic = projectconfig.getboolean(section, "board_build.spiffs.use_magic")
-        if projectconfig.has_option(section, "board_build.spiffs.use_magic_len"):
-            use_magic_len = projectconfig.getboolean(section, "board_build.spiffs.use_magic_len")
-        if projectconfig.has_option(section, "board_build.spiffs.aligned_obj_ix_tables"):
-            aligned_obj_ix_tables = projectconfig.getboolean(section, "board_build.spiffs.aligned_obj_ix_tables")
 
+def _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir):
+    """Extract SPIFFS filesystem with auto-detected configuration."""
     # Read the downloaded filesystem image
     with open(fs_file, 'rb') as f:
         fs_data = f.read()
 
+    # Auto-detect SPIFFS configuration
+    config = _parse_spiffs_config(fs_data, fs_size)
+    
     # Create SPIFFS build configuration
     spiffs_build_config = SpiffsBuildConfig(
-        page_size=page_size,
+        page_size=config['page_size'],
         page_ix_len=2,
-        block_size=block_size,
+        block_size=config['block_size'],
         block_ix_len=2,
-        meta_len=meta_len,
-        obj_name_len=obj_name_len,
+        meta_len=config['meta_len'],
+        obj_name_len=config['obj_name_len'],
         obj_id_len=2,
         span_ix_len=2,
         packed=True,
         aligned=True,
         endianness='little',
-        use_magic=use_magic,
-        use_magic_len=use_magic_len,
-        aligned_obj_ix_tables=aligned_obj_ix_tables
+        use_magic=config['use_magic'],
+        use_magic_len=config['use_magic_len'],
+        aligned_obj_ix_tables=config['aligned_obj_ix_tables']
     )
 
     # Create SPIFFS filesystem and parse the image
