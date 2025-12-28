@@ -792,12 +792,12 @@ def build_fs_router(target, source, env):
 def switch_off_ldf():
     """
     Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, buildfs, 
-    download_littlefs, download_spiffs, download_fatfs, and erase targets.
+    download_fs, and erase targets.
 
     This optimization prevents unnecessary library dependency scanning and compilation
     when only filesystem operations are performed.
     """
-    fs_targets = {"uploadfs", "uploadfsota", "buildfs", "erase", "download_littlefs", "download_spiffs", "download_fatfs"}
+    fs_targets = {"uploadfs", "uploadfsota", "buildfs", "erase", "download_fs"}
     if fs_targets & set(COMMAND_LINE_TARGETS):
         # Disable LDF by modifying project configuration directly
         env_section = "env:" + env["PIOENV"]
@@ -1270,89 +1270,11 @@ def _download_partition_image(env, fs_type_filter=None):
     return fs_file, fs_start, fs_size, fs_subtype
 
 
-def download_littlefs(target, source, env):
+def download_fs(target, source, env):
     """
-    Download Little filesystem from device and extract to directory.
-    Only supports LittleFS filesystem.
-    Usage: pio run -e <env> -t download_littlefs
-
-    Args:
-        target: SCons target
-        source: SCons source
-        env: SCons environment object
-    """
-    # Get unpack directory from board config or use default
-    unpack_dir = _get_unpack_dir(env)
-
-    # Download partition image (LittleFS=0x83, SPIFFS=0x82)
-    fs_file, fs_start, fs_size, fs_subtype = _download_partition_image(env, [0x82, 0x83])
-
-    if fs_file is None:
-        return 1
-
-    block_size = 0x1000  # 4KB
-
-    # Remove old unpack directory
-    unpack_path = _prepare_unpack_dir(unpack_dir)
-
-    try:
-        # Read the downloaded filesystem image
-        with open(fs_file, 'rb') as f:
-            fs_data = f.read()
-
-        # Calculate block count
-        block_count = fs_size // block_size
-
-        # Create LittleFS instance and mount the image
-        fs = LittleFS(
-            block_size=block_size,
-            block_count=block_count,
-            mount=False
-        )
-        fs.context.buffer = bytearray(fs_data)
-        fs.mount()
-
-        # Extract all files
-        file_count = 0
-        print("\nExtracted files:")
-        for root, dirs, files in fs.walk("/"):
-            if not root.endswith("/"):
-                root += "/"
-
-            # Create directories
-            for dir_name in dirs:
-                src_path = root + dir_name
-                dst_path = unpack_path / src_path[1:]  # Remove leading '/'
-                dst_path.mkdir(parents=True, exist_ok=True)
-                print(f"  [DIR]  {src_path}")
-
-            # Extract files
-            for file_name in files:
-                src_path = root + file_name
-                dst_path = unpack_path / src_path[1:]  # Remove leading '/'
-                dst_path.parent.mkdir(parents=True, exist_ok=True)
-
-                with fs.open(src_path, "rb") as src:
-                    file_data = src.read()
-                    dst_path.write_bytes(file_data)
-
-                print(f"  [FILE] {src_path} ({len(file_data)} bytes)")
-                file_count += 1
-
-        fs.unmount()
-        print(f"\nSuccessfully extracted {file_count} file(s) to {unpack_dir}")
-        return 0
-
-    except Exception as e:
-        print(f"Error: Failed to extract LittleFS filesystem: {e}")
-        return 1
-
-
-def download_spiffs(target, source, env):
-    """
-    Download SPIFFS filesystem from device and extract to directory.
-    Only supports SPIFFS filesystem.
-    Usage: pio run -e <env> -t download_spiffs
+    Download filesystem from device and extract to directory.
+    Automatically detects filesystem type (LittleFS, SPIFFS, or FatFS).
+    Usage: pio run -e <env> -t download_fs
 
     Args:
         target: SCons target (unused)
@@ -1362,184 +1284,262 @@ def download_spiffs(target, source, env):
     # Get unpack directory from board config or use default
     unpack_dir = _get_unpack_dir(env)
 
-    # Download partition image (SPIFFS=0x82)
-    fs_file, _fs_start, fs_size, _fs_subtype = _download_partition_image(env, [0x82])
+    # Download partition image (accept any data partition)
+    fs_file, fs_start, fs_size, fs_subtype = _download_partition_image(env, None)
 
     if fs_file is None:
+        return 1
+
+    # Detect filesystem type based on partition subtype and signature
+    fs_type = None
+    
+    if fs_subtype == 0x81:
+        # FAT partition
+        fs_type = "fatfs"
+        print(f"\nDetected filesystem type: FAT (partition subtype 0x{fs_subtype:02X})")
+    elif fs_subtype == 0x82:
+        # Could be SPIFFS or LittleFS - need to check signature
+        print(f"\nPartition subtype 0x{fs_subtype:02X} detected - checking filesystem signature...")
+        
+        try:
+            with open(fs_file, 'rb') as f:
+                # Read first 8KB to scan for filesystem signature
+                header = f.read(8192)
+                
+                # Check for "littlefs" ASCII string
+                if b'littlefs' in header:
+                    fs_type = "littlefs"
+                    print("  ✓ Found 'littlefs' signature - detected as LittleFS")
+                else:
+                    fs_type = "spiffs"
+                    print("  ✓ No LittleFS signature found - detected as SPIFFS")
+        except Exception as e:
+            print(f"  ✗ Error reading filesystem signature: {e}")
+            print("  Defaulting to SPIFFS")
+            fs_type = "spiffs"
+    elif fs_subtype == 0x83:
+        # LittleFS partition
+        fs_type = "littlefs"
+        print(f"\nDetected filesystem type: LittleFS (partition subtype 0x{fs_subtype:02X})")
+    else:
+        print(f"\nError: Unknown partition subtype 0x{fs_subtype:02X}")
+        print("Supported types: 0x81 (FAT), 0x82 (SPIFFS/LittleFS), 0x83 (LittleFS)")
         return 1
 
     # Remove old unpack directory
     unpack_path = _prepare_unpack_dir(unpack_dir)
 
+    # Call appropriate extraction function
+    print(f"\nExtracting {fs_type.upper()} filesystem...\n")
+    
     try:
-        # Read the downloaded filesystem image
-        with open(fs_file, 'rb') as f:
-            fs_data = f.read()
+        if fs_type == "littlefs":
+            return _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir)
+        elif fs_type == "spiffs":
+            return _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir, env)
+        elif fs_type == "fatfs":
+            return _extract_fatfs(fs_file, unpack_path, unpack_dir)
+        else:
+            print(f"Error: Unsupported filesystem type '{fs_type}'")
+            return 1
+    except Exception as e:
+        print(f"Error: Failed to extract {fs_type.upper()} filesystem: {e}")
+        return 1
 
-        # Get SPIFFS configuration
-        page_size = 256
-        block_size = 4096
-        obj_name_len = 32
-        meta_len = 4
-        use_magic = True
-        use_magic_len = True
-        aligned_obj_ix_tables = False
 
-        for section in ["common", "env:" + env["PIOENV"]]:
-            if projectconfig.has_option(section, "board_build.spiffs.page_size"):
-                page_size = int(projectconfig.get(section, "board_build.spiffs.page_size"))
-            if projectconfig.has_option(section, "board_build.spiffs.block_size"):
-                block_size = int(projectconfig.get(section, "board_build.spiffs.block_size"))
-            if projectconfig.has_option(section, "board_build.spiffs.obj_name_len"):
-                obj_name_len = int(projectconfig.get(section, "board_build.spiffs.obj_name_len"))
-            if projectconfig.has_option(section, "board_build.spiffs.meta_len"):
-                meta_len = int(projectconfig.get(section, "board_build.spiffs.meta_len"))
-            if projectconfig.has_option(section, "board_build.spiffs.use_magic"):
-                use_magic = projectconfig.getboolean(section, "board_build.spiffs.use_magic")
-            if projectconfig.has_option(section, "board_build.spiffs.use_magic_len"):
-                use_magic_len = projectconfig.getboolean(section, "board_build.spiffs.use_magic_len")
-            if projectconfig.has_option(section, "board_build.spiffs.aligned_obj_ix_tables"):
-                aligned_obj_ix_tables = projectconfig.getboolean(section, "board_build.spiffs.aligned_obj_ix_tables")
+def _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir):
+    """Extract LittleFS filesystem."""
+    block_size = 0x1000  # 4KB
 
-        # Create SPIFFS build configuration
-        spiffs_build_config = SpiffsBuildConfig(
-            page_size=page_size,
-            page_ix_len=2,
-            block_size=block_size,
-            block_ix_len=2,
-            meta_len=meta_len,
-            obj_name_len=obj_name_len,
-            obj_id_len=2,
-            span_ix_len=2,
-            packed=True,
-            aligned=True,
-            endianness='little',
-            use_magic=use_magic,
-            use_magic_len=use_magic_len,
-            aligned_obj_ix_tables=aligned_obj_ix_tables
-        )
+    # Read the downloaded filesystem image
+    with open(fs_file, 'rb') as f:
+        fs_data = f.read()
 
-        # Create SPIFFS filesystem and parse the image
-        spiffs = SpiffsFS(fs_size, spiffs_build_config)
-        spiffs.from_binary(fs_data)
+    # Calculate block count
+    block_count = fs_size // block_size
+
+    # Create LittleFS instance and mount the image
+    fs = LittleFS(
+        block_size=block_size,
+        block_count=block_count,
+        mount=False
+    )
+    fs.context.buffer = bytearray(fs_data)
+    fs.mount()
+
+    # Extract all files
+    file_count = 0
+    print("Extracted files:")
+    for root, dirs, files in fs.walk("/"):
+        if not root.endswith("/"):
+            root += "/"
+
+        # Create directories
+        for dir_name in dirs:
+            src_path = root + dir_name
+            dst_path = unpack_path / src_path[1:]  # Remove leading '/'
+            dst_path.mkdir(parents=True, exist_ok=True)
+            print(f"  [DIR]  {src_path}")
 
         # Extract files
-        print("\nExtracting files:\n")
-        file_count = spiffs.extract_files(str(unpack_path))
+        for file_name in files:
+            src_path = root + file_name
+            dst_path = unpack_path / src_path[1:]  # Remove leading '/'
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if file_count == 0:
-            print("\nNo files were extracted.")
-            print("The filesystem may be empty, freshly formatted, or contain only deleted entries.")
-        else:
-            print(f"\nSuccessfully extracted {file_count} file(s) to {unpack_dir}")
+            with fs.open(src_path, "rb") as src:
+                file_data = src.read()
+                dst_path.write_bytes(file_data)
 
-        return 0
+            print(f"  [FILE] {src_path} ({len(file_data)} bytes)")
+            file_count += 1
 
-    except Exception as e:
-        print(f"Error: Failed to extract SPIFFS filesystem: {e}")
+    fs.unmount()
+    print(f"\nSuccessfully extracted {file_count} file(s) to {unpack_dir}")
+    return 0
+
+
+def _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir, env):
+    """Extract SPIFFS filesystem."""
+    # Get SPIFFS configuration
+    page_size = 256
+    block_size = 4096
+    obj_name_len = 32
+    meta_len = 4
+    use_magic = True
+    use_magic_len = True
+    aligned_obj_ix_tables = False
+
+    for section in ["common", "env:" + env["PIOENV"]]:
+        if projectconfig.has_option(section, "board_build.spiffs.page_size"):
+            page_size = int(projectconfig.get(section, "board_build.spiffs.page_size"))
+        if projectconfig.has_option(section, "board_build.spiffs.block_size"):
+            block_size = int(projectconfig.get(section, "board_build.spiffs.block_size"))
+        if projectconfig.has_option(section, "board_build.spiffs.obj_name_len"):
+            obj_name_len = int(projectconfig.get(section, "board_build.spiffs.obj_name_len"))
+        if projectconfig.has_option(section, "board_build.spiffs.meta_len"):
+            meta_len = int(projectconfig.get(section, "board_build.spiffs.meta_len"))
+        if projectconfig.has_option(section, "board_build.spiffs.use_magic"):
+            use_magic = projectconfig.getboolean(section, "board_build.spiffs.use_magic")
+        if projectconfig.has_option(section, "board_build.spiffs.use_magic_len"):
+            use_magic_len = projectconfig.getboolean(section, "board_build.spiffs.use_magic_len")
+        if projectconfig.has_option(section, "board_build.spiffs.aligned_obj_ix_tables"):
+            aligned_obj_ix_tables = projectconfig.getboolean(section, "board_build.spiffs.aligned_obj_ix_tables")
+
+    # Read the downloaded filesystem image
+    with open(fs_file, 'rb') as f:
+        fs_data = f.read()
+
+    # Create SPIFFS build configuration
+    spiffs_build_config = SpiffsBuildConfig(
+        page_size=page_size,
+        page_ix_len=2,
+        block_size=block_size,
+        block_ix_len=2,
+        meta_len=meta_len,
+        obj_name_len=obj_name_len,
+        obj_id_len=2,
+        span_ix_len=2,
+        packed=True,
+        aligned=True,
+        endianness='little',
+        use_magic=use_magic,
+        use_magic_len=use_magic_len,
+        aligned_obj_ix_tables=aligned_obj_ix_tables
+    )
+
+    # Create SPIFFS filesystem and parse the image
+    spiffs = SpiffsFS(fs_size, spiffs_build_config)
+    spiffs.from_binary(fs_data)
+
+    # Extract files
+    file_count = spiffs.extract_files(str(unpack_path))
+
+    if file_count == 0:
+        print("\nNo files were extracted.")
+        print("The filesystem may be empty, freshly formatted, or contain only deleted entries.")
+    else:
+        print(f"\nSuccessfully extracted {file_count} file(s) to {unpack_dir}")
+
+    return 0
+
+
+def _extract_fatfs(fs_file, unpack_path, unpack_dir):
+    """Extract FatFS filesystem."""
+    # Read the downloaded filesystem image
+    with open(fs_file, 'rb') as f:
+        fs_data = bytearray(f.read())
+
+    # Check if the image looks like a valid FAT filesystem
+    if len(fs_data) < 512:
+        print("Error: Downloaded image is too small to be a valid FAT filesystem")
         return 1
 
-
-def download_fatfs(target, source, env):
-    """
-    Download FAT filesystem from device and extract to directory.
-    Handles ESP32 Wear Leveling layer automatically.
-    Only supports FatFS filesystem.
-    Usage: pio run -e <env> -t download_fatfs
-
-    Args:
-        target: SCons target
-        source: SCons source
-        env: SCons environment object
-    """
-
-    # Get unpack directory from board config or use default
-    unpack_dir = _get_unpack_dir(env)
-
-    # Download partition image (FAT=0x81)
-    fs_file, _fs_start, _fs_size, _fs_subtype = _download_partition_image(env, [0x81])
-
-    if fs_file is None:
-        return 1
-
-    # Remove old unpack directory
-    unpack_path = _prepare_unpack_dir(unpack_dir)
-
-    try:
-        # Read the downloaded filesystem image
-        with open(fs_file, 'rb') as f:
-            fs_data = bytearray(f.read())
-
-        # Check if the image looks like a valid FAT filesystem
-        if len(fs_data) < 512:
-            print("Error: Downloaded image is too small to be a valid FAT filesystem")
+    # Import ESP32 WL functions from fatfs
+    from fatfs import is_esp32_wl_image, extract_fat_from_esp32_wl
+    
+    # Try to detect and extract wear leveling layer
+    sector_size = 4096  # Default ESP32 sector size
+    
+    # Check if this is a wear-leveling wrapped image
+    if is_esp32_wl_image(fs_data, sector_size):
+        print("Detected Wear Leveling layer, extracting FAT data...")
+        fat_data = extract_fat_from_esp32_wl(fs_data, sector_size)
+        if fat_data is None:
+            print("Error: Failed to extract FAT data from wear-leveling image")
             return 1
+        fs_data = bytearray(fat_data)
+        print(f"  Extracted FAT data: {len(fs_data)} bytes")
+    else:
+        print("No Wear Leveling layer detected, treating as raw FAT image...")
 
-        # Import ESP32 WL functions from fatfs
-        from fatfs import is_esp32_wl_image, extract_fat_from_esp32_wl
-        
-        # Try to detect and extract wear leveling layer
-        sector_size = 4096  # Default ESP32 sector size
-        
-        # Check if this is a wear-leveling wrapped image
-        if is_esp32_wl_image(fs_data, sector_size):
-            print("\nDetected Wear Leveling layer, extracting FAT data...")
-            fat_data = extract_fat_from_esp32_wl(fs_data, sector_size)
-            if fat_data is None:
-                print("Error: Failed to extract FAT data from wear-leveling image")
-                return 1
-            fs_data = bytearray(fat_data)
-            print(f"  Extracted FAT data: {len(fs_data)} bytes")
-        else:
-            print("\nNo Wear Leveling layer detected, treating as raw FAT image...")
+    # Read sector size from FAT boot sector (offset 0x0B, 2 bytes, little-endian)
+    sector_size = int.from_bytes(fs_data[0x0B:0x0D], byteorder='little')
 
-        # Read sector size from FAT boot sector (offset 0x0B, 2 bytes, little-endian)
-        sector_size = int.from_bytes(fs_data[0x0B:0x0D], byteorder='little')
-        # print(f"  Sector size from boot sector: {sector_size} bytes")
-
-        # Validate sector size
-        if sector_size not in [512, 1024, 2048, 4096]:
-            print(f"Error: Invalid sector size {sector_size}. Must be 512, 1024, 2048, or 4096")
-            return 1
-
-        # Mount with fatfs-python
-        from fatfs import RamDisk, create_extended_partition
-        fs_size_adjusted = len(fs_data)
-        sector_count = fs_size_adjusted // sector_size
-        disk = RamDisk(fs_data, sector_size=sector_size, sector_count=sector_count)
-        partition = create_extended_partition(disk)
-        partition.mount()
-
-        # Extract all files using PartitionExtended.walk() and read_file()
-        print("\nExtracting files:\n")
-        extracted_count = 0
-        for root, _dirs, files in partition.walk("/"):
-            # Create directories
-            rel_root = root[1:] if root.startswith("/") else root
-            abs_root = unpack_path / rel_root
-            abs_root.mkdir(parents=True, exist_ok=True)
-            for filename in files:
-                src_file = root.rstrip("/") + "/" + filename if root != "/" else "/" + filename
-                dst_file = abs_root / filename
-                try:
-                    data = partition.read_file(src_file)
-                    dst_file.write_bytes(data)
-                    print(f"  FILE: {src_file} ({len(data)} bytes)")
-                    extracted_count += 1
-                except Exception as e:
-                    print(f"  Warning: Failed to extract {src_file}: {e}")
-        partition.unmount()
-        # Summary
-        if extracted_count == 0:
-            print("\nNo files were extracted.")
-            print("The filesystem may be empty, freshly formatted, or contain only deleted entries.")
-        else:
-            print(f"\nSuccessfully extracted {extracted_count} file(s) to {unpack_dir}")
-        return 0
-
-    except Exception as e:
-        print(f"Error: Failed to extract FatFS filesystem: {e}")
+    # Validate sector size
+    if sector_size not in [512, 1024, 2048, 4096]:
+        print(f"Error: Invalid sector size {sector_size}. Must be 512, 1024, 2048, or 4096")
         return 1
+
+    # Mount with fatfs-python
+    from fatfs import RamDisk, create_extended_partition
+    fs_size_adjusted = len(fs_data)
+    sector_count = fs_size_adjusted // sector_size
+    disk = RamDisk(fs_data, sector_size=sector_size, sector_count=sector_count)
+    partition = create_extended_partition(disk)
+    partition.mount()
+
+    # Extract all files using PartitionExtended.walk() and read_file()
+    print("Extracting files:\n")
+    extracted_count = 0
+    for root, _dirs, files in partition.walk("/"):
+        # Create directories
+        rel_root = root[1:] if root.startswith("/") else root
+        abs_root = unpack_path / rel_root
+        abs_root.mkdir(parents=True, exist_ok=True)
+        for filename in files:
+            src_file = root.rstrip("/") + "/" + filename if root != "/" else "/" + filename
+            dst_file = abs_root / filename
+            try:
+                data = partition.read_file(src_file)
+                dst_file.write_bytes(data)
+                print(f"  FILE: {src_file} ({len(data)} bytes)")
+                extracted_count += 1
+            except Exception as e:
+                print(f"  Warning: Failed to extract {src_file}: {e}")
+    partition.unmount()
+    
+    # Summary
+    if extracted_count == 0:
+        print("\nNo files were extracted.")
+        print("The filesystem may be empty, freshly formatted, or contain only deleted entries.")
+    else:
+        print(f"\nSuccessfully extracted {extracted_count} file(s) to {unpack_dir}")
+    
+    return 0
+
+
+
 
 #
 # Target: Build executable and linkable firmware or FS image
@@ -1778,28 +1778,12 @@ env.AddPlatformTarget(
     "Upload Filesystem Image OTA",
 )
 
-# Target: Download LittleFS (no build required)
+# Target: Download Filesystem (auto-detect type)
 env.AddPlatformTarget(
-    "download_littlefs",
+    "download_fs",
     None,
-    download_littlefs,
-    "Download and extract LittleFS filesystem from device",
-)
-
-# Target: Download SPIFFS (no build required)
-env.AddPlatformTarget(
-    "download_spiffs",
-    None,
-    download_spiffs,
-    "Download and extract SPIFFS filesystem from device",
-)
-
-# Target: Download FatFS (no build required)
-env.AddPlatformTarget(
-    "download_fatfs",
-    None,
-    download_fatfs,
-    "Download and extract FatFS filesystem from device",
+    download_fs,
+    "Download and extract filesystem from device (auto-detects type)",
 )
 
 # Target: Erase Flash and Upload
