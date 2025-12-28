@@ -1777,7 +1777,7 @@ env.AddPlatformTarget(
     "download_fs",
     None,
     download_fs,
-    "Download and extract filesystem from device (auto-detects type)",
+    "Download and extract filesystem from device",
 )
 
 # Target: Erase Flash and Upload
