@@ -313,7 +313,7 @@ void setup() {
   Serial.println("\n All tests completed!");
   Serial.println("\nFilesystem remains mounted for further testing.");
   Serial.println("You can now:");
-  Serial.println("- Download filesystem: pio run -t download_LittleFS");
+  Serial.println("- Download filesystem: pio run -t download_fs");
   Serial.println("- Reset to re-run tests");
   printSeparator();
 }

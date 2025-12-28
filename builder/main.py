@@ -1409,7 +1409,7 @@ def _parse_littlefs_superblock(fs_data):
                         name_max > 0 and name_max <= 1022 and
                         version_major > 0 and version_major <= 10):
                         
-                        print(f"\nDetected LittleFS parameters from superblock:")
+                        print("\nDetected LittleFS parameters from superblock:")
                         print(f"  Version: {version_major}.{version_minor}")
                         print(f"  Block size: {block_size} bytes")
                         print(f"  Block count: {block_count}")
@@ -1449,7 +1449,7 @@ def _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir):
         block_size = superblock['block_size']
         block_count = superblock['block_count']
         name_max = superblock['name_max']
-        print(f"\nUsing auto-detected LittleFS parameters")
+        print("\nUsing auto-detected LittleFS parameters")
     else:
         # Fall back to defaults
         print(f"\nWarning: Could not auto-detect LittleFS parameters, using defaults")
@@ -1655,7 +1655,6 @@ def _extract_fatfs(fs_file, unpack_path, unpack_dir):
         print(f"\nSuccessfully extracted {extracted_count} file(s) to {unpack_dir}")
     
     return 0
-
 
 
 
