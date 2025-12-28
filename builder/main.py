@@ -1270,81 +1270,6 @@ def _download_partition_image(env, fs_type_filter=None):
     return fs_file, fs_start, fs_size, fs_subtype
 
 
-def download_fs(target, source, env):
-    """
-    Download filesystem from device and extract to directory.
-    Automatically detects filesystem type (LittleFS, SPIFFS, or FatFS).
-    Usage: pio run -e <env> -t download_fs
-
-    Args:
-        target: SCons target (unused)
-        source: SCons source (unused)
-        env: SCons environment object
-    """
-    # Get unpack directory from board config or use default
-    unpack_dir = _get_unpack_dir(env)
-
-    # Download partition image (accept any data partition)
-    fs_file, _fs_start, fs_size, fs_subtype = _download_partition_image(env, None)
-
-    if fs_file is None:
-        return 1
-
-    # Detect filesystem type based on partition subtype and signature
-    fs_type = None
-    
-    if fs_subtype == 0x81:
-        # FAT partition
-        fs_type = "fatfs"
-        print(f"\nDetected filesystem type: FAT (partition subtype 0x{fs_subtype:02X})")
-    elif fs_subtype == 0x82:
-        # Could be SPIFFS or LittleFS - need to check signature
-        print(f"\nPartition subtype 0x{fs_subtype:02X} detected - checking filesystem signature...")
-        
-        try:
-            with open(fs_file, 'rb') as f:
-                # Read first 8KB to scan for filesystem signature
-                header = f.read(8192)
-                
-                # Check for "littlefs" ASCII string
-                if b'littlefs' in header:
-                    fs_type = "littlefs"
-                else:
-                    fs_type = "spiffs"
-        except Exception as e:
-            print(f"Error reading filesystem signature: {e}")
-            print(" Defaulting to SPIFFS")
-            fs_type = "spiffs"
-    elif fs_subtype == 0x83:
-        # LittleFS partition
-        fs_type = "littlefs"
-        print(f"\nDetected filesystem type: LittleFS (partition subtype 0x{fs_subtype:02X})")
-    else:
-        print(f"\nError: Unknown partition subtype 0x{fs_subtype:02X}")
-        print("Supported types: 0x81 (FAT), 0x82 (SPIFFS/LittleFS), 0x83 (LittleFS)")
-        return 1
-
-    # Remove old unpack directory
-    unpack_path = _prepare_unpack_dir(unpack_dir)
-
-    # Call appropriate extraction function
-    print(f"\nExtracting {fs_type.upper()} filesystem...\n")
-    
-    try:
-        if fs_type == "littlefs":
-            return _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir)
-        elif fs_type == "spiffs":
-            return _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir)
-        elif fs_type == "fatfs":
-            return _extract_fatfs(fs_file, unpack_path, unpack_dir)
-        else:
-            print(f"Error: Unsupported filesystem type '{fs_type}'")
-            return 1
-    except Exception as e:
-        print(f"Error: Failed to extract {fs_type.upper()} filesystem: {e}")
-        return 1
-
-
 def _parse_littlefs_superblock(fs_data):
     """Parse LittleFS superblock to extract filesystem parameters.
     
@@ -1710,6 +1635,49 @@ def _extract_fatfs(fs_file, unpack_path, unpack_dir):
     return 0
 
 
+def download_fs_action():
+    """Download and extract filesystem from device."""
+    # Get unpack directory
+    unpack_dir = _get_unpack_dir(env)
+    
+    # Download partition image
+    fs_file, _fs_start, fs_size, fs_subtype = _download_partition_image(env, None)
+    
+    if fs_file is None:
+        return 1
+    
+    # Detect filesystem type
+    fs_type = None
+    if fs_subtype == 0x81:
+        fs_type = "fatfs"
+    elif fs_subtype == 0x82:
+        with open(fs_file, 'rb') as f:
+            header = f.read(8192)
+            fs_type = "littlefs" if b'littlefs' in header else "spiffs"
+    elif fs_subtype == 0x83:
+        fs_type = "littlefs"
+    else:
+        print(f"Error: Unknown partition subtype 0x{fs_subtype:02X}")
+        return 1
+    
+    print(f"\nDetected filesystem: {fs_type.upper()}")
+    
+    # Prepare unpack directory
+    unpack_path = _prepare_unpack_dir(unpack_dir)
+    
+    # Extract filesystem
+    try:
+        if fs_type == "littlefs":
+            return _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir)
+        elif fs_type == "spiffs":
+            return _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir)
+        elif fs_type == "fatfs":
+            return _extract_fatfs(fs_file, unpack_path, unpack_dir)
+    except Exception as e:
+        print(f"Error: {e}")
+        return 1
+
+
 
 #
 # Target: Build executable and linkable firmware or FS image
@@ -1952,7 +1920,10 @@ env.AddPlatformTarget(
 env.AddPlatformTarget(
     "download_fs",
     None,
-    download_fs,
+    [
+        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
+        env.VerboseAction(download_fs_action, "Downloading and extracting filesystem")
+    ],
     "Download and extract filesystem from device",
 )
 
