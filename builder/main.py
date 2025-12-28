@@ -1182,7 +1182,6 @@ def _download_partition_image(env, fs_type_filter=None):
 
     esptool_cmd = [
         uploader_path.strip('"'),
-        "--chip", mcu,
         "--port", upload_port,
         "--baud", str(download_speed),
         "--before", "default-reset",
@@ -1245,7 +1244,6 @@ def _download_partition_image(env, fs_type_filter=None):
 
     esptool_cmd = [
         uploader_path.strip('"'),
-        "--chip", mcu,
         "--port", upload_port,
         "--baud", str(download_speed),
         "--before", "default-reset",
@@ -1268,81 +1266,6 @@ def _download_partition_image(env, fs_type_filter=None):
     print(f"\nDownloaded to {fs_file}")
 
     return fs_file, fs_start, fs_size, fs_subtype
-
-
-def download_fs(target, source, env):
-    """
-    Download filesystem from device and extract to directory.
-    Automatically detects filesystem type (LittleFS, SPIFFS, or FatFS).
-    Usage: pio run -e <env> -t download_fs
-
-    Args:
-        target: SCons target (unused)
-        source: SCons source (unused)
-        env: SCons environment object
-    """
-    # Get unpack directory from board config or use default
-    unpack_dir = _get_unpack_dir(env)
-
-    # Download partition image (accept any data partition)
-    fs_file, _fs_start, fs_size, fs_subtype = _download_partition_image(env, None)
-
-    if fs_file is None:
-        return 1
-
-    # Detect filesystem type based on partition subtype and signature
-    fs_type = None
-    
-    if fs_subtype == 0x81:
-        # FAT partition
-        fs_type = "fatfs"
-        print(f"\nDetected filesystem type: FAT (partition subtype 0x{fs_subtype:02X})")
-    elif fs_subtype == 0x82:
-        # Could be SPIFFS or LittleFS - need to check signature
-        print(f"\nPartition subtype 0x{fs_subtype:02X} detected - checking filesystem signature...")
-        
-        try:
-            with open(fs_file, 'rb') as f:
-                # Read first 8KB to scan for filesystem signature
-                header = f.read(8192)
-                
-                # Check for "littlefs" ASCII string
-                if b'littlefs' in header:
-                    fs_type = "littlefs"
-                else:
-                    fs_type = "spiffs"
-        except Exception as e:
-            print(f"Error reading filesystem signature: {e}")
-            print(" Defaulting to SPIFFS")
-            fs_type = "spiffs"
-    elif fs_subtype == 0x83:
-        # LittleFS partition
-        fs_type = "littlefs"
-        print(f"\nDetected filesystem type: LittleFS (partition subtype 0x{fs_subtype:02X})")
-    else:
-        print(f"\nError: Unknown partition subtype 0x{fs_subtype:02X}")
-        print("Supported types: 0x81 (FAT), 0x82 (SPIFFS/LittleFS), 0x83 (LittleFS)")
-        return 1
-
-    # Remove old unpack directory
-    unpack_path = _prepare_unpack_dir(unpack_dir)
-
-    # Call appropriate extraction function
-    print(f"\nExtracting {fs_type.upper()} filesystem...\n")
-    
-    try:
-        if fs_type == "littlefs":
-            return _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir)
-        elif fs_type == "spiffs":
-            return _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir, env)
-        elif fs_type == "fatfs":
-            return _extract_fatfs(fs_file, unpack_path, unpack_dir)
-        else:
-            print(f"Error: Unsupported filesystem type '{fs_type}'")
-            return 1
-    except Exception as e:
-        print(f"Error: Failed to extract {fs_type.upper()} filesystem: {e}")
-        return 1
 
 
 def _parse_littlefs_superblock(fs_data):
@@ -1436,58 +1359,23 @@ def _parse_littlefs_superblock(fs_data):
 
 
 def _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir):
-    """Extract LittleFS filesystem with auto-detected parameters."""
+    """Extract LittleFS filesystem."""
     # Read the downloaded filesystem image
     with open(fs_file, 'rb') as f:
         fs_data = f.read()
 
-    # Try to auto-detect filesystem parameters from superblock
-    superblock = _parse_littlefs_superblock(fs_data)
-    
-    if superblock:
-        # Use detected parameters
-        block_size = superblock['block_size']
-        block_count = superblock['block_count']
-        name_max = superblock['name_max']
-        print("\nUsing auto-detected LittleFS parameters")
-    else:
-        # Fall back to defaults
-        print(f"\nWarning: Could not auto-detect LittleFS parameters, using defaults")
-        block_size = 0x1000  # 4KB default
-        block_count = fs_size // block_size
-        name_max = 64
-        print(f"  Block size: {block_size} bytes (default)")
-        print(f"  Block count: {block_count} (calculated)")
-        print(f"  Max filename length: {name_max} (default)")
+    # Use ESP-IDF defaults
+    block_size = 0x1000  # 4KB
+    block_count = fs_size // block_size
 
     # Create LittleFS instance and mount the image
-    try:
-        fs = LittleFS(
-            block_size=block_size,
-            block_count=block_count,
-            name_max=name_max,
-            mount=False
-        )
-        fs.context.buffer = bytearray(fs_data)
-        fs.mount()
-    except Exception as e:
-        # If mount fails with detected parameters, try defaults
-        if superblock:
-            print(f"\nWarning: Mount failed with detected parameters: {e}")
-            print("Retrying with default parameters...")
-            block_size = 0x1000
-            block_count = fs_size // block_size
-            name_max = 64
-            fs = LittleFS(
-                block_size=block_size,
-                block_count=block_count,
-                name_max=name_max,
-                mount=False
-            )
-            fs.context.buffer = bytearray(fs_data)
-            fs.mount()
-        else:
-            raise
+    fs = LittleFS(
+        block_size=block_size,
+        block_count=block_count,
+        mount=False
+    )
+    fs.context.buffer = bytearray(fs_data)
+    fs.mount()
 
     # Extract all files
     file_count = 0
@@ -1521,53 +1409,106 @@ def _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir):
     return 0
 
 
-def _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir, env):
-    """Extract SPIFFS filesystem."""
-    # Get SPIFFS configuration
-    page_size = 256
-    block_size = 4096
-    obj_name_len = 32
-    meta_len = 4
-    use_magic = True
-    use_magic_len = True
-    aligned_obj_ix_tables = False
+def _parse_spiffs_config(fs_data, fs_size):
+    """
+    Auto-detect SPIFFS configuration from the image.
+    Tries common configurations and validates against the image.
+    
+    Returns:
+        dict: SPIFFS configuration parameters or None
+    """
+    # Common ESP32/ESP8266 SPIFFS configurations
+    common_configs = [
+        # ESP32/ESP8266 defaults
+        {'page_size': 256, 'block_size': 4096, 'obj_name_len': 32},
+        # Alternative configurations
+        {'page_size': 256, 'block_size': 8192, 'obj_name_len': 32},
+        {'page_size': 512, 'block_size': 4096, 'obj_name_len': 32},
+        {'page_size': 256, 'block_size': 4096, 'obj_name_len': 64},
+    ]
+    
+    print("\nAuto-detecting SPIFFS configuration...")
+    
+    for config in common_configs:
+        try:
+            # Try to parse with this configuration
+            spiffs_build_config = SpiffsBuildConfig(
+                page_size=config['page_size'],
+                page_ix_len=2,
+                block_size=config['block_size'],
+                block_ix_len=2,
+                meta_len=4,
+                obj_name_len=config['obj_name_len'],
+                obj_id_len=2,
+                span_ix_len=2,
+                packed=True,
+                aligned=True,
+                endianness='little',
+                use_magic=True,
+                use_magic_len=True,
+                aligned_obj_ix_tables=False
+            )
+            
+            # Try to create and parse the filesystem
+            spiffs = SpiffsFS(fs_size, spiffs_build_config)
+            spiffs.from_binary(fs_data)
+            
+            # If we got here without exception, this config works
+            print("  Detected SPIFFS configuration:")
+            print(f"    Page size: {config['page_size']} bytes")
+            print(f"    Block size: {config['block_size']} bytes")
+            print(f"    Max filename length: {config['obj_name_len']}")
+            
+            return {
+                'page_size': config['page_size'],
+                'block_size': config['block_size'],
+                'obj_name_len': config['obj_name_len'],
+                'meta_len': 4,
+                'use_magic': True,
+                'use_magic_len': True,
+                'aligned_obj_ix_tables': False
+            }
+        except Exception:
+            continue
+    
+    # If no config worked, return defaults
+    print("  Could not auto-detect configuration, using ESP32/ESP8266 defaults")
+    return {
+        'page_size': 256,
+        'block_size': 4096,
+        'obj_name_len': 32,
+        'meta_len': 4,
+        'use_magic': True,
+        'use_magic_len': True,
+        'aligned_obj_ix_tables': False
+    }
 
-    for section in ["common", "env:" + env["PIOENV"]]:
-        if projectconfig.has_option(section, "board_build.spiffs.page_size"):
-            page_size = int(projectconfig.get(section, "board_build.spiffs.page_size"))
-        if projectconfig.has_option(section, "board_build.spiffs.block_size"):
-            block_size = int(projectconfig.get(section, "board_build.spiffs.block_size"))
-        if projectconfig.has_option(section, "board_build.spiffs.obj_name_len"):
-            obj_name_len = int(projectconfig.get(section, "board_build.spiffs.obj_name_len"))
-        if projectconfig.has_option(section, "board_build.spiffs.meta_len"):
-            meta_len = int(projectconfig.get(section, "board_build.spiffs.meta_len"))
-        if projectconfig.has_option(section, "board_build.spiffs.use_magic"):
-            use_magic = projectconfig.getboolean(section, "board_build.spiffs.use_magic")
-        if projectconfig.has_option(section, "board_build.spiffs.use_magic_len"):
-            use_magic_len = projectconfig.getboolean(section, "board_build.spiffs.use_magic_len")
-        if projectconfig.has_option(section, "board_build.spiffs.aligned_obj_ix_tables"):
-            aligned_obj_ix_tables = projectconfig.getboolean(section, "board_build.spiffs.aligned_obj_ix_tables")
 
+def _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir):
+    """Extract SPIFFS filesystem with auto-detected configuration."""
     # Read the downloaded filesystem image
     with open(fs_file, 'rb') as f:
         fs_data = f.read()
 
+    # Auto-detect SPIFFS configuration
+    config = _parse_spiffs_config(fs_data, fs_size)
+    
     # Create SPIFFS build configuration
     spiffs_build_config = SpiffsBuildConfig(
-        page_size=page_size,
+        page_size=config['page_size'],
         page_ix_len=2,
-        block_size=block_size,
+        block_size=config['block_size'],
         block_ix_len=2,
-        meta_len=meta_len,
-        obj_name_len=obj_name_len,
+        meta_len=config['meta_len'],
+        obj_name_len=config['obj_name_len'],
         obj_id_len=2,
         span_ix_len=2,
         packed=True,
         aligned=True,
         endianness='little',
-        use_magic=use_magic,
-        use_magic_len=use_magic_len,
-        aligned_obj_ix_tables=aligned_obj_ix_tables
+        use_magic=config['use_magic'],
+        use_magic_len=config['use_magic_len'],
+        aligned_obj_ix_tables=config['aligned_obj_ix_tables']
     )
 
     # Create SPIFFS filesystem and parse the image
@@ -1655,6 +1596,49 @@ def _extract_fatfs(fs_file, unpack_path, unpack_dir):
         print(f"\nSuccessfully extracted {extracted_count} file(s) to {unpack_dir}")
     
     return 0
+
+
+def download_fs_action(target, source, env):
+    """Download and extract filesystem from device."""
+    # Get unpack directory (use global env, not the parameter)
+    unpack_dir = _get_unpack_dir(env)
+    
+    # Download partition image
+    fs_file, _fs_start, fs_size, fs_subtype = _download_partition_image(env, None)
+    
+    if fs_file is None:
+        return 1
+    
+    # Detect filesystem type
+    fs_type = None
+    if fs_subtype == 0x81:
+        fs_type = "fatfs"
+    elif fs_subtype == 0x82:
+        with open(fs_file, 'rb') as f:
+            header = f.read(8192)
+            fs_type = "littlefs" if b'littlefs' in header else "spiffs"
+    elif fs_subtype == 0x83:
+        fs_type = "littlefs"
+    else:
+        print(f"Error: Unknown partition subtype 0x{fs_subtype:02X}")
+        return 1
+    
+    print(f"\nDetected filesystem: {fs_type.upper()}")
+    
+    # Prepare unpack directory
+    unpack_path = _prepare_unpack_dir(unpack_dir)
+    
+    # Extract filesystem
+    try:
+        if fs_type == "littlefs":
+            return _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir)
+        elif fs_type == "spiffs":
+            return _extract_spiffs(fs_file, fs_size, unpack_path, unpack_dir)
+        elif fs_type == "fatfs":
+            return _extract_fatfs(fs_file, unpack_path, unpack_dir)
+    except Exception as e:
+        print(f"Error: {e}")
+        return 1
 
 
 
@@ -1899,7 +1883,10 @@ env.AddPlatformTarget(
 env.AddPlatformTarget(
     "download_fs",
     None,
-    download_fs,
+    [
+        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
+        env.VerboseAction(download_fs_action, "Downloading and extracting filesystem")
+    ],
     "Download and extract filesystem from device",
 )
 
