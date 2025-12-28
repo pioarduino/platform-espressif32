@@ -1345,29 +1345,153 @@ def download_fs(target, source, env):
         return 1
 
 
-def _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir):
-    """Extract LittleFS filesystem."""
-    block_size = 0x1000  # 4KB
+def _parse_littlefs_superblock(fs_data):
+    """Parse LittleFS superblock to extract filesystem parameters.
+    
+    The superblock is stored in blocks 0/1 as a metadata pair with:
+    - Name tag containing magic string "littlefs" (8 bytes)
+    - Inline-struct tag with format parameters (all 32-bit little-endian)
+    
+    Args:
+        fs_data: Raw filesystem image data (bytes or bytearray)
+        
+    Returns:
+        dict: Filesystem parameters or None on error
+        {
+            'version_major': int,
+            'version_minor': int,
+            'block_size': int,
+            'block_count': int,
+            'name_max': int,
+            'file_max': int,
+            'attr_max': int,
+        }
+    """
+    try:
+        # Search for littlefs magic string in first two blocks (try common block sizes)
+        for try_block_size in [4096, 512, 1024, 2048, 8192]:
+            max_search = min(len(fs_data), try_block_size * 2)
+            
+            # Look for the magic string "littlefs"
+            magic_offset = fs_data[:max_search].find(b'littlefs')
+            if magic_offset == -1:
+                continue
+            
+            # Found magic string, now parse the inline-struct tag that follows
+            # The superblock inline-struct starts right after the name tag
+            # Format: version(4) + block_size(4) + block_count(4) + name_max(4) + file_max(4) + attr_max(4)
+            # Skip past magic string and look for inline-struct tag
+            # LittleFS tags have a 4-byte header, then data
+            # We need to find the inline-struct tag containing the superblock parameters
+            # Typically the inline-struct follows the name tag
+            
+            # Try to parse starting from various offsets after the magic
+            for struct_offset in [magic_offset + 8, magic_offset + 12, magic_offset + 16]:
+                if struct_offset + 24 > len(fs_data):
+                    continue
+                
+                try:
+                    # Parse superblock fields (all 32-bit little-endian)
+                    version = struct.unpack('<I', fs_data[struct_offset:struct_offset + 4])[0]
+                    block_size = struct.unpack('<I', fs_data[struct_offset + 4:struct_offset + 8])[0]
+                    block_count = struct.unpack('<I', fs_data[struct_offset + 8:struct_offset + 12])[0]
+                    name_max = struct.unpack('<I', fs_data[struct_offset + 12:struct_offset + 16])[0]
+                    file_max = struct.unpack('<I', fs_data[struct_offset + 16:struct_offset + 20])[0]
+                    attr_max = struct.unpack('<I', fs_data[struct_offset + 20:struct_offset + 24])[0]
+                    
+                    # Validate that values are reasonable
+                    version_major = (version >> 16) & 0xFFFF
+                    version_minor = version & 0xFFFF
+                    
+                    # Sanity checks
+                    if (block_size in [512, 1024, 2048, 4096, 8192, 16384] and
+                        block_count > 0 and block_count < 0x10000000 and
+                        name_max > 0 and name_max <= 1022 and
+                        version_major > 0 and version_major <= 10):
+                        
+                        print(f"\nDetected LittleFS parameters from superblock:")
+                        print(f"  Version: {version_major}.{version_minor}")
+                        print(f"  Block size: {block_size} bytes")
+                        print(f"  Block count: {block_count}")
+                        print(f"  Max filename length: {name_max}")
+                        print(f"  Max file size: {file_max}")
+                        print(f"  Max attributes: {attr_max}")
+                        
+                        return {
+                            'version_major': version_major,
+                            'version_minor': version_minor,
+                            'block_size': block_size,
+                            'block_count': block_count,
+                            'name_max': name_max,
+                            'file_max': file_max,
+                            'attr_max': attr_max,
+                        }
+                except struct.error:
+                    continue
+    
+    except Exception as e:
+        print(f"Warning: Failed to parse LittleFS superblock: {e}")
+    
+    return None
 
+
+def _extract_littlefs(fs_file, fs_size, unpack_path, unpack_dir):
+    """Extract LittleFS filesystem with auto-detected parameters."""
     # Read the downloaded filesystem image
     with open(fs_file, 'rb') as f:
         fs_data = f.read()
 
-    # Calculate block count
-    block_count = fs_size // block_size
+    # Try to auto-detect filesystem parameters from superblock
+    superblock = _parse_littlefs_superblock(fs_data)
+    
+    if superblock:
+        # Use detected parameters
+        block_size = superblock['block_size']
+        block_count = superblock['block_count']
+        name_max = superblock['name_max']
+        print(f"\nUsing auto-detected LittleFS parameters")
+    else:
+        # Fall back to defaults
+        print(f"\nWarning: Could not auto-detect LittleFS parameters, using defaults")
+        block_size = 0x1000  # 4KB default
+        block_count = fs_size // block_size
+        name_max = 64
+        print(f"  Block size: {block_size} bytes (default)")
+        print(f"  Block count: {block_count} (calculated)")
+        print(f"  Max filename length: {name_max} (default)")
 
     # Create LittleFS instance and mount the image
-    fs = LittleFS(
-        block_size=block_size,
-        block_count=block_count,
-        mount=False
-    )
-    fs.context.buffer = bytearray(fs_data)
-    fs.mount()
+    try:
+        fs = LittleFS(
+            block_size=block_size,
+            block_count=block_count,
+            name_max=name_max,
+            mount=False
+        )
+        fs.context.buffer = bytearray(fs_data)
+        fs.mount()
+    except Exception as e:
+        # If mount fails with detected parameters, try defaults
+        if superblock:
+            print(f"\nWarning: Mount failed with detected parameters: {e}")
+            print("Retrying with default parameters...")
+            block_size = 0x1000
+            block_count = fs_size // block_size
+            name_max = 64
+            fs = LittleFS(
+                block_size=block_size,
+                block_count=block_count,
+                name_max=name_max,
+                mount=False
+            )
+            fs.context.buffer = bytearray(fs_data)
+            fs.mount()
+        else:
+            raise
 
     # Extract all files
     file_count = 0
-    print("Extracted files:")
+    print("\nExtracted files:")
     for root, dirs, files in fs.walk("/"):
         if not root.endswith("/"):
             root += "/"
