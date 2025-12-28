@@ -37,7 +37,7 @@ pioarduino provides native support for multiple filesystem options, allowing you
 
 - **LittleFS** (default) - Modern wear-leveling filesystem designed specifically for flash memory. Offers excellent reliability and performance for ESP32 projects.
 - **SPIFFS** - Simple legacy filesystem. While still functional, LittleFS is recommended for new projects due to better wear-leveling and reliability.
-- **FatFS** - Industry-standard FAT filesystem with broad compatibility across platforms and operating systems. Ideal when you need to share data with SD cards or external systems.
+- **FatFS** - Industry-standard FAT filesystem with broad compatibility across platforms and operating systems.
 
 ### FatFS Integration
 
