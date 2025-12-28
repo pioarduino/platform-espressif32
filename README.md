@@ -33,9 +33,10 @@ The Wiki is AI generated and insane detailed and accurate.
 
 ## Filesystem Support
 
-This platform supports two native Python filesystem options integrated in Build system menu:
+The platform natively supports following filesytems:
 
 - **LittleFS** (default) - Wear-leveling filesystem optimized for flash memory
+- **SPIFFS** (outdated) - Legacy MCU filesystem
 - **FatFS** - Standard FAT filesystem with broad compatibility
 
 ### FatFS Integration
