@@ -728,7 +728,6 @@ def build_fatfs_image(target, source, env):
         print(f"  Number of FATs: {num_fats}")
         print(f"  Sectors per FAT: {sectors_per_fat}")
         print(f"  Total sectors: {total_sectors}")
-        print(f"  ✓ Boot sector parameters validated")
         
         # Wrap FAT image with ESP-IDF wear leveling layer
         # This uses the fatfs-ng module's ESP32WearLeveling implementation
@@ -740,7 +739,7 @@ def build_fatfs_image(target, source, env):
 
         wl_image = create_esp32_wl_image(bytes(storage), fs_size, sector_size)
         
-        print(f"  ✓ WL-wrapped image created ({len(wl_image)} bytes)")
+        print(f"  WL-wrapped image created ({len(wl_image)} bytes)")
 
         # Write WL-wrapped image to file
         with open(target_file, "wb") as f:
@@ -1310,13 +1309,11 @@ def download_fs(target, source, env):
                 # Check for "littlefs" ASCII string
                 if b'littlefs' in header:
                     fs_type = "littlefs"
-                    print("  ✓ Found 'littlefs' signature - detected as LittleFS")
                 else:
                     fs_type = "spiffs"
-                    print("  ✓ No LittleFS signature found - detected as SPIFFS")
         except Exception as e:
-            print(f"  ✗ Error reading filesystem signature: {e}")
-            print("  Defaulting to SPIFFS")
+            print(f"Error reading filesystem signature: {e}")
+            print(" Defaulting to SPIFFS")
             fs_type = "spiffs"
     elif fs_subtype == 0x83:
         # LittleFS partition
