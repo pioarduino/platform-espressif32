@@ -1519,21 +1519,55 @@ def download_fs_action(target, source, env):
     if fs_file is None:
         return 1
     
-    # Detect filesystem type
-    fs_type = None
-    if fs_subtype == 0x81:
-        fs_type = "fatfs"
-    elif fs_subtype == 0x82:
-        with open(fs_file, 'rb') as f:
-            header = f.read(8192)
-            fs_type = "littlefs" if b'littlefs' in header else "spiffs"
-    elif fs_subtype == 0x83:
-        fs_type = "littlefs"
-    else:
-        print(f"Error: Unknown partition subtype 0x{fs_subtype:02X}")
-        return 1
+    # Read header for detailed filesystem detection
+    with open(fs_file, 'rb') as f:
+        header = f.read(16384)  # Read more to check for offset FAT
     
-    print(f"\nDetected filesystem: {fs_type.upper()}")
+    # Detect filesystem type with improved logic
+    fs_type = None
+    
+    # 1. Check for LittleFS magic at offset 8 of the superblock
+    if len(header) >= 16 and header[8:16] == b'littlefs':
+        fs_type = "littlefs"
+    
+    # 2. Check for FAT filesystem (with or without Wear Leveling)
+    if fs_type is None:
+        # Check multiple possible offsets for FAT boot sector
+        # ESP32 with WL often has FAT at offset 0x1000 (4096)
+        fat_offsets = [0, 4096, 8192]
+        
+        for offset in fat_offsets:
+            if len(header) >= offset + 512:
+                boot_sector = header[offset:offset+512]
+                
+                # Check for FAT boot signature at offset 510-511
+                if boot_sector[510:512] == b'\x55\xAA':
+                    # Additional validation: check for FAT filesystem markers
+                    # Check for "FAT" string or "MSDOS" in boot sector
+                    if (b'FAT' in boot_sector[0:90] or 
+                        b'MSDOS' in boot_sector[0:90] or
+                        b'MSWIN' in boot_sector[0:90]):
+                        # Verify bytes per sector
+                        bytes_per_sector = int.from_bytes(boot_sector[11:13], byteorder='little')
+                        if bytes_per_sector in [512, 1024, 2048, 4096]:
+                            fs_type = "fatfs"
+                            print(f"  FAT boot sector found at offset 0x{offset:x}")
+                            break
+    
+    # 3. Fall back to partition table subtype if no clear signature found
+    if fs_type is None:
+        if fs_subtype == 0x81:
+            fs_type = "fatfs"
+        elif fs_subtype == 0x82:
+            # Subtype 0x82 can be either SPIFFS or LittleFS, default to SPIFFS
+            fs_type = "spiffs"
+        elif fs_subtype == 0x83:
+            fs_type = "littlefs"
+        else:
+            print(f"Warning: Unknown partition subtype 0x{fs_subtype:02X}, defaulting to SPIFFS")
+            fs_type = "spiffs"
+    
+    print(f"\nDetected filesystem: {fs_type.upper()} (partition subtype: 0x{fs_subtype:02X})")
     
     # Prepare unpack directory
     unpack_path = _prepare_unpack_dir(unpack_dir)
