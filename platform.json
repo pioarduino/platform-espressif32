@@ -115,7 +115,7 @@
       "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/contrib-piohome-3.4.4.tar.gz"
     },
     "tool-dfuutil-arduino": {
-      "type": "uploader",
+      "type": "tool",
       "optional": true,
       "owner": "pioarduino",
       "package-version": "1.11.0",

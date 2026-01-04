@@ -40,7 +40,6 @@ import logging
 import os
 import requests
 import shutil
-import socket
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Union
@@ -720,8 +719,8 @@ class Espressif32Platform(PlatformBase):
 
     def _handle_dfuutil_tool(self, variables: Dict) -> None:
         """Install dfuutil tool for Arduino Nano ESP32 board."""
-        # Only Arduino Nano ESP32 uses the dfuutil tool as uploader
-        uploader = variables.get("board_upload.protocol", "esptool")
+        board_config = self.board_config(variables.get("board"))
+        uploader = variables.get("board_upload.protocol", board_config.get("upload.protocol", "esptool"))
         if uploader == "dfu":
             self.install_tool("tool-dfuutil-arduino")
 
