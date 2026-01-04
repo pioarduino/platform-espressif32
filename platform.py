@@ -718,9 +718,9 @@ class Espressif32Platform(PlatformBase):
             if any(tool in package for tool in check_tools):
                 self.install_tool(package)
 
-    def _handle_dfuutil_tool(self, variables: Dict, for_download: bool = False) -> None:
+    def _handle_dfuutil_tool(self, variables: Dict) -> None:
         """Install dfuutil tool for Arduino Nano ESP32 board."""
-        # Currently only Arduino Nano ESP32 uses the dfuutil tool as uploader
+        # Only Arduino Nano ESP32 uses the dfuutil tool as uploader
         if variables.get("board") == "arduino_nano_esp32":
             self.install_tool("tool-dfuutil-arduino")
 
