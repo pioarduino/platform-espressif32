@@ -1481,13 +1481,23 @@ def _extract_fatfs(fs_file, unpack_path, unpack_dir):
     # Extract all files using PartitionExtended.walk() and read_file()
     print("Extracting files:\n")
     extracted_count = 0
-    for root, _dirs, files in partition.walk("/"):
-        # Create directories
-        rel_root = root[1:] if root.startswith("/") else root
-        abs_root = unpack_path / rel_root
-        abs_root.mkdir(parents=True, exist_ok=True)
+    for root, dirs, files in partition.walk("/"):
+        # Determine target directory
+        if root == "/":
+            abs_root = unpack_path
+        else:
+            rel_root = root[1:] if root.startswith("/") else root
+            abs_root = unpack_path / rel_root
+            abs_root.mkdir(parents=True, exist_ok=True)
+        
+        # Extract files in current directory
         for filename in files:
-            src_file = root.rstrip("/") + "/" + filename if root != "/" else "/" + filename
+            # Construct source path
+            if root == "/":
+                src_file = "/" + filename
+            else:
+                src_file = root.rstrip("/") + "/" + filename
+            
             dst_file = abs_root / filename
             try:
                 data = partition.read_file(src_file)
