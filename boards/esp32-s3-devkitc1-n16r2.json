@@ -44,7 +44,7 @@
   ],
   "name": "Espressif ESP32-S3-DevKitC-1-N16R2 (16 MB Flash Quad, 2 MB PSRAM Quad)",
   "upload": {
-    "flash_size": "8MB",
+    "flash_size": "16MB",
     "maximum_ram_size": 327680,
     "maximum_size": 16777216,
     "require_upload_port": true,
