@@ -29,8 +29,35 @@ Prerequisites:
 [pioarduino Wiki](https://deepwiki.com/pioarduino/platform-espressif32)
 The Wiki is AI generated and insane detailed and accurate.
 
+# Features
+
+## Filesystem Support
+
+pioarduino provides native support for multiple filesystem options, allowing you to choose the best solution for your project's needs:
+
+- **LittleFS** (default) - Modern wear-leveling filesystem designed specifically for flash memory. Offers excellent reliability and performance for ESP32 projects.
+- **SPIFFS** - Simple legacy filesystem. While still functional, LittleFS is recommended for new projects due to better wear-leveling and reliability.
+- **FatFS** - Industry-standard FAT filesystem with broad compatibility across platforms and operating systems.
+
+**Quick Start:**
+
+```ini
+[env:myenv]
+board_build.filesystem = fatfs
+```
+
+**Available Commands:**
+
+```bash
+pio run -t buildfs        # Build FatFS image
+pio run -t uploadfs       # Upload FatFS image
+pio run -t download_fatfs # Download and extract FatFS from device
+```
+
+See the [arduino-fatfs example](examples/arduino-fatfs/) for a complete working example.
+
 ### Stable Arduino
-currently espressif Arduino 3.3.5 and IDF 5.5.1.251215
+currently espressif Arduino 3.3.6 and IDF 5.5.2+
 
 ```ini
 [env:stable]

@@ -18,7 +18,7 @@
     "type": "git",
     "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "55.03.35",
+  "version": "55.03.36",
   "frameworks": {
     "arduino": {
       "script": "builder/frameworks/arduino.py"
@@ -33,31 +33,31 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.5/esp32-3.3.5.tar.xz"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.6/esp32-core-3.3.6.tar.xz"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.5/esp32-3.3.5-libs.tar.xz"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.6/esp32-core-3.3.6-libs.tar.xz"
     },
     "framework-arduino-c2-skeleton-lib": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c2-skeleton/c2_8410210c9a_compile_skeleton.zip"
+      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c2-skeleton/c2_366dadf354_compile_skeleton.zip"
     },
     "framework-arduino-c61-skeleton-lib": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c61-skeleton/c61_d1e854920a_compile_skeleton.zip"
+      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c61-skeleton/c61_366dadf354_compile_skeleton.zip"
     },
     "framework-espidf": {
       "type": "framework",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.5.1.251215/esp-idf-v5.5.1.tar.xz"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.5.2.260116/esp-idf-v5.5.2.tar.xz"
     },
     "toolchain-xtensa-esp-elf": {
       "type": "toolchain",
@@ -115,7 +115,7 @@
       "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/contrib-piohome-3.4.4.tar.gz"
     },
     "tool-dfuutil-arduino": {
-      "type": "uploader",
+      "type": "tool",
       "optional": true,
       "owner": "pioarduino",
       "package-version": "1.11.0",
@@ -125,36 +125,8 @@
       "type": "debugger",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "2.1200.20250707",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20250707.zip"
-    },
-    "tool-mklittlefs": {
-      "type": "uploader",
-      "optional": true,
-      "owner": "pioarduino",
-      "package-version": "3.2.0",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/mklittlefs-3.2.0-new.zip"
-    },
-    "tool-mklittlefs4": {
-      "type": "uploader",
-      "optional": true,
-      "owner": "pioarduino",
-      "package-version": "4.0.2",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/mklittlefs-4.0.2.zip"
-    },
-    "tool-mkspiffs": {
-      "type": "uploader",
-      "optional": true,
-      "owner": "pioarduino",
-      "package-version": "2.230.0",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/mkspiffs-v2.230.0.zip"
-   },
-    "tool-mkfatfs": {
-      "type": "uploader",
-      "optional": true,
-      "owner": "pioarduino",
-      "package-version": "2.0.1",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/mkfatfs-v2.0.1.zip"
+      "package-version": "2.1200.20251215",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20251215.zip"
     },
     "tool-cppcheck": {
       "type": "tool",

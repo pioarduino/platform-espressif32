@@ -1,0 +1,2 @@
+Hello from LittleFS!
+This is a test file.
