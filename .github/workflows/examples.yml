@@ -20,7 +20,7 @@ jobs:
           - "examples/arduino-usb-keyboard"
           - "examples/arduino-wifiscan"
           - "examples/arduino-zigbee-light"
-#          - "examples/arduino-zigbee-switch"
+          - "examples/arduino-zigbee-switch"
           - "examples/arduino-NimBLE-SampleScan"
           - "examples/arduino-matter-light"
           - "examples/tasmota"
