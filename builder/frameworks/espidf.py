@@ -477,7 +477,7 @@ def HandleArduinoIDFsettings(env):
             psram_compile_freq = f_psram if f_psram else f_flash
 
             if chip_variant == "esp32p4_es":
-                print(f"Info: Detected ESP32-P4 ES variant, applying revision-based compatibility flags")
+                print("Info: Detected ESP32-P4 ES variant, applying revision-based compatibility flags")
                 board_config_flags.append("CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y")
                 board_config_flags.append("# CONFIG_ESP32P4_REV_MIN_0 is not set")
                 board_config_flags.append("CONFIG_ESP32P4_REV_MIN_1=y")
