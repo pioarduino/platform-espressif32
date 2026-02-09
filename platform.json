@@ -45,19 +45,19 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c2-skeleton/c2_366dadf354_compile_skeleton.zip"
+      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c2-skeleton/c2_87912cd291_compile_skeleton.zip"
     },
     "framework-arduino-c61-skeleton-lib": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c61-skeleton/c61_366dadf354_compile_skeleton.zip"
+      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c61-skeleton/c61_87912cd291_compile_skeleton.zip"
     },
     "framework-espidf": {
       "type": "framework",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.5.2.260116/esp-idf-v5.5.2.tar.xz"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v5.5.2.260206/esp-idf-v5.5.2.tar.xz"
     },
     "toolchain-xtensa-esp-elf": {
       "type": "toolchain",
