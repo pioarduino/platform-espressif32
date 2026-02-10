@@ -610,7 +610,7 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable, uv_cac
         platform: PlatformIO platform object  
         python_exe (str): Path to Python executable in virtual environment
         uv_executable (str): Path to uv executable
-        uv_cache_dir: Optional path to uv cache directory (e.g. inside build folder)
+        uv_cache_dir: Optional path to uv cache directory
     
     Raises:
         SystemExit: If esptool installation fails or package directory not found
