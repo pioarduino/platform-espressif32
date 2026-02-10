@@ -219,13 +219,14 @@ def get_packages_to_install(deps, installed_packages):
                 yield package
 
 
-def install_python_deps(python_exe, external_uv_executable):
+def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
     """
     Ensure uv package manager is available in penv and install required Python dependencies.
     
     Args:
         python_exe: Path to Python executable in the penv
         external_uv_executable: Path to external uv executable used to create the penv (can be None)
+        uv_cache_dir: Optional path to uv cache directory (e.g. inside build folder)
     
     Returns:
         bool: True if successful, False otherwise
@@ -233,6 +234,12 @@ def install_python_deps(python_exe, external_uv_executable):
     # Get the penv directory to locate uv within it
     penv_dir = os.path.dirname(os.path.dirname(python_exe))
     penv_uv_executable = get_executable_path(penv_dir, "uv")
+
+    # Build subprocess environment with UV_CACHE_DIR if specified
+    uv_env = None
+    if uv_cache_dir:
+        uv_env = dict(os.environ)
+        uv_env["UV_CACHE_DIR"] = str(uv_cache_dir)
     
     # Check if uv is available in the penv
     uv_in_penv_available = False
@@ -256,7 +263,8 @@ def install_python_deps(python_exe, external_uv_executable):
                     [external_uv_executable, "pip", "install", "uv>=0.1.0", f"--python={python_exe}", "--quiet"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.STDOUT,
-                    timeout=300
+                    timeout=300,
+                    env=uv_env
                 )
             except subprocess.CalledProcessError as e:
                 print(f"Error: uv installation failed with exit code {e.returncode}")
@@ -308,7 +316,8 @@ def install_python_deps(python_exe, external_uv_executable):
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
-                timeout=300
+                timeout=300,
+                env=uv_env
             )
             
             if result_obj.returncode == 0:
@@ -356,7 +365,8 @@ def install_python_deps(python_exe, external_uv_executable):
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT,
-                timeout=300
+                timeout=300,
+                env=uv_env
             )
                 
         except subprocess.CalledProcessError as e:
@@ -375,7 +385,7 @@ def install_python_deps(python_exe, external_uv_executable):
     return True
 
 
-def install_esptool(env, platform, python_exe, uv_executable):
+def install_esptool(env, platform, python_exe, uv_executable, uv_cache_dir=None):
     """
     Install esptool from package folder "tool-esptoolpy" using uv package manager.
     Ensures esptool is installed from the specific tool-esptoolpy package directory.
@@ -385,6 +395,7 @@ def install_esptool(env, platform, python_exe, uv_executable):
         platform: PlatformIO platform object  
         python_exe (str): Path to Python executable in virtual environment
         uv_executable (str): Path to uv executable
+        uv_cache_dir: Optional path to uv cache directory (e.g. inside build folder)
     
     Raises:
         SystemExit: If esptool installation fails or package directory not found
@@ -395,6 +406,12 @@ def install_esptool(env, platform, python_exe, uv_executable):
             f"Error: 'tool-esptoolpy' package directory not found: {esptool_repo_path!r}\n"
         )
         sys.exit(1)
+
+    # Build subprocess environment with UV_CACHE_DIR if specified
+    uv_env = None
+    if uv_cache_dir:
+        uv_env = dict(os.environ)
+        uv_env["UV_CACHE_DIR"] = str(uv_cache_dir)
 
     # Check if esptool is already installed from the correct path
     try:
@@ -427,7 +444,7 @@ def install_esptool(env, platform, python_exe, uv_executable):
             uv_executable, "pip", "install", "--quiet", "--force-reinstall",
             f"--python={python_exe}",
             "-e", esptool_repo_path
-        ], timeout=60)
+        ], timeout=60, env=uv_env)
 
     except subprocess.CalledProcessError as e:
         sys.stderr.write(
@@ -468,6 +485,17 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
         tuple[str, str]: (Path to penv Python executable, Path to esptool script)
     """
     penv_dir = str(Path(platformio_dir) / "penv")
+
+    # Determine uv cache directory inside the project build folder
+    uv_cache_dir = None
+    try:
+        from platformio.project.config import ProjectConfig
+        config = ProjectConfig.get_instance()
+        build_dir = config.get("platformio", "build_dir")
+        if build_dir:
+            uv_cache_dir = str(Path(build_dir) / ".uv-cache")
+    except Exception:
+        pass
     
     # Create virtual environment if not present
     if env is not None:
@@ -498,7 +526,7 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
 
     # Install required Python dependencies for ESP32 platform
     if has_internet_connection() or github_actions:
-        if not install_python_deps(penv_python, used_uv_executable):
+        if not install_python_deps(penv_python, used_uv_executable, uv_cache_dir):
             sys.stderr.write("Error: Failed to install Python dependencies into penv\n")
             sys.exit(1)
     else:
@@ -508,10 +536,10 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
     if should_install_esptool:
         if env is not None:
             # SCons version
-            install_esptool(env, platform, penv_python, uv_executable)
+            install_esptool(env, platform, penv_python, uv_executable, uv_cache_dir)
         else:
             # Minimal setup - install esptool from tool package
-            _install_esptool_from_tl_install(platform, penv_python, uv_executable)
+            _install_esptool_from_tl_install(platform, penv_python, uv_executable, uv_cache_dir)
 
     # Setup certifi environment variables
     _setup_certifi_env(env, penv_python)
@@ -582,7 +610,7 @@ def _setup_pipenv_minimal(penv_dir):
     return None
 
 
-def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
+def _install_esptool_from_tl_install(platform, python_exe, uv_executable, uv_cache_dir=None):
     """
     Install esptool from tl-install provided path into penv.
     
@@ -590,6 +618,7 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
         platform: PlatformIO platform object  
         python_exe (str): Path to Python executable in virtual environment
         uv_executable (str): Path to uv executable
+        uv_cache_dir: Optional path to uv cache directory (e.g. inside build folder)
     
     Raises:
         SystemExit: If esptool installation fails or package directory not found
@@ -598,6 +627,12 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
     esptool_repo_path = platform.get_package_dir("tool-esptoolpy") or ""
     if not esptool_repo_path or not os.path.isdir(esptool_repo_path):
         return (None, None)
+
+    # Build subprocess environment with UV_CACHE_DIR if specified
+    uv_env = None
+    if uv_cache_dir:
+        uv_env = dict(os.environ)
+        uv_env["UV_CACHE_DIR"] = str(uv_cache_dir)
 
     # Check if esptool is already installed from the correct path
     try:
@@ -630,7 +665,7 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable):
             uv_executable, "pip", "install", "--quiet", "--force-reinstall",
             f"--python={python_exe}",
             "-e", esptool_repo_path
-        ], timeout=60)
+        ], timeout=60, env=uv_env)
         print(f"Installed esptool from tl-install path: {esptool_repo_path}")
 
     except subprocess.CalledProcessError as e:
