@@ -226,7 +226,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
     Args:
         python_exe: Path to Python executable in the penv
         external_uv_executable: Path to external uv executable used to create the penv (can be None)
-        uv_cache_dir: Optional path to uv cache directory (e.g. inside build folder)
+        uv_cache_dir: Optional path to uv cache directory
     
     Returns:
         bool: True if successful, False otherwise
@@ -395,7 +395,7 @@ def install_esptool(env, platform, python_exe, uv_executable, uv_cache_dir=None)
         platform: PlatformIO platform object  
         python_exe (str): Path to Python executable in virtual environment
         uv_executable (str): Path to uv executable
-        uv_cache_dir: Optional path to uv cache directory (e.g. inside build folder)
+        uv_cache_dir: Optional path to uv cache directory
     
     Raises:
         SystemExit: If esptool installation fails or package directory not found
