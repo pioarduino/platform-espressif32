@@ -486,16 +486,8 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
     """
     penv_dir = str(Path(platformio_dir) / "penv")
 
-    # Determine uv cache directory inside the project build folder
-    uv_cache_dir = None
-    try:
-        from platformio.project.config import ProjectConfig
-        config = ProjectConfig.get_instance()
-        build_dir = config.get("platformio", "build_dir")
-        if build_dir:
-            uv_cache_dir = str(Path(build_dir) / ".uv-cache")
-    except Exception:
-        pass
+    # Determine uv cache directory inside .platformio/.cache
+    uv_cache_dir = str(Path(platformio_dir) / ".cache" / "uv")
     
     # Create virtual environment if not present
     if env is not None:
