@@ -260,7 +260,7 @@ def install_python_deps(python_exe, external_uv_executable):
                 )
                 uv_in_penv_available = True
             except Exception:
-                pass
+                print("Warning: uv installation via external uv failed, falling back to pip")
 
         if not uv_in_penv_available:
             # Fallback to pip to install uv into penv
