@@ -14,11 +14,19 @@
 
 # Python Version Check
 import sys
+from platformio.compat import IS_WINDOWS
 
-if not ((3, 10) <= sys.version_info < (3, 14)):
-    print("ERROR: Python version must be between 3.10 and 3.13.", file=sys.stderr)
-    print(f"Current Python version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}", file=sys.stderr)
-    print("Supported versions: 3.10, 3.11, 3.12, 3.13", file=sys.stderr)
+pyver = sys.version_info
+if IS_WINDOWS:
+    allowed = (3, 10) <= pyver < (3, 14)
+    supported = "3.10, 3.11, 3.12, 3.13"
+else:
+    allowed = (3, 10) <= pyver < (3, 15)
+    supported = "3.10, 3.11, 3.12, 3.13, 3.14"
+if not allowed:
+    print(f"ERROR: Python version must be {supported}.", file=sys.stderr)
+    print(f"Current Python version: {pyver.major}.{pyver.minor}.{pyver.micro}", file=sys.stderr)
+    print(f"Supported versions: {supported}", file=sys.stderr)
     raise SystemExit(1)
 
 # LZMA support check
@@ -44,7 +52,6 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Union
 
-from platformio.compat import IS_WINDOWS
 from platformio.public import PlatformBase, to_unix_path
 from platformio.proc import get_pythonexe_path
 from platformio.project.config import ProjectConfig
