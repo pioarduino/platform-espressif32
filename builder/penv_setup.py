@@ -257,7 +257,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
     # Install uv into penv if not available
     if not uv_in_penv_available:
         if external_uv_executable:
-            # Use external uv to install uv into the penv
+            # Try external uv first to install uv into the penv
             try:
                 subprocess.check_call(
                     [external_uv_executable, "pip", "install", "uv>=0.1.0", f"--python={python_exe}", "--quiet"],
@@ -266,20 +266,12 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
                     timeout=300,
                     env=uv_env
                 )
-            except subprocess.CalledProcessError as e:
-                print(f"Error: uv installation failed with exit code {e.returncode}")
-                return False
-            except subprocess.TimeoutExpired:
-                print("Error: uv installation timed out")
-                return False
-            except FileNotFoundError:
-                print("Error: External uv executable not found")
-                return False
-            except Exception as e:
-                print(f"Error installing uv package manager into penv: {e}")
-                return False
-        else:
-            # No external uv available, use pip to install uv into penv
+                uv_in_penv_available = True
+            except Exception:
+                print("Warning: uv installation via external uv failed, falling back to pip")
+
+        if not uv_in_penv_available:
+            # Fallback to pip to install uv into penv
             try:
                 subprocess.check_call(
                     [python_exe, "-m", "pip", "install", "uv>=0.1.0", "--quiet"],
