@@ -154,17 +154,18 @@ def install_uv_fallback():
                 str(Path.home() / ".cargo" / "bin" / "uv.exe"),
             ]
             
-            # Also check PATH
-            uv_in_path = shutil.which("uv")
-            if uv_in_path:
-                print(f"Successfully installed uv using official installer: {uv_in_path}")
-                return uv_in_path
-                
+            # Check known install locations first
             for path in possible_paths:
                 if os.path.isfile(path):
                     print(f"Successfully installed uv using official installer: {path}")
                     return path
-                    
+
+            # Fall back to PATH lookup
+            uv_in_path = shutil.which("uv")
+            if uv_in_path:
+                print(f"Successfully installed uv using official installer: {uv_in_path}")
+                return uv_in_path
+
         else:
             # Unix-like systems (Linux, macOS)
             install_url = "https://astral.sh/uv/install.sh"
