@@ -14,7 +14,6 @@
 
 import json
 import os
-import platform
 import re
 import semantic_version
 import shutil
@@ -125,10 +124,9 @@ def install_uv_fallback():
     Returns:
         str or None: Path to uv executable if successful, None otherwise
     """
-    system = platform.system()
     
     try:
-        if system == "Windows":
+        if IS_WINDOWS:
             # Windows installation using PowerShell script
             ps_script = 'irm https://astral.sh/uv/install.ps1 | iex'
             cmd = [
