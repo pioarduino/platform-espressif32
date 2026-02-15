@@ -14,8 +14,10 @@
 
 import json
 import os
+import platform
 import re
 import semantic_version
+import shutil
 import site
 import socket
 import subprocess
@@ -111,6 +113,125 @@ def get_executable_path(penv_dir, executable_name):
     scripts_dir = "Scripts" if IS_WINDOWS else "bin"
     
     return str(Path(penv_dir) / scripts_dir / f"{executable_name}{exe_suffix}")
+
+
+def install_uv_fallback():
+    """
+    Fallback method to install uv using official installation scripts.
+    Uses platform-specific installation methods:
+    - Linux/macOS: curl or wget to download and execute install.sh
+    - Windows: PowerShell script install.ps1
+    
+    Returns:
+        str or None: Path to uv executable if successful, None otherwise
+    """
+    system = platform.system()
+    
+    try:
+        if system == "Windows":
+            # Windows installation using PowerShell script
+            ps_script = 'irm https://astral.sh/uv/install.ps1 | iex'
+            cmd = [
+                "powershell.exe",
+                "-ExecutionPolicy", "ByPass",
+                "-NoProfile",
+                "-Command", ps_script
+            ]
+            
+            print("Attempting to install uv using official Windows installer...")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300
+            )
+            
+            if result.returncode != 0:
+                print(f"Warning: uv installation failed: {result.stderr}")
+                return None
+                
+            # Check for uv in common Windows locations
+            possible_paths = [
+                str(Path.home() / ".local" / "bin" / "uv.exe"),
+                str(Path.home() / ".cargo" / "bin" / "uv.exe"),
+            ]
+            
+            # Also check PATH
+            uv_in_path = shutil.which("uv")
+            if uv_in_path:
+                print(f"Successfully installed uv using official installer: {uv_in_path}")
+                return uv_in_path
+                
+            for path in possible_paths:
+                if os.path.isfile(path):
+                    print(f"Successfully installed uv using official installer: {path}")
+                    return path
+                    
+        else:
+            # Unix-like systems (Linux, macOS)
+            install_url = "https://astral.sh/uv/install.sh"
+            
+            # Try curl first (most common)
+            if shutil.which("curl"):
+                print("Attempting to install uv using official installer (curl)...")
+                cmd = f"curl -LsSf {install_url} | sh"
+                result = subprocess.run(
+                    cmd,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=300
+                )
+            # Fallback to wget if curl is not available
+            elif shutil.which("wget"):
+                print("Attempting to install uv using official installer (wget)...")
+                cmd = f"wget -qO- {install_url} | sh"
+                result = subprocess.run(
+                    cmd,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=300
+                )
+            else:
+                print("Warning: Neither curl nor wget available for uv installation")
+                return None
+            
+            if result.returncode != 0:
+                print(f"Warning: uv installation failed: {result.stderr}")
+                return None
+            
+            # Check for uv in common Unix locations
+            possible_paths = [
+                str(Path.home() / ".local" / "bin" / "uv"),
+                str(Path.home() / ".cargo" / "bin" / "uv"),
+            ]
+            
+            # Check XDG_BIN_HOME if set
+            xdg_bin = os.getenv("XDG_BIN_HOME")
+            if xdg_bin:
+                possible_paths.insert(0, str(Path(xdg_bin) / "uv"))
+            
+            # Also check PATH
+            uv_in_path = shutil.which("uv")
+            if uv_in_path:
+                print(f"Successfully installed uv using official installer: {uv_in_path}")
+                return uv_in_path
+            
+            for path in possible_paths:
+                if os.path.isfile(path):
+                    print(f"Successfully installed uv using official installer: {path}")
+                    return path
+        
+        print("Warning: uv installation script completed but uv executable not found")
+        return None
+        
+    except subprocess.TimeoutExpired:
+        print("Warning: uv installation timed out")
+        return None
+    except Exception as e:
+        print(f"Warning: uv installation failed with error: {e}")
+        return None
 
 
 def setup_pipenv_in_package(env, penv_dir):
@@ -279,17 +400,32 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
                     stderr=subprocess.STDOUT,
                     timeout=300
                 )
-            except subprocess.CalledProcessError as e:
-                print(f"Error: uv installation via pip failed with exit code {e.returncode}")
-                return False
-            except subprocess.TimeoutExpired:
-                print("Error: uv installation via pip timed out")
-                return False
-            except FileNotFoundError:
-                print("Error: Python executable not found")
-                return False
+                uv_in_penv_available = True
             except Exception as e:
-                print(f"Error installing uv package manager via pip: {e}")
+                print(f"Warning: uv installation via pip failed: {e}")
+        
+        # Ultimate fallback: Use official installation scripts
+        if not uv_in_penv_available:
+            print("Attempting ultimate fallback: official uv installation script...")
+            system_uv_path = install_uv_fallback()
+            
+            if system_uv_path:
+                # Try to use the system-installed uv to install uv into penv
+                try:
+                    subprocess.check_call(
+                        [system_uv_path, "pip", "install", "uv>=0.1.0", f"--python={python_exe}", "--quiet"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.STDOUT,
+                        timeout=300,
+                        env=uv_env
+                    )
+                    uv_in_penv_available = True
+                    print("Successfully installed uv into penv using system uv")
+                except Exception as e:
+                    print(f"Error: Failed to install uv into penv using system uv: {e}")
+            
+            if not uv_in_penv_available:
+                print("Error: All uv installation methods failed")
                 return False
 
     
