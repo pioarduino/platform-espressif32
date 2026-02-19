@@ -1,7 +1,6 @@
 {
   "build": {
     "partitions": "default_8MB.csv",
-    "memory_type": "qio_qspi",
     "core": "esp32",
     "extra_flags": [
       "-DARDUINO_XIAO_ESP32C5",
@@ -12,7 +11,6 @@
     "f_cpu": "240000000L",
     "f_flash": "80000000L",
     "flash_mode": "qio",
-    "psram_type": "qspi",
     "hwids": [
       [
         "0x303a",
