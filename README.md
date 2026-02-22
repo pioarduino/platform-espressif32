@@ -60,6 +60,59 @@ pio run -t download_fatfs # Download and extract FatFS from device
 
 See the [arduino-fatfs example](examples/arduino-fatfs/) for a complete working example.
 
+## sdkconfig Configuration
+
+ESP-IDF projects use `sdkconfig` files to configure the build. By default, pioarduino generates `sdkconfig.<env>` (e.g. `sdkconfig.esp32dev` for `[env:esp32dev]`). This file contains the full merged configuration — typically 2000+ lines of IDF defaults — and is a build artifact, not a source file.
+
+### Recommended: use sdkconfig defaults files
+
+Instead of checking in the full generated `sdkconfig.<env>`, keep small defaults files that contain only the settings you intentionally override:
+
+```ini
+[env:myenv]
+board_build.cmake_extra_args = -DSDKCONFIG_DEFAULTS="sdkconfig.defaults"
+```
+
+Your `sdkconfig.defaults` might be just a few lines:
+
+```
+CONFIG_ULP_COPROC_ENABLED=y
+CONFIG_ULP_COPROC_TYPE_LP_CORE=y
+CONFIG_ULP_COPROC_RESERVE_MEM=8128
+```
+
+Add `sdkconfig.*` to `.gitignore` and only check in the defaults files. This way diffs are clean, IDF upgrades don't cause churn, and your intent is explicit.
+
+### Layering multiple defaults files
+
+Multiple defaults files are separated by semicolons. Later files override earlier ones:
+
+```ini
+[env:myenv]
+board_build.cmake_extra_args =
+    -DSDKCONFIG_DEFAULTS="sdkconfig.common;sdkconfig.board"
+```
+
+This enables patterns like:
+- `sdkconfig.common` — shared across all environments (committed)
+- `sdkconfig.board` — board-specific overrides (committed)
+- `sdkconfig.local` — developer-specific tweaks (gitignored)
+
+See the [espidf-sdkconfig-defaults example](examples/espidf-sdkconfig-defaults/) for a working example.
+
+### Custom sdkconfig output path
+
+Use `board_build.esp-idf.sdkconfig_path` to control where the generated sdkconfig is written:
+
+```ini
+[env:myenv]
+board_build.esp-idf.sdkconfig_path = sdkconfig.custom
+```
+
+This is useful when multiple environments should share the same generated config file.
+
+See the [espidf-sdkconfig-custom-path example](examples/espidf-sdkconfig-custom-path/) for a working example.
+
 ### Stable Arduino
 currently espressif Arduino 3.3.7 and IDF v5.5.2.260206
 
