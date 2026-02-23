@@ -1,7 +1,8 @@
 {
   "build": {
     "arduino": {
-      "partitions": "partitions-4MB-tinyuf2.csv"
+      "partitions": "tinyuf2-partitions-4MB.csv",
+      "custom_bootloader": "bootloader-tinyuf2.bin"
     },
     "core": "esp32",
     "extra_flags": [
