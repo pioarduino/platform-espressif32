@@ -1,8 +1,7 @@
 {
   "build": {
     "arduino": {
-      "partitions": "tinyuf2-partitions-4MB.csv",
-      "custom_bootloader": "bootloader-tinyuf2.bin"
+      "partitions": "tinyuf2-partitions-4MB.csv"
     },
     "core": "esp32",
     "extra_flags": [
@@ -43,6 +42,10 @@
   "upload": {
     "arduino": {
       "flash_extra_images": [
+        [
+          "0x0",
+          "variants/adafruit_feather_esp32s2/bootloader-tinyuf2.bin"
+        ],
         [
           "0x2d0000",
           "variants/adafruit_feather_esp32s2/tinyuf2.bin"
