@@ -419,7 +419,11 @@ def HandleArduinoIDFsettings(env):
         # Fallback to board.json manifest
         if not flash_size:
             flash_size = board.get("upload", {}).get("flash_size", None)
-        
+
+        if flash_size == "2MB":
+            print("Info: Detected 2MB flash size setting, override to 4MB for Arduino MMU page size compatibility")
+            flash_size = "4MB"
+
         if flash_size:
             # Configure both string and boolean flash size formats
             # Disable other flash size options first
