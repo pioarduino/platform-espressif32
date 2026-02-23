@@ -421,7 +421,7 @@ def HandleArduinoIDFsettings(env):
             flash_size = board.get("upload", {}).get("flash_size", None)
 
         if flash_size == "2MB":
-            print(f"Info: Detected 2MB flash size setting, override to 4MB for Arduino MMU page size compatibility")
+            print("Info: Detected 2MB flash size setting, override to 4MB for Arduino MMU page size compatibility")
             flash_size = "4MB"
 
         if flash_size:
