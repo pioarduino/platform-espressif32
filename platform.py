@@ -526,6 +526,17 @@ class Espressif32Platform(PlatformBase):
                 not status['has_tools_json']):
             return self._handle_existing_tool(tool_name, paths)
 
+        # Case 3: Package not yet downloaded – fetch skeleton then install
+        if status['has_idf_tools'] and not status['tool_exists']:
+            version = self.packages.get(tool_name, {}).get("version", "")
+            if version:
+                logger.info(f"Downloading {tool_name} ...")
+                pm.install(version)
+                # Re-check after download
+                status = self._check_tool_status(tool_name)
+                if status['has_tools_json']:
+                    return self._install_with_idf_tools(tool_name, paths, penv_python)
+
         logger.debug(f"Tool {tool_name} already configured")
         return True
 
