@@ -2056,20 +2056,24 @@ def clang_format_write(target, source, env):
 
 
 # Register clang-format targets
-env.AddPlatformTarget(
-    "clangformat",
-    None,
-    clang_format_check,
-    "clang-format (Check)",
-    "Check source code formatting with clang-format",
+env.AddTarget(
+    name="clangformat",
+    dependencies=None,
+    actions=clang_format_check,
+    title="clang-format (Check)",
+    description="Check source code formatting with clang-format",
+    group="Advanced",
+    always_build=True,
 )
 
-env.AddPlatformTarget(
-    "clangformat-write",
-    None,
-    clang_format_write,
-    "clang-format (Write)",
-    "Format source code in-place with clang-format",
+env.AddTarget(
+    name="clangformat-write",
+    dependencies=None,
+    actions=clang_format_write,
+    title="clang-format (Write)",
+    description="Format source code in-place with clang-format",
+    group="Advanced",
+    always_build=True,
 )
 
 # Override memory inspection behavior
