@@ -1936,7 +1936,7 @@ def _clang_format_run(target, source, env, force_mode=None):
         for i in range(0, len(source_files), _CLANG_FORMAT_BATCH_SIZE):
             batch = source_files[i:i + _CLANG_FORMAT_BATCH_SIZE]
             result = subprocess.run(
-                base_cmd + batch, check=False, capture_output=False
+                base_cmd + batch, check=False, capture_output=False  # noqa: S603 - developer-controlled args
             )
             if result.returncode != 0:
                 if mode != "write":
