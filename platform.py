@@ -526,7 +526,7 @@ class Espressif32Platform(PlatformBase):
                 not status['has_tools_json']):
             return self._handle_existing_tool(tool_name, paths)
 
-        # Case 3: Package not yet downloaded – fetch skeleton then install
+        # Case 3: Package not yet downloaded - fetch skeleton then install
         if status['has_idf_tools'] and not status['tool_exists']:
             version = self.packages.get(tool_name, {}).get("version", "")
             if version:

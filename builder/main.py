@@ -1923,7 +1923,7 @@ def _clang_format_run(target, source, env, force_mode=None):
     Configuration via platformio.ini:
         clang_format = check     ; only check formatting (dry-run)
         clang_format = write     ; format files in-place
-        clang_format_dirs =      ; directories to scan (default: src, include, lib)
+        clang_format_dirs =      ; directories to scan (default: src, include)
         clang_format_extensions = ; file extensions (default: .c,.cpp,.h,.hpp,.cc,.cxx,.ino)
         clang_format_args =      ; extra arguments passed to clang-format
 
@@ -1937,7 +1937,7 @@ def _clang_format_run(target, source, env, force_mode=None):
     """
     project_dir = Path(get_project_dir())
 
-    # Resolve clang-format executable from platform package – install on demand
+    # Resolve clang-format executable from platform package - install on demand
     clang_format_pkg = platform.packages_dir / "tool-clang-format"
     if not clang_format_pkg.is_dir():
         print("tool-clang-format not found, installing ...")
@@ -1948,7 +1948,7 @@ def _clang_format_run(target, source, env, force_mode=None):
             print("Error: tool-clang-format package directory not found after install.")
             return 1
 
-    clang_format_bin = Path(clang_format_pkg) / "clang-format"
+    clang_format_bin = clang_format_pkg / "clang-format"
     if IS_WINDOWS:
         clang_format_bin = clang_format_bin.with_suffix(".exe")
 
@@ -2034,7 +2034,7 @@ def _clang_format_run(target, source, env, force_mode=None):
     except FileNotFoundError:
         print(f"Error: clang-format executable not found: {clang_format_bin}")
         return 1
-    except Exception as e:
+    except OSError as e:
         print(f"Error running clang-format: {e}")
         return 1
 
