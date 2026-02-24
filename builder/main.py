@@ -1985,7 +1985,7 @@ def _clang_format_run(target, source, env, force_mode=None):
 
     if not source_files:
         print("No source files found for clang-format.")
-        return 1
+        return 0
 
     # Build base command
     base_cmd = [str(clang_format_bin)]
