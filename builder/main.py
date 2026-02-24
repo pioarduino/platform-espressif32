@@ -791,13 +791,16 @@ def build_fs_router(target, source, env):
 
 def switch_off_ldf():
     """
-    Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, buildfs, 
-    download_fs, and erase targets.
+    Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, buildfs,
+    download_fs, erase, and clang-format targets.
 
     This optimization prevents unnecessary library dependency scanning and compilation
-    when only filesystem operations are performed.
+    when only filesystem operations or code formatting is performed.
     """
-    fs_targets = {"uploadfs", "uploadfsota", "buildfs", "erase", "download_fs"}
+    fs_targets = {
+        "uploadfs", "uploadfsota", "buildfs", "erase", "download_fs",
+        "clangformat", "clangformat-write",
+    }
     if fs_targets & set(COMMAND_LINE_TARGETS):
         # Disable LDF by modifying project configuration directly
         env_section = "env:" + env["PIOENV"]
