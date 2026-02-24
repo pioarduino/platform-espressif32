@@ -139,8 +139,8 @@
       "type": "tool",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "21.0.1",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/clangtidy-v21.0.1.zip"
+      "package-version": "21.1.0",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/clangtidy-v21.1.0.zip"
     },
     "tool-pvs-studio": {
       "type": "tool",
