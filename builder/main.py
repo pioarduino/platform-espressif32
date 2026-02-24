@@ -1908,6 +1908,152 @@ env.AddCustomTarget(
     always_build=True,
 )
 
+# ---------------------------------------------------------------------------
+# clang-format support
+# ---------------------------------------------------------------------------
+
+def _clang_format_run(target, source, env, force_mode=None):
+    """
+    Run clang-format on project source files.
+
+    Configuration via platformio.ini:
+        clang_format = check     ; only check formatting (dry-run)
+        clang_format = write     ; format files in-place
+        clang_format_dirs =      ; directories to scan (default: src, include, lib)
+        clang_format_extensions = ; file extensions (default: .c,.cpp,.h,.hpp,.cc,.cxx,.ino)
+        clang_format_args =      ; extra arguments passed to clang-format
+
+    A .clang-format file in the project root is automatically respected.
+
+    Args:
+        force_mode: If set, overrides the mode from platformio.ini ("check" or "write")
+    """
+    project_dir = Path(get_project_dir())
+
+    # Resolve clang-format executable from platform package
+    clang_format_pkg = platform.get_package_dir("tool-clang-format")
+    if not clang_format_pkg:
+        print("Error: tool-clang-format package not found.")
+        print("Make sure 'clang_format' is set in platformio.ini")
+        return
+
+    clang_format_bin = Path(clang_format_pkg) / "bin" / "clang-format"
+    if IS_WINDOWS:
+        clang_format_bin = clang_format_bin.with_suffix(".exe")
+
+    if not clang_format_bin.is_file():
+        print(f"Error: clang-format binary not found at {clang_format_bin}")
+        return
+
+    # Determine mode: forced by target or from platformio.ini
+    mode = force_mode or env.GetProjectOption("clang_format", "check").strip().lower()
+
+    # Directories to scan
+    scan_dirs_raw = env.GetProjectOption("clang_format_dirs", "")
+    if scan_dirs_raw:
+        scan_dirs = [d.strip() for d in scan_dirs_raw.split(",") if d.strip()]
+    else:
+        scan_dirs = ["src", "include", "lib"]
+
+    # File extensions
+    extensions_raw = env.GetProjectOption("clang_format_extensions", "")
+    if extensions_raw:
+        extensions = tuple(
+            ext.strip() if ext.strip().startswith(".") else f".{ext.strip()}"
+            for ext in extensions_raw.split(",")
+            if ext.strip()
+        )
+    else:
+        extensions = (".c", ".cpp", ".h", ".hpp", ".cc", ".cxx", ".ino")
+
+    # Collect source files
+    source_files = []
+    for scan_dir in scan_dirs:
+        dir_path = project_dir / scan_dir
+        if not dir_path.is_dir():
+            continue
+        for f in sorted(dir_path.rglob("*")):
+            if f.is_file() and f.suffix in extensions:
+                source_files.append(str(f))
+
+    if not source_files:
+        print("No source files found for clang-format.")
+        return
+
+    # Build command
+    cmd = [str(clang_format_bin)]
+
+    # Use .clang-format from project root if present
+    clang_format_file = project_dir / ".clang-format"
+    if clang_format_file.is_file():
+        cmd.extend(["--style=file:" + str(clang_format_file)])
+        print(f"Using style from {clang_format_file}")
+
+    if mode == "write":
+        cmd.append("-i")
+        print(f"Formatting {len(source_files)} file(s) in-place ...")
+    else:
+        cmd.extend(["--dry-run", "--Werror"])
+        print(f"Checking formatting of {len(source_files)} file(s) ...")
+
+    # Extra arguments from platformio.ini
+    extra_args = env.GetProjectOption("clang_format_args", "")
+    if extra_args:
+        cmd.extend(shlex.split(extra_args))
+
+    # CLI arguments after --
+    if "--" in sys.argv:
+        dash_index = sys.argv.index("--")
+        if dash_index + 1 < len(sys.argv):
+            cmd.extend(sys.argv[dash_index + 1:])
+
+    cmd.extend(source_files)
+
+    try:
+        result = subprocess.run(cmd, check=False, capture_output=False)
+        if result.returncode != 0:
+            if mode != "write":
+                print("clang-format: formatting issues found (see above).")
+            else:
+                print(f"clang-format exited with code {result.returncode}")
+        else:
+            if mode == "write":
+                print("clang-format: all files formatted successfully.")
+            else:
+                print("clang-format: all files are correctly formatted.")
+    except FileNotFoundError:
+        print(f"Error: clang-format executable not found: {clang_format_bin}")
+    except Exception as e:
+        print(f"Error running clang-format: {e}")
+
+
+def clang_format_check(target, source, env):
+    """clang-format: check only (dry-run)."""
+    _clang_format_run(target, source, env, force_mode="check")
+
+
+def clang_format_write(target, source, env):
+    """clang-format: format files in-place."""
+    _clang_format_run(target, source, env, force_mode="write")
+
+
+# Register clang-format targets
+env.AddPlatformTarget(
+    "clangformat",
+    None,
+    clang_format_check,
+    "clang-format (Check)",
+    "Check source code formatting with clang-format",
+)
+
+env.AddPlatformTarget(
+    "clangformat-write",
+    None,
+    clang_format_write,
+    "clang-format (Write)",
+    "Format source code in-place with clang-format",
+)
+
 # Override memory inspection behavior
 env.SConscript("sizedata.py", exports="env")
 
