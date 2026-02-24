@@ -142,6 +142,13 @@
       "package-version": "21.1.0",
       "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/clangtidy-v21.1.0.zip"
     },
+    "tool-clang-format": {
+      "type": "tool",
+      "optional": true,
+      "owner": "pioarduino",
+      "package-version": "21.1.0",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/clang-format-v21.1.0.zip"
+    },
     "tool-pvs-studio": {
       "type": "tool",
       "optional": true,
