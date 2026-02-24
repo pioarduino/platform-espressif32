@@ -1820,93 +1820,6 @@ elif upload_protocol == "custom":
 else:
     sys.stderr.write("Warning! Unknown upload protocol %s\n" % upload_protocol)
 
-# Register upload targets
-env.AddPlatformTarget("upload", target_firm, upload_actions, "Upload")
-env.AddPlatformTarget(
-    "uploadfs", target_firm, upload_actions, "Upload Filesystem Image"
-)
-env.AddPlatformTarget(
-    "uploadfsota",
-    target_firm,
-    upload_actions,
-    "Upload Filesystem Image OTA",
-)
-
-# Target: Download Filesystem (auto-detect type)
-env.AddPlatformTarget(
-    "download_fs",
-    None,
-    [
-        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
-        env.VerboseAction(download_fs_action, "Downloading and extracting filesystem")
-    ],
-    "Download and extract filesystem from device",
-)
-
-# Target: Erase Flash and Upload
-env.AddPlatformTarget(
-    "erase_upload",
-    target_firm,
-    [
-        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
-        env.VerboseAction("$ERASECMD", "Erasing..."),
-        env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE"),
-    ],
-    "Erase Flash and Upload",
-)
-
-# Target: Erase Flash
-env.AddPlatformTarget(
-    "erase",
-    None,
-    [
-        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
-        env.VerboseAction("$ERASECMD", "Erasing..."),
-    ],
-    "Erase Flash",
-)
-
-# Register Custom Target for firmware metrics
-env.AddCustomTarget(
-    name="metrics",
-    dependencies="$BUILD_DIR/${PROGNAME}.elf",
-    actions=firmware_metrics,
-    title="Firmware Size Metrics",
-    description="Analyze firmware size using esp-idf-size "
-    "(supports CLI args after --)",
-    always_build=True,
-)
-
-# Additional Target without Build-Dependency when already compiled
-env.AddCustomTarget(
-    name="metrics-only",
-    dependencies=None,
-    actions=firmware_metrics,
-    title="Firmware Size Metrics (No Build)",
-    description="Analyze firmware size without building first",
-    always_build=True,
-)
-
-# Register Custom Target for coredump analysis
-env.AddCustomTarget(
-    name="coredump",
-    dependencies="$BUILD_DIR/${PROGNAME}.elf",
-    actions=coredump_analysis,
-    title="Coredump Analysis",
-    description="Analyze coredumps using esp-coredump "
-    "(supports CLI args after --)",
-    always_build=True,
-)
-
-# Additional Target without Build-Dependency when already compiled
-env.AddCustomTarget(
-    name="coredump-only",
-    dependencies=None,
-    actions=coredump_analysis,
-    title="Coredump Analysis (No Build)",
-    description="Analyze coredumps without building first",
-    always_build=True,
-)
 
 # ---------------------------------------------------------------------------
 # clang-format support
@@ -2054,6 +1967,94 @@ def clang_format_write(target, source, env):
     """clang-format: format files in-place."""
     return _clang_format_run(target, source, env, force_mode="write")
 
+
+# Register upload targets
+env.AddPlatformTarget("upload", target_firm, upload_actions, "Upload")
+env.AddPlatformTarget(
+    "uploadfs", target_firm, upload_actions, "Upload Filesystem Image"
+)
+env.AddPlatformTarget(
+    "uploadfsota",
+    target_firm,
+    upload_actions,
+    "Upload Filesystem Image OTA",
+)
+
+# Target: Download Filesystem (auto-detect type)
+env.AddPlatformTarget(
+    "download_fs",
+    None,
+    [
+        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
+        env.VerboseAction(download_fs_action, "Downloading and extracting filesystem")
+    ],
+    "Download and extract filesystem from device",
+)
+
+# Target: Erase Flash and Upload
+env.AddPlatformTarget(
+    "erase_upload",
+    target_firm,
+    [
+        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
+        env.VerboseAction("$ERASECMD", "Erasing..."),
+        env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE"),
+    ],
+    "Erase Flash and Upload",
+)
+
+# Target: Erase Flash
+env.AddPlatformTarget(
+    "erase",
+    None,
+    [
+        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
+        env.VerboseAction("$ERASECMD", "Erasing..."),
+    ],
+    "Erase Flash",
+)
+
+# Register Custom Target for firmware metrics
+env.AddCustomTarget(
+    name="metrics",
+    dependencies="$BUILD_DIR/${PROGNAME}.elf",
+    actions=firmware_metrics,
+    title="Firmware Size Metrics",
+    description="Analyze firmware size using esp-idf-size "
+    "(supports CLI args after --)",
+    always_build=True,
+)
+
+# Additional Target without Build-Dependency when already compiled
+env.AddCustomTarget(
+    name="metrics-only",
+    dependencies=None,
+    actions=firmware_metrics,
+    title="Firmware Size Metrics (No Build)",
+    description="Analyze firmware size without building first",
+    always_build=True,
+)
+
+# Register Custom Target for coredump analysis
+env.AddCustomTarget(
+    name="coredump",
+    dependencies="$BUILD_DIR/${PROGNAME}.elf",
+    actions=coredump_analysis,
+    title="Coredump Analysis",
+    description="Analyze coredumps using esp-coredump "
+    "(supports CLI args after --)",
+    always_build=True,
+)
+
+# Additional Target without Build-Dependency when already compiled
+env.AddCustomTarget(
+    name="coredump-only",
+    dependencies=None,
+    actions=coredump_analysis,
+    title="Coredump Analysis (No Build)",
+    description="Analyze coredumps without building first",
+    always_build=True,
+)
 
 # Register clang-format targets
 env.AddTarget(
