@@ -719,8 +719,14 @@ class Espressif32Platform(PlatformBase):
 
     def _configure_clang_format(self, variables: Dict) -> None:
         """Configure clang-format tool if enabled in platformio.ini."""
-        clang_format_enabled = variables.get("clang_format", "")
-        if clang_format_enabled:
+        value = variables.get("clang_format", "")
+        if isinstance(value, bool):
+            enabled = value
+        elif isinstance(value, int):
+            enabled = bool(value)
+        else:
+            enabled = str(value).strip().lower() in ("1", "true", "yes", "on", "check", "write")
+        if enabled:
             for package in FORMAT_PACKAGES:
                 self.install_tool(package)
 

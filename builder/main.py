@@ -1912,6 +1912,10 @@ env.AddCustomTarget(
 # clang-format support
 # ---------------------------------------------------------------------------
 
+# Maximum number of files per clang-format invocation to avoid OS arg-length limits
+_CLANG_FORMAT_BATCH_SIZE = 200
+
+
 def _clang_format_run(target, source, env, force_mode=None):
     """
     Run clang-format on project source files.
@@ -1927,6 +1931,9 @@ def _clang_format_run(target, source, env, force_mode=None):
 
     Args:
         force_mode: If set, overrides the mode from platformio.ini ("check" or "write")
+
+    Returns:
+        int: 0 on success, non-zero on error
     """
     project_dir = Path(get_project_dir())
 
@@ -1935,7 +1942,7 @@ def _clang_format_run(target, source, env, force_mode=None):
     if not clang_format_pkg:
         print("Error: tool-clang-format package not found.")
         print("Make sure 'clang_format' is set in platformio.ini")
-        return
+        return 1
 
     clang_format_bin = Path(clang_format_pkg) / "bin" / "clang-format"
     if IS_WINDOWS:
@@ -1943,7 +1950,7 @@ def _clang_format_run(target, source, env, force_mode=None):
 
     if not clang_format_bin.is_file():
         print(f"Error: clang-format binary not found at {clang_format_bin}")
-        return
+        return 1
 
     # Determine mode: forced by target or from platformio.ini
     mode = force_mode or env.GetProjectOption("clang_format", "check").strip().lower()
@@ -1978,63 +1985,70 @@ def _clang_format_run(target, source, env, force_mode=None):
 
     if not source_files:
         print("No source files found for clang-format.")
-        return
+        return 1
 
-    # Build command
-    cmd = [str(clang_format_bin)]
+    # Build base command
+    base_cmd = [str(clang_format_bin)]
 
     # Use .clang-format from project root if present
     clang_format_file = project_dir / ".clang-format"
     if clang_format_file.is_file():
-        cmd.extend(["--style=file:" + str(clang_format_file)])
+        base_cmd.extend(["--style=file:" + str(clang_format_file)])
         print(f"Using style from {clang_format_file}")
 
     if mode == "write":
-        cmd.append("-i")
+        base_cmd.append("-i")
         print(f"Formatting {len(source_files)} file(s) in-place ...")
     else:
-        cmd.extend(["--dry-run", "--Werror"])
+        base_cmd.extend(["--dry-run", "--Werror"])
         print(f"Checking formatting of {len(source_files)} file(s) ...")
 
     # Extra arguments from platformio.ini
     extra_args = env.GetProjectOption("clang_format_args", "")
     if extra_args:
-        cmd.extend(shlex.split(extra_args))
+        base_cmd.extend(shlex.split(extra_args))
 
     # CLI arguments after --
     if "--" in sys.argv:
         dash_index = sys.argv.index("--")
         if dash_index + 1 < len(sys.argv):
-            cmd.extend(sys.argv[dash_index + 1:])
+            base_cmd.extend(sys.argv[dash_index + 1:])
 
-    cmd.extend(source_files)
-
+    # Process files in batches to avoid OS command-line length limits
     try:
-        result = subprocess.run(cmd, check=False, capture_output=False)
-        if result.returncode != 0:
-            if mode != "write":
-                print("clang-format: formatting issues found (see above).")
-            else:
-                print(f"clang-format exited with code {result.returncode}")
-        else:
-            if mode == "write":
-                print("clang-format: all files formatted successfully.")
-            else:
-                print("clang-format: all files are correctly formatted.")
+        for i in range(0, len(source_files), _CLANG_FORMAT_BATCH_SIZE):
+            batch = source_files[i:i + _CLANG_FORMAT_BATCH_SIZE]
+            result = subprocess.run(
+                base_cmd + batch, check=False, capture_output=False
+            )
+            if result.returncode != 0:
+                if mode != "write":
+                    print("clang-format: formatting issues found (see above).")
+                else:
+                    print(f"clang-format exited with code {result.returncode}")
+                return result.returncode
     except FileNotFoundError:
         print(f"Error: clang-format executable not found: {clang_format_bin}")
+        return 1
     except Exception as e:
         print(f"Error running clang-format: {e}")
+        return 1
+
+    if mode == "write":
+        print("clang-format: all files formatted successfully.")
+    else:
+        print("clang-format: all files are correctly formatted.")
+    return 0
 
 
 def clang_format_check(target, source, env):
     """clang-format: check only (dry-run)."""
-    _clang_format_run(target, source, env, force_mode="check")
+    return _clang_format_run(target, source, env, force_mode="check")
 
 
 def clang_format_write(target, source, env):
     """clang-format: format files in-place."""
-    _clang_format_run(target, source, env, force_mode="write")
+    return _clang_format_run(target, source, env, force_mode="write")
 
 
 # Register clang-format targets
