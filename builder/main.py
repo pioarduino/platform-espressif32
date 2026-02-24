@@ -1964,7 +1964,7 @@ def _clang_format_run(target, source, env, force_mode=None):
     if scan_dirs_raw:
         scan_dirs = [d.strip() for d in scan_dirs_raw.split(",") if d.strip()]
     else:
-        scan_dirs = ["src", "include", "lib"]
+        scan_dirs = ["src", "include"]
 
     # File extensions
     extensions_raw = env.GetProjectOption("clang_format_extensions", "")
