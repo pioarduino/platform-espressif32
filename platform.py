@@ -730,7 +730,7 @@ class Espressif32Platform(PlatformBase):
 
     def _configure_clang_format(self, variables: Dict) -> None:
         """Configure clang-format tool if enabled in platformio.ini."""
-        value = variables.get("clang_format", "")
+        value = variables.get("custom_clang_format", "")
         if isinstance(value, bool):
             enabled = value
         elif isinstance(value, int):
