@@ -797,11 +797,11 @@ def switch_off_ldf():
     This optimization prevents unnecessary library dependency scanning and compilation
     when only filesystem operations or code formatting is performed.
     """
-    fs_targets = {
+    ldf_skip_targets = {
         "uploadfs", "uploadfsota", "buildfs", "erase", "download_fs",
         "clangformat", "clangformat-write",
     }
-    if fs_targets & set(COMMAND_LINE_TARGETS):
+    if ldf_skip_targets & set(COMMAND_LINE_TARGETS):
         # Disable LDF by modifying project configuration directly
         env_section = "env:" + env["PIOENV"]
         if not projectconfig.has_section(env_section):
