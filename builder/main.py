@@ -1627,7 +1627,7 @@ def esp32_create_combined_bin(source, target, env):
         "--flash-size", flash_size,
     ]
 
-    print("\nCreating combined factory binary...")
+    print(f"\nCreating combined binary {factory_name} with :")
     print("    Offset   | File")
 
     for image in env.get("FLASH_EXTRA_IMAGES", []):
