@@ -1669,7 +1669,7 @@ if "nobuild" in COMMAND_LINE_TARGETS:
 else:
     target_elf = env.BuildProgram()
     silent_action = env.Action(firmware_metrics)
-    # Hack to silence scons command output
+    # Silence scons command output
     silent_action.strfunction = lambda target, source, env: ""
     env.AddPostAction(target_elf, silent_action)
     if set(["buildfs", "uploadfs", "uploadfsota"]) & set(COMMAND_LINE_TARGETS):
@@ -1681,7 +1681,10 @@ else:
     else:
         target_firm = env.ElfToBin(str(Path("$BUILD_DIR") / "${PROGNAME}"), target_elf)
         env.Depends(target_firm, "checkprogsize")
-        env.AddPostAction(target_firm, esp32_create_combined_bin)
+        silent_action = env.Action(esp32_create_combined_bin)
+        # Silence scons command output
+        silent_action.strfunction = lambda target, source, env: ""
+        env.AddPostAction(target_firm, silent_action)
 
 # Configure platform targets
 env.AddPlatformTarget(
