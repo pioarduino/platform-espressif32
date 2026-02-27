@@ -1633,10 +1633,10 @@ def esp32_create_combined_bin(source, target, env):
     for image in env.get("FLASH_EXTRA_IMAGES", []):
         offset = image[0]
         path = env.subst(image[1])
-        print(f" -  {str(offset).ljust(8)} | {path}")
+        print(f" -  {str(offset).ljust(8)} | {os.path.basename(path)}")
         cmd += [str(offset), path]
 
-    print(f" -  {app_offset.ljust(8)} | {firmware_name}")
+    print(f" -  {app_offset.ljust(8)} | {os.path.basename(firmware_name)}")
     cmd += [app_offset, firmware_name]
 
     esptool = esptool_binary_path
