@@ -1639,7 +1639,7 @@ def esp32_create_combined_bin(source, target, env):
     print(f" -  {app_offset.ljust(8)} | {firmware_name}")
     cmd += [app_offset, firmware_name]
 
-    esptool = uploader_path
+    esptool = esptool_binary_path
     try:
         result = subprocess.run(
             [esptool] + cmd, check=False, capture_output=True, text=True
