@@ -2656,7 +2656,8 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
 
         _replace_copy(str(Path(lib_dst) / "libspi_flash.a"), str(Path(mem_var) / "libspi_flash.a"))
         _replace_copy(str(Path(env_build) / "memory.ld"), str(Path(ld_dst) / "memory.ld"))
-        if mcu == "esp32s3":
+        _replace_copy(str(Path(env_build) / "sections.ld"), str(Path(ld_dst) / "sections.ld"))
+        if mcu == "esp32s3" or mcu == "esp32p4":
             _replace_copy(str(Path(lib_dst) / "libesp_psram.a"), str(Path(mem_var) / "libesp_psram.a"))
             _replace_copy(str(Path(lib_dst) / "libesp_system.a"), str(Path(mem_var) / "libesp_system.a"))
             _replace_copy(str(Path(lib_dst) / "libfreertos.a"), str(Path(mem_var) / "libfreertos.a"))
