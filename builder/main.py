@@ -1627,7 +1627,7 @@ def esp32_create_combined_bin(source, target, env):
         "--flash-size", flash_size,
     ]
 
-    print(f"\nCreating binary \"{os.path.basename(factory_name)}\" with:")
+    print(f"Creating binary \"{os.path.basename(factory_name)}\" with:")
     print("    Offset   | File")
 
     for image in env.get("FLASH_EXTRA_IMAGES", []):
@@ -1647,11 +1647,11 @@ def esp32_create_combined_bin(source, target, env):
         if result.returncode == 0:
             print("Successfully created combined binary image.")
         else:
-            print(f"\nesptool merge-bin failed (exit code {result.returncode})")
+            print(f"esptool merge-bin failed (exit code {result.returncode})")
             if result.stderr:
                 print(result.stderr)
     except Exception as e:
-        print(f"\nError creating factory binary: {e}")
+        print(f"Error creating factory binary: {e}")
 
 
 #
