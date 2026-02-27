@@ -1902,23 +1902,6 @@ env.AddPlatformTarget(
     "Download and extract filesystem from device",
 )
 
-# Target: Upload combined factory binary at offset 0
-env.AddPlatformTarget(
-    "upload_factory",
-    target_firm,
-    [
-        env.VerboseAction(esp32_create_combined_bin, "Creating combined factory binary..."),
-        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
-        env.VerboseAction(
-            '$UPLOADER --chip %s --port "$UPLOAD_PORT" --baud $UPLOAD_SPEED'
-            ' write-flash 0x0 "$BUILD_DIR/${PROGNAME}.factory.bin"'
-            % mcu,
-            "Uploading factory binary $BUILD_DIR/${PROGNAME}.factory.bin",
-        ),
-    ],
-    "Upload Factory Image",
-)
-
 # Target: Erase Flash and Upload
 env.AddPlatformTarget(
     "erase_upload",
