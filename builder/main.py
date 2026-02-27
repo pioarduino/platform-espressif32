@@ -1644,7 +1644,10 @@ def esp32_create_combined_bin(source, target, env):
         result = subprocess.run(
             [esptool, *cmd], check=False, capture_output=True, text=True
         )
-        if result.returncode != 0:
+        if result.returncode == 0:
+            print("\nSuccessfully created combined binary image.")
+        else:
+            result.returncode != 0:
             print(f"\nesptool merge-bin failed (exit code {result.returncode})")
             if result.stderr:
                 print(result.stderr)
