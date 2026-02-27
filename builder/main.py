@@ -1642,7 +1642,7 @@ def esp32_create_combined_bin(source, target, env):
     esptool = esptool_binary_path
     try:
         result = subprocess.run(
-            [esptool] + cmd, check=False, capture_output=True, text=True
+            [esptool, *cmd], check=False, capture_output=True, text=True
         )
         if result.returncode == 0:
             print(f"\nSuccessfully created: {factory_name}")
