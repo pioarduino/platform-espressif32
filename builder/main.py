@@ -1681,6 +1681,7 @@ else:
     else:
         target_firm = env.ElfToBin(str(Path("$BUILD_DIR") / "${PROGNAME}"), target_elf)
         env.Depends(target_firm, "checkprogsize")
+        env.AddPostAction(target_firm, esp32_create_combined_bin)
 
 # Configure platform targets
 env.AddPlatformTarget(
