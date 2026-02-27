@@ -1595,6 +1595,65 @@ def download_fs_action(target, source, env):
         return 1
 
 
+def esp32_create_combined_bin(source, target, env):
+    """
+    Post-build action: Combine all flash images into a single factory binary.
+    Uses esptool merge-bin to create a firmware.factory.bin that can be
+    flashed at offset 0.
+
+    Typical layout of the generated file:
+       Offset | File
+    -  0x0000 | bootloader.bin
+    -  0x8000 | partitions.bin
+    -  0xe000 | boot_app0.bin
+    - 0x10000 | firmware.bin
+    """
+    firmware_name = env.subst("$BUILD_DIR/${PROGNAME}.bin")
+    if not isfile(firmware_name):
+        return
+
+    factory_name = env.subst("$BUILD_DIR/${PROGNAME}.factory.bin")
+    flash_size = board.get("upload.flash_size", "4MB")
+    flash_mode = _get_board_flash_mode(env)
+    flash_freq = _get_board_f_image(env)
+    app_offset = env.subst("$ESP32_APP_OFFSET") or "0x10000"
+
+    cmd = [
+        "--chip", mcu,
+        "merge-bin",
+        "-o", factory_name,
+        "--flash-mode", flash_mode,
+        "--flash-freq", flash_freq,
+        "--flash-size", flash_size,
+    ]
+
+    print("\nCreating combined factory binary...")
+    print("    Offset   | File")
+
+    for image in env.get("FLASH_EXTRA_IMAGES", []):
+        offset = image[0]
+        path = env.subst(image[1])
+        print(f" -  {str(offset).ljust(8)} | {path}")
+        cmd += [str(offset), path]
+
+    print(f" -  {app_offset.ljust(8)} | {firmware_name}")
+    cmd += [app_offset, firmware_name]
+
+    esptool = uploader_path
+    try:
+        result = subprocess.run(
+            [esptool] + cmd, check=False, capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            print(f"\nSuccessfully created: {factory_name}")
+        else:
+            print(f"\nesptool merge-bin failed (exit code {result.returncode})")
+            if result.stderr:
+                print(result.stderr)
+    except Exception as e:
+        print(f"\nError creating factory binary: {e}")
+
+
 #
 # Target: Build executable and linkable firmware or FS image
 #
@@ -1841,6 +1900,23 @@ env.AddPlatformTarget(
         env.VerboseAction(download_fs_action, "Downloading and extracting filesystem")
     ],
     "Download and extract filesystem from device",
+)
+
+# Target: Upload combined factory binary at offset 0
+env.AddPlatformTarget(
+    "upload_factory",
+    target_firm,
+    [
+        env.VerboseAction(esp32_create_combined_bin, "Creating combined factory binary..."),
+        env.VerboseAction(BeforeUpload, "Looking for upload port..."),
+        env.VerboseAction(
+            '$UPLOADER --chip %s --port "$UPLOAD_PORT" --baud $UPLOAD_SPEED'
+            ' write-flash 0x0 "$BUILD_DIR/${PROGNAME}.factory.bin"'
+            % mcu,
+            "Uploading factory binary $BUILD_DIR/${PROGNAME}.factory.bin",
+        ),
+    ],
+    "Upload Factory Image",
 )
 
 # Target: Erase Flash and Upload
