@@ -104,6 +104,7 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         self.firmware_path = None
         self.addr2line_path = None
         self.rom_elf_path = None
+        self._addr_cache = {}
         self.enabled = self.setup_paths()
 
         if self.config.get("env:" + self.environment, "build_type") != "debug":
@@ -441,6 +442,10 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         Returns:
             str: Decoded function and location, or None if decoding failed
         """
+        cache_key = (addr, elf_path)
+        if cache_key in self._addr_cache:
+            return self._addr_cache[cache_key]
+
         enc = "mbcs" if IS_WINDOWS else "utf-8"
         args = [self.addr2line_path, u"-fipC", u"-e", elf_path, addr]
         
@@ -456,11 +461,14 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             
             # Check if address was found in ELF (handle common variants)
             if output in ("?? ??:0", "??:0") or output.strip().startswith("?? ") or output.strip() == "??":
+                self._addr_cache[cache_key] = None
                 return None
             
+            self._addr_cache[cache_key] = output
             return output
             
         except subprocess.CalledProcessError:
+            self._addr_cache[cache_key] = None
             return None
 
     def build_register_trace(self, line, reg_matches):
