@@ -471,6 +471,38 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             self._addr_cache[cache_key] = None
             return None
 
+    def _resolve_address(self, addr):
+        """
+        Resolve a single address through firmware and ROM ELFs.
+        
+        Returns:
+            tuple: (decoded_output, is_rom) or (None, False) if unresolved
+        """
+        if self.is_address_ignored(addr):
+            return None, False
+
+        output = self.decode_address(addr, self.firmware_path)
+        is_rom = False
+
+        if output is None and self.rom_elf_path:
+            output = self.decode_address(addr, self.rom_elf_path)
+            if output is not None:
+                is_rom = True
+
+        if output is None:
+            return None, False
+
+        output = self.strip_project_dir(output)
+
+        if is_rom:
+            parts = output.split(" at ", 1)
+            if len(parts) == 2:
+                output = f"{parts[0]} in ROM"
+            else:
+                output = f"{output} in ROM"
+
+        return output, is_rom
+
     def build_register_trace(self, line, reg_matches):
         """
         Build a decoded trace from a RISC-V register dump line.
@@ -489,38 +521,10 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         prefix = prefix_match.group(0) if prefix_match is not None else ""
 
         trace = ""
-        try:
-            for reg_name, addr in reg_matches:
-                if self.is_address_ignored(addr):
-                    continue
-
-                output = self.decode_address(addr, self.firmware_path)
-                is_rom = False
-
-                if output is None and self.rom_elf_path:
-                    output = self.decode_address(addr, self.rom_elf_path)
-                    if output is not None:
-                        is_rom = True
-
-                if output is None:
-                    continue
-
-                output = self.strip_project_dir(output)
-
-                if is_rom:
-                    parts = output.split(" at ", 1)
-                    if len(parts) == 2:
-                        output = f"{parts[0]} in ROM"
-                    else:
-                        output = f"{output} in ROM"
-
+        for reg_name, addr in reg_matches:
+            output, _ = self._resolve_address(addr)
+            if output is not None:
                 trace += "%s  %s: %s: %s\n" % (prefix, reg_name, addr, output)
-
-        except subprocess.CalledProcessError as e:
-            sys.stderr.write(
-                "%s: failed to call %s: %s\n"
-                % (self.__class__.__name__, self.addr2line_path, e)
-            )
 
         return trace
 
@@ -546,38 +550,10 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         prefix = prefix_match.group(0) if prefix_match is not None else ""
 
         trace = ""
-        try:
-            for addr in addresses:
-                if self.is_address_ignored(addr):
-                    continue
-
-                output = self.decode_address(addr, self.firmware_path)
-                is_rom = False
-
-                if output is None and self.rom_elf_path:
-                    output = self.decode_address(addr, self.rom_elf_path)
-                    if output is not None:
-                        is_rom = True
-
-                if output is None:
-                    continue
-
-                output = self.strip_project_dir(output)
-
-                if is_rom:
-                    parts = output.split(" at ", 1)
-                    if len(parts) == 2:
-                        output = f"{parts[0]} in ROM"
-                    else:
-                        output = f"{output} in ROM"
-
+        for addr in addresses:
+            output, _ = self._resolve_address(addr)
+            if output is not None:
                 trace += "%s  %s: %s\n" % (prefix, addr, output)
-
-        except subprocess.CalledProcessError as e:
-            sys.stderr.write(
-                "%s: failed to call %s: %s\n"
-                % (self.__class__.__name__, self.addr2line_path, e)
-            )
 
         return trace
 
@@ -604,42 +580,12 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         prefix = prefix_match.group(0) if prefix_match is not None else ""
 
         trace = ""
-        try:
-            i = 0
-            for addr in addresses:
-                # First try to decode with application ELF
-                output = self.decode_address(addr, self.firmware_path)
-                is_rom = False
-                
-                # If not found in app ELF, try ROM ELF
-                if output is None and self.rom_elf_path:
-                    output = self.decode_address(addr, self.rom_elf_path)
-                    if output is not None:
-                        is_rom = True
-                
-                # Skip if address couldn't be decoded
-                if output is None:
-                    continue
-
-                output = self.strip_project_dir(output)
-                
-                # Add "in ROM" suffix for ROM addresses
-                if is_rom:
-                    # Extract function name (first part before "at")
-                    parts = output.split(" at ", 1)
-                    if len(parts) == 2:
-                        output = f"{parts[0]} in ROM"
-                    else:
-                        output = f"{output} in ROM"
-                
+        i = 0
+        for addr in addresses:
+            output, _ = self._resolve_address(addr)
+            if output is not None:
                 trace += "%s  #%-2d %s in %s\n" % (prefix, i, addr, output)
                 i += 1
-                
-        except subprocess.CalledProcessError as e:
-            sys.stderr.write(
-                "%s: failed to call %s: %s\n"
-                % (self.__class__.__name__, self.addr2line_path, e)
-            )
 
         return trace + "\n" if trace else ""
 
