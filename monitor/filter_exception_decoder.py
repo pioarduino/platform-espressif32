@@ -45,10 +45,16 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
     ADDR_PATTERN = re.compile(r"((?:0x[0-9a-fA-F]{8}:0x[0-9a-fA-F]{8}(?: |$))+)")
     ADDR_SPLIT = re.compile(r"[ :]")
     PREFIX_RE = re.compile(r"^ *")
+
+    # Pattern for stack memory dump lines: "3fca0000: 0x3fce0000 0x3fce0000 ..."
+    STACK_MEM_LINE = re.compile(
+        r"^[0-9a-fA-F]{8}:\s+((?:0x[0-9a-fA-F]{8}\s*)+)"
+    )
     
     # Patterns that indicate we're in an exception/backtrace context
     BACKTRACE_KEYWORDS = re.compile(
         r"(Backtrace:|"
+        r"Stack memory:|"
         r"\bPC:\s*0x[0-9a-fA-F]{8}\b|"
         r"abort\(\) was called at PC|"
         r"Guru Meditation Error:|"
@@ -362,14 +368,22 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             if not self.should_process_line(line):
                 continue
 
+            # Check for PC:SP pair backtrace format
             m = self.ADDR_PATTERN.search(line)
-            if m is None:
+            if m is not None:
+                trace = self.build_backtrace(line, m.group(1))
+                if trace:
+                    text = text[: idx + 1] + trace + text[idx + 1 :]
+                    last += len(trace)
                 continue
 
-            trace = self.build_backtrace(line, m.group(1))
-            if trace:
-                text = text[: idx + 1] + trace + text[idx + 1 :]
-                last += len(trace)
+            # Check for stack memory dump format
+            m = self.STACK_MEM_LINE.search(line)
+            if m is not None:
+                trace = self.build_stack_trace(line, m.group(1))
+                if trace:
+                    text = text[: idx + 1] + trace + text[idx + 1 :]
+                    last += len(trace)
         return text
 
     def is_address_ignored(self, address):
@@ -434,6 +448,63 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             
         except subprocess.CalledProcessError:
             return None
+
+    def build_stack_trace(self, line, addresses_str):
+        """
+        Build a decoded trace from a stack memory dump line.
+        
+        Extracts individual addresses from the line and attempts to decode
+        each one. Only addresses that resolve to known symbols are shown.
+        
+        Args:
+            line: Original stack memory line
+            addresses_str: Matched portion containing space-separated addresses
+            
+        Returns:
+            str: Formatted decoded trace, or empty string if nothing decoded
+        """
+        addresses = re.findall(r"0x[0-9a-fA-F]{8}", addresses_str)
+        if not addresses:
+            return ""
+
+        prefix_match = self.PREFIX_RE.match(line)
+        prefix = prefix_match.group(0) if prefix_match is not None else ""
+
+        trace = ""
+        try:
+            for addr in addresses:
+                if self.is_address_ignored(addr):
+                    continue
+
+                output = self.decode_address(addr, self.firmware_path)
+                is_rom = False
+
+                if output is None and self.rom_elf_path:
+                    output = self.decode_address(addr, self.rom_elf_path)
+                    if output is not None:
+                        is_rom = True
+
+                if output is None:
+                    continue
+
+                output = self.strip_project_dir(output)
+
+                if is_rom:
+                    parts = output.split(" at ", 1)
+                    if len(parts) == 2:
+                        output = f"{parts[0]} in ROM"
+                    else:
+                        output = f"{output} in ROM"
+
+                trace += "%s  %s: %s\n" % (prefix, addr, output)
+
+        except subprocess.CalledProcessError as e:
+            sys.stderr.write(
+                "%s: failed to call %s: %s\n"
+                % (self.__class__.__name__, self.addr2line_path, e)
+            )
+
+        return trace
 
     def build_backtrace(self, line, address_match):
         """
