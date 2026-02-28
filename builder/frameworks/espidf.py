@@ -825,6 +825,8 @@ if flag_custom_sdkonfig == True and "arduino" in env.subst("$PIOFRAMEWORK") and 
         ARDUINO_LIB_COMPILE_FLAG="Build",
     )
     env["INTEGRATION_EXTRA_DATA"].update({"arduino_lib_compile_flag": env.subst("$ARDUINO_LIB_COMPILE_FLAG")})
+    # Remove lib_deps during Hybrid compile pass; they will be compiled in the subsequent Arduino compile
+    config.set("env:" + env["PIOENV"], "lib_deps", "")
 
 def get_project_lib_includes(env):
     project = ProjectAsLibBuilder(env, "$PROJECT_DIR")
