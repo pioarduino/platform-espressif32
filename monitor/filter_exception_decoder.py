@@ -582,9 +582,10 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         trace = ""
         i = 0
         for addr in addresses:
-            output, _ = self._resolve_address(addr)
+            output, is_rom = self._resolve_address(addr)
             if output is not None:
-                trace += "%s  #%-2d %s in %s\n" % (prefix, i, addr, output)
+                fmt = "%s  #%-2d %s %s\n" if is_rom else "%s  #%-2d %s in %s\n"
+                trace += fmt % (prefix, i, addr, output)
                 i += 1
 
         return trace + "\n" if trace else ""
