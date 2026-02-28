@@ -50,6 +50,11 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
     STACK_MEM_LINE = re.compile(
         r"^\s*[0-9a-fA-F]{8}:\s+((?:0x[0-9a-fA-F]{8}\s*)+)"
     )
+
+    # Pattern for RISC-V register dump entries: "MEPC    : 0x00000000"
+    REGISTER_ENTRY = re.compile(
+        r"([A-Z][A-Z0-9/]+)\s*:\s*(0x[0-9a-fA-F]{8})"
+    )
     
     # Patterns that indicate we're in an exception/backtrace context
     BACKTRACE_KEYWORDS = re.compile(
@@ -384,6 +389,15 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 if trace:
                     text = text[: idx + 1] + trace + text[idx + 1 :]
                     last += len(trace)
+                continue
+
+            # Check for RISC-V register dump lines
+            reg_matches = self.REGISTER_ENTRY.findall(line)
+            if len(reg_matches) >= 2:
+                trace = self.build_register_trace(line, reg_matches)
+                if trace:
+                    text = text[: idx + 1] + trace + text[idx + 1 :]
+                    last += len(trace)
         return text
 
     def is_address_ignored(self, address):
@@ -448,6 +462,59 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             
         except subprocess.CalledProcessError:
             return None
+
+    def build_register_trace(self, line, reg_matches):
+        """
+        Build a decoded trace from a RISC-V register dump line.
+        
+        Tries to decode each register value; only registers whose addresses
+        resolve to known symbols are shown.
+        
+        Args:
+            line: Original register dump line
+            reg_matches: List of (register_name, address) tuples
+            
+        Returns:
+            str: Formatted decoded trace, or empty string if nothing decoded
+        """
+        prefix_match = self.PREFIX_RE.match(line)
+        prefix = prefix_match.group(0) if prefix_match is not None else ""
+
+        trace = ""
+        try:
+            for reg_name, addr in reg_matches:
+                if self.is_address_ignored(addr):
+                    continue
+
+                output = self.decode_address(addr, self.firmware_path)
+                is_rom = False
+
+                if output is None and self.rom_elf_path:
+                    output = self.decode_address(addr, self.rom_elf_path)
+                    if output is not None:
+                        is_rom = True
+
+                if output is None:
+                    continue
+
+                output = self.strip_project_dir(output)
+
+                if is_rom:
+                    parts = output.split(" at ", 1)
+                    if len(parts) == 2:
+                        output = f"{parts[0]} in ROM"
+                    else:
+                        output = f"{output} in ROM"
+
+                trace += "%s  %s: %s: %s\n" % (prefix, reg_name, addr, output)
+
+        except subprocess.CalledProcessError as e:
+            sys.stderr.write(
+                "%s: failed to call %s: %s\n"
+                % (self.__class__.__name__, self.addr2line_path, e)
+            )
+
+        return trace
 
     def build_stack_trace(self, line, addresses_str):
         """
