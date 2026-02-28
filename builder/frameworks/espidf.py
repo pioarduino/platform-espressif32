@@ -2776,18 +2776,6 @@ if ota_partition_params["size"] and ota_partition_params["offset"]:
              FLASH_EXTRA_IMAGES=[(offset, str(extra_img_dir / img)) for offset, img in extra_imgs]
         )
 
-def _parse_size(value):
-    if isinstance(value, int):
-        return value
-    elif value.isdigit():
-        return int(value)
-    elif value.startswith("0x"):
-        return int(value, 16)
-    elif value[-1].upper() in ("K", "M"):
-        base = 1024 if value[-1].upper() == "K" else 1024 * 1024
-        return int(value[:-1]) * base
-    return value
-
 #
 # Configure application partition offset
 #
