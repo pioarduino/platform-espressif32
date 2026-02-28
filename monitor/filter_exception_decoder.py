@@ -48,7 +48,7 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
 
     # Pattern for stack memory dump lines: "3fca0000: 0x3fce0000 0x3fce0000 ..."
     STACK_MEM_LINE = re.compile(
-        r"^[0-9a-fA-F]{8}:\s+((?:0x[0-9a-fA-F]{8}\s*)+)"
+        r"^\s*[0-9a-fA-F]{8}:\s+((?:0x[0-9a-fA-F]{8}\s*)+)"
     )
     
     # Patterns that indicate we're in an exception/backtrace context
