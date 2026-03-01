@@ -531,7 +531,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
         trace = ""
         for reg_name, addr in reg_matches:
-            output, _ = self._resolve_address(addr, is_return_addr=(reg_name != "MEPC"))
+            output, _ = self._resolve_address(addr, is_return_addr=(reg_name == "RA"))
             if output is not None:
                 trace += "%s  %s: %s: %s\n" % (prefix, reg_name, addr, output)
 
