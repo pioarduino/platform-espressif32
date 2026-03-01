@@ -364,6 +364,10 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 rom_files.extend(glob.glob(pattern))
             rom_files = sorted(set(rom_files))
             if not rom_files:
+                sys.stderr.write(
+                    "%s: No ROM ELF files found for chip %s in %s\n"
+                    % (self.__class__.__name__, chip_name, rom_elfs_dir)
+                )
                 return None
 
             def _rev_key(path):
@@ -636,8 +640,8 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         args = [self.addr2line_path, "-fiaC", "-e", elf_path] + addr_list
 
         try:
-            raw = subprocess.check_output(args).decode(enc)
-        except subprocess.CalledProcessError:
+            raw = subprocess.check_output(args, timeout=10).decode(enc)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             for addr in addr_list:
                 self._addr_cache[(addr, elf_path)] = None
             return
@@ -752,8 +756,8 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         args = [self.addr2line_path, "-fiaC", "-e", elf_path, addr]
 
         try:
-            raw = subprocess.check_output(args).decode(enc)
-        except subprocess.CalledProcessError:
+            raw = subprocess.check_output(args, timeout=10).decode(enc)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
             self._addr_cache[cache_key] = None
             return None
 
