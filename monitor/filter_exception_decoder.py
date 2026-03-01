@@ -538,8 +538,8 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         try:
             pm = ToolPackageManager()
             pkg = pm.get_package("tool-riscv32-esp-elf-gdb")
-            pkg_path = pkg.path
-            if pkg_path:
+            if pkg and pkg.path:
+                pkg_path = pkg.path
                 gdb_bin = str(Path(pkg_path) / "bin" / "riscv32-esp-elf-gdb")
                 if IS_WINDOWS:
                     gdb_bin += ".exe"
@@ -1053,9 +1053,16 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
         if self._riscv_state == self._RISCV_REGS:
             reg_matches = self.REGISTER_ENTRY.findall(line)
-            if reg_matches:
+            if len(reg_matches) >= 2:
                 for name, val in reg_matches:
                     self._riscv_regs[name] = int(val, 16)
+                return False
+            if (
+                len(reg_matches) == 1
+                and reg_matches[0][0] == "MHARTID"
+                and self.is_address_ignored(reg_matches[0][1])
+            ):
+                self._riscv_regs["MHARTID"] = int(reg_matches[0][1], 16)
                 return False
 
             if self.STACK_MEM_HEADER.search(line):
