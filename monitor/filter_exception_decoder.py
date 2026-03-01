@@ -12,20 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import binascii
+import glob
+import json
 import os
 import re
+import shlex
+import struct
 import subprocess
 import sys
-import glob
+import tempfile
 import types
 
-from platformio.compat import IS_WINDOWS
-from platformio.exception import PlatformioException
-from platformio.public import (
-    DeviceMonitorFilterBase,
-    load_build_metadata,
-)
-from platformio.package.manager.tool import ToolPackageManager
+# Defer PlatformIO imports when running as GDB RSP server
+_RSP_SERVER_MODE = len(sys.argv) >= 2 and sys.argv[1] == "--rsp-server"
+
+if not _RSP_SERVER_MODE:
+    from platformio.compat import IS_WINDOWS
+    from platformio.exception import PlatformioException
+    from platformio.public import (
+        DeviceMonitorFilterBase,
+        load_build_metadata,
+    )
+    from platformio.package.manager.tool import ToolPackageManager
+else:
+    IS_WINDOWS = sys.platform == "win32"
+    DeviceMonitorFilterBase = object
 
 try:
     from elftools.elf.elffile import ELFFile
@@ -38,13 +50,26 @@ except ImportError:
 # By design, __init__ is called inside miniterm and we can't pass context to it.
 # pylint: disable=attribute-defined-outside-init
 
+# RISC-V ILP32 GDB register order: x0..x31 + pc (= MEPC)
+GDB_REGS_RISCV_ILP32 = [
+    "X0", "RA", "SP", "GP",
+    "TP", "T0", "T1", "T2",
+    "S0/FP", "S1", "A0", "A1",
+    "A2", "A3", "A4", "A5",
+    "A6", "A7", "S2", "S3",
+    "S4", "S5", "S6", "S7",
+    "S8", "S9", "S10", "S11",
+    "T3", "T4", "T5", "T6",
+    "MEPC",
+]
+
 
 class PcAddressMatcher:
     """
     Filters addresses by checking whether they fall into an executable
     ELF section (SHF_EXECINSTR).  This avoids unnecessary addr2line
     subprocess calls for data addresses, timestamps, or padding values.
-    
+
     Requires pyelftools.  If the ELF file cannot be read the matcher
     silently accepts every address (fail-open).
     """
@@ -62,7 +87,6 @@ class PcAddressMatcher:
                             self.intervals.append((start, start + size))
             self.intervals.sort()
         except (FileNotFoundError, NotImplementedError, Exception):
-            # Fail-open: if we can't parse the ELF, accept all addresses
             self.intervals = []
 
     def is_executable_address(self, addr):
@@ -80,49 +104,63 @@ class PcAddressMatcher:
 class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
     """
     PlatformIO device monitor filter for decoding ESP32 exception backtraces.
-    
-    This filter automatically decodes memory addresses from ESP32 crash dumps
-    into human-readable function names and source code locations using addr2line.
-    It supports both application code and ROM addresses via ESP ROM ELF files.
+
+    Uses ELF-section filtering (PcAddressMatcher) as the primary mechanism
+    to decide which addresses to decode.  Falls back to keyword-based
+    context detection when pyelftools is unavailable.
+
+    Supports addr2line batching and GDB-based stack unwinding for RISC-V.
     """
-    
+
     NAME = "esp32_exception_decoder"
 
-    # More specific pattern for PC:SP pairs in backtraces
+    # -- Regex patterns ----------------------------------------------------------
+
+    # PC:SP pairs in backtrace lines
     ADDR_PATTERN = re.compile(r"((?:0x[0-9a-fA-F]{8}:0x[0-9a-fA-F]{8}(?: |$))+)")
     ADDR_SPLIT = re.compile(r"[ :]")
     PREFIX_RE = re.compile(r"^ *")
 
-    # Pattern for stack memory dump lines: "3fca0000: 0x3fce0000 0x3fce0000 ..."
+    # Stack memory dump: "3fca0000: 0x3fce0000 0x3fce0000 ..."
     STACK_MEM_LINE = re.compile(
         r"^\s*[0-9a-fA-F]{8}:\s+((?:0x[0-9a-fA-F]{8}\s*)+)"
     )
 
-    # Pattern for RISC-V register dump entries: "MEPC    : 0x00000000"
+    # Register dump entries: "MEPC    : 0x00000000"
     REGISTER_ENTRY = re.compile(
         r"([A-Z][A-Z0-9/]+)\s*:\s*(0x[0-9a-fA-F]{8})"
     )
-    
-    # Patterns that indicate we're in an exception/backtrace context
+
+    # RISC-V panic dump detection
+    RISCV_REG_DUMP_HEADER = re.compile(
+        r"Core\s+(\d+)\s+register dump:", re.IGNORECASE
+    )
+    STACK_MEM_HEADER = re.compile(r"Stack memory:", re.IGNORECASE)
+
+    # Fallback context detection (when PcAddressMatcher is unavailable)
     BACKTRACE_KEYWORDS = re.compile(
         r"(Backtrace:|"
         r"Stack memory:|"
         r"\bPC:\s*0x[0-9a-fA-F]{8}\b|"
-        r"abort\(\) was called at PC|"
+        r"abort\(\) was called|"
         r"Guru Meditation Error:|"
         r"panic'ed|"
         r"register dump:|"
-        r"Stack smashing protect failure!|"
+        r"Stack smashing|"
         r"CORRUPT HEAP:|"
         r"assertion .* failed:|"
         r"Debug exception reason:|"
-        r"Undefined behavior of type|"
-        r"^Exception\s+\(\d+\):|"
         r"ELF file SHA256:)",
         re.IGNORECASE | re.MULTILINE
     )
+    REBOOT_RE = re.compile(r"^\s*Rebooting\.\.\.", re.IGNORECASE)
 
-    # Chip name mapping for ROM ELF files
+    # addr2line batch output: address header line
+    _ADDR2LINE_HEADER_RE = re.compile(r"^0x[0-9a-fA-F]+$")
+    _DISCRIMINATOR_RE = re.compile(r"\s*\(discriminator \d+\)")
+
+    # -- Chip / exception tables -------------------------------------------------
+
     CHIP_NAME_MAP = {
         "esp32": "esp32",
         "esp32s2": "esp32s2",
@@ -136,8 +174,6 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         "esp32p4": "esp32p4",
     }
 
-    # Xtensa exception causes (EXCCAUSE register values)
-    # From Xtensa ISA Reference Manual / ESP-IDF EspExceptionDecoder
     XTENSA_EXCEPTIONS = (
         "IllegalInstruction",           # 0
         "Syscall",                      # 1
@@ -171,7 +207,6 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         "StoreProhibited",              # 29
     )
 
-    # RISC-V exception causes (MCAUSE register values)
     RISCV_EXCEPTIONS = types.MappingProxyType({
         0x0: "Instruction address misaligned",
         0x1: "Instruction access fault",
@@ -189,40 +224,45 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         0xf: "Store/AMO page fault",
     })
 
-    # Registers containing exception metadata, not code addresses
     NON_CODE_REGISTERS = frozenset({
-        "EXCVADDR",                     # Xtensa fault address
-        "MTVAL",                        # RISC-V fault address
-        "MSTATUS", "MHARTID",          # RISC-V status registers
-        "PS",                           # Xtensa processor status
-        "SAR",                          # Xtensa shift amount register
-        "LBEG", "LEND", "LCOUNT",      # Xtensa loop registers
+        "EXCVADDR",
+        "MTVAL",
+        "MSTATUS", "MHARTID",
+        "PS",
+        "SAR",
+        "LBEG", "LEND", "LCOUNT",
     })
 
-    # Pattern to detect device reboot (terminates exception context)
-    REBOOT_RE = re.compile(r"^\s*Rebooting\.\.\.", re.IGNORECASE)
+    # RISC-V panic accumulator states
+    _RISCV_IDLE = 0
+    _RISCV_REGS = 1
+    _RISCV_STACK = 2
+
+    # -------------------------------------------------------------------------
+    # Initialization
+    # -------------------------------------------------------------------------
 
     def __call__(self):
-        """
-        Initialize the filter instance.
-        
-        This method is called when the monitor filter is activated.
-        Sets up internal state and locates required tools and files.
-        
-        Returns:
-            self: The initialized filter instance
-        """
         self.buffer = ""
-        self.in_backtrace_context = False
-        self.lines_since_context = 0
-        self.max_context_lines = 50  # Maximum lines to process after context keyword
-
         self.firmware_path = None
         self.addr2line_path = None
         self.rom_elf_path = None
         self._addr_cache = {}
         self._firmware_matcher = None
         self._rom_matcher = None
+        self._has_working_matcher = False
+        self._is_riscv = False
+        self._gdb_path = None
+
+        # RISC-V panic accumulator
+        self._riscv_state = self._RISCV_IDLE
+        self._riscv_regs = {}
+        self._riscv_stack_lines = []
+
+        # Fallback context tracking (used when matcher unavailable)
+        self._fallback_context = False
+        self._fallback_lines = 0
+
         self.enabled = self.setup_paths()
 
         if self.config.get("env:" + self.environment, "build_type") != "debug":
@@ -236,111 +276,58 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
         return self
 
+    # -------------------------------------------------------------------------
+    # Path / tool detection
+    # -------------------------------------------------------------------------
+
     def get_chip_name(self, data):
-        """
-        Determine the ESP32 chip name from build metadata.
-        
-        Tries multiple methods to detect the chip type by examining
-        the board name and MCU configuration.
-        
-        Args:
-            data: Build metadata dictionary containing board and MCU information
-            
-        Returns:
-            str: Chip name (e.g., "esp32", "esp32s3") or "esp32" as fallback
-        """
-        # Try to get from board definition
         board = data.get("board", "").lower()
-        
-        # Sort by length (longest first) to match more specific chips first
-        # This prevents "esp32" from matching in "esp32s3", "esp32c3", etc.
         sorted_chips = sorted(self.CHIP_NAME_MAP.keys(), key=len, reverse=True)
-        
-        # Check if board name contains chip identifier
         for chip_key in sorted_chips:
             if chip_key in board:
                 return self.CHIP_NAME_MAP[chip_key]
-        
-        # Try to get from MCU
         mcu = data.get("mcu", "").lower()
         for chip_key in sorted_chips:
             if chip_key in mcu:
                 return self.CHIP_NAME_MAP[chip_key]
-        
-        # Default to esp32 if not found
         return "esp32"
 
     def find_rom_elf(self, chip_name):
-        """
-        Find the appropriate ROM ELF file for the specified chip.
-        
-        Uses ToolPackageManager to access the tool-esp-rom-elfs package.
-        The package must be defined as a dependency in platform.json and
-        will be automatically installed when the platform is installed.
-        
-        Searches for ROM ELF files with various naming patterns and selects
-        the one with the lowest revision number for maximum compatibility.
-        
-        Args:
-            chip_name: Name of the ESP32 chip variant (e.g., "esp32s3")
-            
-        Returns:
-            str: Path to the ROM ELF file, or None if not found
-        """
         try:
-            # Use ToolPackageManager to access already installed packages
             pm = ToolPackageManager()
-            
-            # Get the tool-esp-rom-elfs package (must be defined in platform.json)
             pkg = pm.get_package("tool-esp-rom-elfs")
-            
             if not pkg:
                 sys.stderr.write(
-                    "%s: tool-esp-rom-elfs package not found. "
-                    "Ensure it is defined in platform.json dependencies.\n"
+                    "%s: tool-esp-rom-elfs package not found.\n"
                     % self.__class__.__name__
                 )
                 return None
-            
+
             rom_elfs_dir = pkg.path
-            
             if not rom_elfs_dir or not os.path.isdir(rom_elfs_dir):
-                sys.stderr.write(
-                    "%s: ROM ELFs directory not found at %s\n"
-                    % (self.__class__.__name__, rom_elfs_dir)
-                )
                 return None
-            
-            # Patterns commonly seen: <chip>_rev<rev>_rom.elf, <chip>_rev<rev>.elf, <chip>*_rom.elf
+
             patterns = [
                 os.path.join(rom_elfs_dir, f"{chip_name}_rev*_rom.elf"),
                 os.path.join(rom_elfs_dir, f"{chip_name}_rev*.elf"),
                 os.path.join(rom_elfs_dir, f"{chip_name}*_rom.elf"),
                 os.path.join(rom_elfs_dir, f"{chip_name}*.elf"),
             ]
-            
+
             rom_files = []
             for pattern in patterns:
                 rom_files.extend(glob.glob(pattern))
-            
-            # Remove duplicates and sort
             rom_files = sorted(set(rom_files))
-            
             if not rom_files:
-                sys.stderr.write(
-                    "%s: No ROM ELF files found for chip %s in %s\n"
-                    % (self.__class__.__name__, chip_name, rom_elfs_dir)
-                )
                 return None
-            
-            # Sort by numeric revision (lowest first) if present; otherwise push to the end
+
             def _rev_key(path):
                 m = re.search(r"_rev(\d+)", os.path.basename(path))
                 return int(m.group(1)) if m else 10**9
-            
+
             rom_files.sort(key=_rev_key)
             return rom_files[0]
-            
+
         except (PlatformioException, OSError) as e:
             sys.stderr.write(
                 "%s: Error accessing ROM ELF package: %s\n"
@@ -349,21 +336,13 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             return None
 
     def setup_paths(self):
-        """
-        Setup paths for firmware ELF, addr2line tool, and ROM ELF files.
-        
-        Loads build metadata to locate the compiled firmware and toolchain,
-        then attempts to find the appropriate ROM ELF file for the target chip.
-        
-        Returns:
-            bool: True if setup was successful and filter can be enabled,
-                  False if critical components are missing
-        """
         self.project_dir = os.path.abspath(self.project_dir)
         try:
-            data = load_build_metadata(self.project_dir, self.environment, cache=True)
+            data = load_build_metadata(
+                self.project_dir, self.environment, cache=True
+            )
 
-            # Locate firmware ELF file
+            # Firmware ELF
             self.firmware_path = data["prog_path"]
             if not os.path.isfile(self.firmware_path):
                 sys.stderr.write(
@@ -372,47 +351,56 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 )
                 return False
 
-            # Locate addr2line tool from compiler path
+            # addr2line
             cc_path = data.get("cc_path", "")
             if "-gcc" in cc_path:
                 path = cc_path.replace("-gcc", "-addr2line")
                 if os.path.isfile(path):
                     self.addr2line_path = path
             elif "-clang" in cc_path:
-                # Support for Clang toolchain
                 path = cc_path.replace("-clang", "-addr2line")
                 if os.path.isfile(path):
                     self.addr2line_path = path
-            
+
             if not self.addr2line_path:
                 sys.stderr.write(
-                    "%s: disabling, failed to find addr2line.\n" % self.__class__.__name__
+                    "%s: disabling, failed to find addr2line.\n"
+                    % self.__class__.__name__
                 )
                 return False
-            
-            # Try to find ROM ELF file for chip-specific ROM addresses
+
+            # ROM ELF
             chip_name = self.get_chip_name(data)
             self.rom_elf_path = self.find_rom_elf(chip_name)
-            
+
             if self.rom_elf_path:
                 sys.stderr.write(
-                    "%s: ROM ELF found at %s\n" 
+                    "%s: ROM ELF found at %s\n"
                     % (self.__class__.__name__, self.rom_elf_path)
                 )
             else:
                 sys.stderr.write(
-                    "%s: ROM ELF not found for chip %s, ROM addresses will not be decoded\n"
+                    "%s: ROM ELF not found for chip %s, "
+                    "ROM addresses will not be decoded\n"
                     % (self.__class__.__name__, chip_name)
                 )
-            
-            # Build executable-section matchers for fast address pre-filtering
+
+            # ELF-section matchers
             if HAS_PYELFTOOLS:
                 self._firmware_matcher = PcAddressMatcher(self.firmware_path)
                 if self.rom_elf_path:
                     self._rom_matcher = PcAddressMatcher(self.rom_elf_path)
-            
+                self._has_working_matcher = bool(
+                    self._firmware_matcher.intervals
+                )
+
+            # RISC-V detection and GDB lookup
+            self._is_riscv = "riscv" in cc_path.lower()
+            if self._is_riscv:
+                self._find_riscv_gdb()
+
             return True
-            
+
         except PlatformioException as e:
             sys.stderr.write(
                 "%s: disabling, exception while looking for addr2line: %s\n"
@@ -420,28 +408,70 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             )
             return False
 
-    def is_backtrace_context(self, line):
+    def _find_riscv_gdb(self):
+        try:
+            pm = ToolPackageManager()
+            pkg = pm.get_package("tool-riscv32-esp-elf-gdb")
+            if pkg:
+                gdb_bin = os.path.join(
+                    pkg.path, "bin", "riscv32-esp-elf-gdb"
+                )
+                if IS_WINDOWS:
+                    gdb_bin += ".exe"
+                if os.path.isfile(gdb_bin):
+                    self._gdb_path = gdb_bin
+        except (PlatformioException, OSError):
+            pass
+
+        if self._gdb_path:
+            sys.stderr.write(
+                "%s: RISC-V GDB found for stack unwinding\n"
+                % self.__class__.__name__
+            )
+        else:
+            sys.stderr.write(
+                "%s: RISC-V GDB not found, "
+                "stack unwinding will be limited to addr2line\n"
+                % self.__class__.__name__
+            )
+
+    # -------------------------------------------------------------------------
+    # Line filtering
+    # -------------------------------------------------------------------------
+
+    def _should_decode_line(self, line):
+        """Determine if a line should be checked for decodable addresses.
+
+        With working PcAddressMatcher all lines are processed (the matcher
+        filters individual addresses).  Without matcher, fall back to
+        keyword-based context detection.
         """
-        Check if a line indicates we're entering a backtrace context.
-        
-        Args:
-            line: Text line to check
-            
-        Returns:
-            bool: True if line contains backtrace keywords
-        """
-        return self.BACKTRACE_KEYWORDS.search(line) is not None
+        if self._has_working_matcher:
+            return True
+
+        if self.REBOOT_RE.match(line):
+            self._fallback_context = False
+            return False
+
+        if self.BACKTRACE_KEYWORDS.search(line):
+            self._fallback_context = True
+            self._fallback_lines = 0
+            return True
+
+        if self._fallback_context:
+            self._fallback_lines += 1
+            if self._fallback_lines > 50 or not line.strip():
+                self._fallback_context = False
+                return False
+            return True
+
+        return False
+
+    # -------------------------------------------------------------------------
+    # Exception description helpers
+    # -------------------------------------------------------------------------
 
     def get_xtensa_exception(self, code):
-        """
-        Look up Xtensa exception description by EXCCAUSE code.
-        
-        Args:
-            code: Integer EXCCAUSE value
-            
-        Returns:
-            str: Exception description, or None if code is unknown
-        """
         if 0 <= code < len(self.XTENSA_EXCEPTIONS):
             desc = self.XTENSA_EXCEPTIONS[code]
             if desc != "reserved":
@@ -449,67 +479,13 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         return None
 
     def get_riscv_exception(self, code):
-        """
-        Look up RISC-V exception description by MCAUSE code.
-        
-        Args:
-            code: Integer MCAUSE value
-            
-        Returns:
-            str: Exception description, or None if code is unknown
-        """
         return self.RISCV_EXCEPTIONS.get(code)
 
-    def should_process_line(self, line):
-        """
-        Determine if a line should be processed for address decoding.
-        
-        Only processes lines that are part of an exception/backtrace context
-        to avoid false positives on random hex values in normal output.
-        
-        Args:
-            line: Text line to evaluate
-            
-        Returns:
-            bool: True if line should be processed for address decoding
-        """
-        # Rebooting... terminates the exception context
-        if self.REBOOT_RE.match(line):
-            self.in_backtrace_context = False
-            return False
-
-        # Check if this line starts a backtrace context
-        if self.is_backtrace_context(line):
-            self.in_backtrace_context = True
-            self.lines_since_context = 0
-            return True
-        
-        # If we're in context, track how many lines we've processed
-        if self.in_backtrace_context:
-            self.lines_since_context += 1
-            
-            # Exit context after max_context_lines or if we see an empty line
-            if self.lines_since_context > self.max_context_lines or line.strip() == "":
-                self.in_backtrace_context = False
-                return False
-            
-            return True
-        
-        return False
+    # -------------------------------------------------------------------------
+    # Main rx() loop
+    # -------------------------------------------------------------------------
 
     def rx(self, text):
-        """
-        Process received text from the serial monitor.
-        
-        Scans incoming text for backtrace address patterns and decodes them
-        into human-readable function names and source locations.
-        
-        Args:
-            text: Raw text received from device
-            
-        Returns:
-            str: Text with decoded backtraces inserted
-        """
         if not self.enabled:
             return text
 
@@ -527,11 +503,17 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 self.buffer = ""
             last = idx + 1
 
-            # Only process line if it's in the right context
-            if not self.should_process_line(line):
+            # Feed RISC-V panic accumulator
+            if self._is_riscv and self._feed_riscv_line(line):
+                trace = self._invoke_gdb_backtrace()
+                if trace:
+                    text = text[: idx + 1] + trace + text[idx + 1 :]
+                    last += len(trace)
+
+            if not self._should_decode_line(line):
                 continue
 
-            # Check for PC:SP pair backtrace format
+            # PC:SP backtrace
             m = self.ADDR_PATTERN.search(line)
             if m is not None:
                 trace = self.build_backtrace(line, m.group(1))
@@ -540,7 +522,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                     last += len(trace)
                 continue
 
-            # Check for stack memory dump format
+            # Stack memory dump
             m = self.STACK_MEM_LINE.search(line)
             if m is not None:
                 trace = self.build_stack_trace(line, m.group(1))
@@ -549,97 +531,164 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                     last += len(trace)
                 continue
 
-            # Check for RISC-V register dump lines
+            # Register dump
             reg_matches = self.REGISTER_ENTRY.findall(line)
             if len(reg_matches) >= 2:
                 trace = self.build_register_trace(line, reg_matches)
                 if trace:
                     text = text[: idx + 1] + trace + text[idx + 1 :]
                     last += len(trace)
+
         return text
 
-    def is_address_ignored(self, address):
-        """
-        Check if an address should be ignored during decoding.
-        
-        Args:
-            address: Memory address string
-            
-        Returns:
-            bool: True if address should be skipped
-        """
-        return address in ("", "0x00000000")
+    # -------------------------------------------------------------------------
+    # addr2line batching
+    # -------------------------------------------------------------------------
 
-    def filter_addresses(self, addresses_str):
-        """
-        Extract and filter valid addresses from a string.
-        
-        Splits the address string and removes trailing null/invalid addresses.
-        
-        Args:
-            addresses_str: String containing colon-separated address pairs
-            
-        Returns:
-            list: List of valid address strings
-        """
-        addresses = self.ADDR_SPLIT.split(addresses_str)
-        size = len(addresses)
-        while size > 1 and self.is_address_ignored(addresses[size-1]):
-            size -= 1
-        return addresses[:size]
+    def _decode_batch(self, addrs, elf_path):
+        """Decode multiple addresses in a single addr2line call (-fiaC)."""
+        if not addrs:
+            return
+
+        addr_list = list(addrs)
+        enc = "mbcs" if IS_WINDOWS else "utf-8"
+        args = [self.addr2line_path, "-fiaC", "-e", elf_path] + addr_list
+
+        try:
+            raw = subprocess.check_output(args).decode(enc)
+        except subprocess.CalledProcessError:
+            for addr in addr_list:
+                self._addr_cache[(addr, elf_path)] = None
+            return
+
+        # State-machine parser: split output into sections by address headers
+        sections = []
+        current_body = []
+
+        for raw_line in raw.splitlines():
+            stripped = raw_line.strip()
+            if not stripped:
+                continue
+            if self._ADDR2LINE_HEADER_RE.match(stripped):
+                sections.append(current_body)
+                current_body = []
+            else:
+                current_body.append(stripped)
+        sections.append(current_body)
+
+        # First section (before first header) is empty — skip it
+        body_sections = sections[1:] if sections else []
+
+        # Correlate by position (addr2line preserves input order)
+        for i, addr in enumerate(addr_list):
+            if i < len(body_sections):
+                self._finalize_batch_entry(addr, body_sections[i], elf_path)
+            else:
+                self._addr_cache[(addr, elf_path)] = None
+
+    def _finalize_batch_entry(self, addr, lines, elf_path):
+        """Parse function / file:line pairs and store in _addr_cache."""
+        parts = []
+        i = 0
+        while i + 1 < len(lines):
+            func = lines[i]
+            loc = self._DISCRIMINATOR_RE.sub("", lines[i + 1])
+            if func == "??" and loc.startswith("??:"):
+                i += 2
+                continue
+            parts.append("%s at %s" % (func, loc))
+            i += 2
+
+        if not parts:
+            self._addr_cache[(addr, elf_path)] = None
+        else:
+            output = parts[0]
+            for p in parts[1:]:
+                output += "\n     (inlined by) " + p
+            self._addr_cache[(addr, elf_path)] = output
+
+    def _prefetch_addresses(self, addr_specs):
+        """Pre-populate _addr_cache in batch for a list of (addr, is_return_addr)."""
+        lookups = []
+        for addr, is_ret in addr_specs:
+            if self.is_address_ignored(addr):
+                continue
+            lookup = "0x%08x" % (int(addr, 16) - 1) if is_ret else addr
+            lookups.append(lookup)
+
+        if not lookups:
+            return
+
+        # Batch against firmware ELF
+        fw_batch = [
+            a for a in lookups
+            if (a, self.firmware_path) not in self._addr_cache
+            and (
+                self._firmware_matcher is None
+                or self._firmware_matcher.is_executable_address(int(a, 16))
+            )
+        ]
+        if fw_batch:
+            self._decode_batch(fw_batch, self.firmware_path)
+
+        # Batch unresolved against ROM ELF
+        if self.rom_elf_path:
+            rom_batch = [
+                a for a in lookups
+                if self._addr_cache.get((a, self.firmware_path)) is None
+                and (a, self.rom_elf_path) not in self._addr_cache
+                and (
+                    self._rom_matcher is None
+                    or self._rom_matcher.is_executable_address(int(a, 16))
+                )
+            ]
+            if rom_batch:
+                self._decode_batch(rom_batch, self.rom_elf_path)
+
+    # -------------------------------------------------------------------------
+    # Single-address decode (cache-first, falls back to subprocess)
+    # -------------------------------------------------------------------------
 
     def decode_address(self, addr, elf_path):
-        """
-        Decode a single address using addr2line.
-        
-        Args:
-            addr: Memory address to decode (e.g., "0x400d1234")
-            elf_path: Path to ELF file containing debug symbols
-            
-        Returns:
-            str: Decoded function and location, or None if decoding failed
-        """
         cache_key = (addr, elf_path)
         if cache_key in self._addr_cache:
             return self._addr_cache[cache_key]
 
         enc = "mbcs" if IS_WINDOWS else "utf-8"
-        args = [self.addr2line_path, u"-fipC", u"-e", elf_path, addr]
-        
+        args = [self.addr2line_path, "-fiaC", "-e", elf_path, addr]
+
         try:
-            output = (
-                subprocess.check_output(args)
-                .decode(enc)
-                .strip()
-            )
-            
-            # Newlines happen with inlined methods
-            output = output.replace("\n", "\n     ")
-            
-            # Check if address was found in ELF (handle common variants)
-            if output in ("?? ??:0", "??:0") or output.strip().startswith("?? ") or output.strip() == "??":
-                self._addr_cache[cache_key] = None
-                return None
-            
-            self._addr_cache[cache_key] = output
-            return output
-            
+            raw = subprocess.check_output(args).decode(enc)
         except subprocess.CalledProcessError:
             self._addr_cache[cache_key] = None
             return None
 
+        # Parse using the same logic as batch mode
+        lines = [
+            l.strip() for l in raw.splitlines() if l.strip()  # noqa: E741
+        ]
+        # Skip address header if present
+        if lines and self._ADDR2LINE_HEADER_RE.match(lines[0]):
+            lines = lines[1:]
+
+        self._finalize_batch_entry(addr, lines, elf_path)
+        return self._addr_cache.get(cache_key)
+
+    # -------------------------------------------------------------------------
+    # Address helpers
+    # -------------------------------------------------------------------------
+
+    def is_address_ignored(self, address):
+        return address in ("", "0x00000000")
+
+    def filter_addresses(self, addresses_str):
+        addresses = self.ADDR_SPLIT.split(addresses_str)
+        size = len(addresses)
+        while size > 1 and self.is_address_ignored(addresses[size - 1]):
+            size -= 1
+        return addresses[:size]
+
     def _resolve_address(self, addr, is_return_addr=False):
-        """
-        Resolve a single address through firmware and ROM ELFs.
-        
-        Args:
-            addr: Address string (e.g., "0x420022e4")
-            is_return_addr: If True, subtract 1 before lookup so addr2line
-                reports the call site rather than the instruction after it
-        
-        Returns:
-            tuple: (decoded_output, is_rom) or (None, False) if unresolved
-        """
         if self.is_address_ignored(addr):
             return None, False
 
@@ -649,15 +698,19 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
         int_addr = int(lookup, 16)
 
-        # Check firmware executable sections first
         output = None
-        if self._firmware_matcher is None or self._firmware_matcher.is_executable_address(int_addr):
+        if (
+            self._firmware_matcher is None
+            or self._firmware_matcher.is_executable_address(int_addr)
+        ):
             output = self.decode_address(lookup, self.firmware_path)
         is_rom = False
 
-        # Fall back to ROM ELF if not found in firmware
         if output is None and self.rom_elf_path:
-            if self._rom_matcher is None or self._rom_matcher.is_executable_address(int_addr):
+            if (
+                self._rom_matcher is None
+                or self._rom_matcher.is_executable_address(int_addr)
+            ):
                 output = self.decode_address(lookup, self.rom_elf_path)
                 if output is not None:
                     is_rom = True
@@ -676,69 +729,41 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
         return output, is_rom
 
-    def build_register_trace(self, line, reg_matches):
-        """
-        Build a decoded trace from a register dump line.
-        
-        Annotates exception cause registers (EXCCAUSE/MCAUSE) with
-        human-readable descriptions. Tries to decode code-address registers
-        (PC, MEPC, RA, etc.) via addr2line. Skips non-code registers.
-        
-        Args:
-            line: Original register dump line
-            reg_matches: List of (register_name, address) tuples
-            
-        Returns:
-            str: Formatted decoded trace, or empty string if nothing decoded
-        """
+    # -------------------------------------------------------------------------
+    # Trace builders (with batch pre-fetch)
+    # -------------------------------------------------------------------------
+
+    def build_backtrace(self, line, address_match):
+        addresses = self.filter_addresses(address_match)
+        if not addresses:
+            return ""
+
+        self._prefetch_addresses(
+            [(addr, j > 0) for j, addr in enumerate(addresses)]
+        )
+
         prefix_match = self.PREFIX_RE.match(line)
         prefix = prefix_match.group(0) if prefix_match is not None else ""
 
         trace = ""
-        for reg_name, addr in reg_matches:
-            # Annotate Xtensa exception cause with description
-            if reg_name == "EXCCAUSE":
-                code = int(addr, 16)
-                desc = self.get_xtensa_exception(code)
-                if desc:
-                    trace += "%s  %s: %s (%s)\n" % (prefix, reg_name, addr, desc)
-                continue
-
-            # Annotate RISC-V exception cause with description
-            if reg_name == "MCAUSE":
-                code = int(addr, 16)
-                desc = self.get_riscv_exception(code)
-                if desc:
-                    trace += "%s  %s: %s (%s)\n" % (prefix, reg_name, addr, desc)
-                continue
-
-            # Skip registers that don't contain code addresses
-            if reg_name in self.NON_CODE_REGISTERS:
-                continue
-
-            output, _ = self._resolve_address(addr, is_return_addr=(reg_name == "RA"))
+        i = 0
+        for j, addr in enumerate(addresses):
+            output, is_rom = self._resolve_address(
+                addr, is_return_addr=(j > 0)
+            )
             if output is not None:
-                trace += "%s  %s: %s: %s\n" % (prefix, reg_name, addr, output)
+                fmt = "%s  #%-2d %s %s\n" if is_rom else "%s  #%-2d %s in %s\n"
+                trace += fmt % (prefix, i, addr, output)
+                i += 1
 
-        return trace
+        return trace + "\n" if trace else ""
 
     def build_stack_trace(self, line, addresses_str):
-        """
-        Build a decoded trace from a stack memory dump line.
-        
-        Extracts individual addresses from the line and attempts to decode
-        each one. Only addresses that resolve to known symbols are shown.
-        
-        Args:
-            line: Original stack memory line
-            addresses_str: Matched portion containing space-separated addresses
-            
-        Returns:
-            str: Formatted decoded trace, or empty string if nothing decoded
-        """
         addresses = re.findall(r"0x[0-9a-fA-F]{8}", addresses_str)
         if not addresses:
             return ""
+
+        self._prefetch_addresses([(addr, True) for addr in addresses])
 
         prefix_match = self.PREFIX_RE.match(line)
         prefix = prefix_match.group(0) if prefix_match is not None else ""
@@ -751,54 +776,319 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
         return trace
 
-    def build_backtrace(self, line, address_match):
-        """
-        Build a decoded backtrace from a line containing addresses.
-        
-        Attempts to decode each address first from the application ELF,
-        then from the ROM ELF if not found. Addresses successfully decoded
-        from ROM are marked with "in ROM" suffix.
-        
-        Args:
-            line: Original line containing the backtrace
-            address_match: Matched address string from regex
-            
-        Returns:
-            str: Formatted decoded backtrace, or empty string if nothing decoded
-        """
-        addresses = self.filter_addresses(address_match)
-        if not addresses:
-            return ""
+    def build_register_trace(self, line, reg_matches):
+        # Pre-fetch code-address registers
+        addr_specs = []
+        for reg_name, addr in reg_matches:
+            if reg_name in ("EXCCAUSE", "MCAUSE"):
+                continue
+            if reg_name in self.NON_CODE_REGISTERS:
+                continue
+            addr_specs.append((addr, reg_name == "RA"))
+        self._prefetch_addresses(addr_specs)
 
         prefix_match = self.PREFIX_RE.match(line)
         prefix = prefix_match.group(0) if prefix_match is not None else ""
 
         trace = ""
-        i = 0
-        for j, addr in enumerate(addresses):
-            output, is_rom = self._resolve_address(addr, is_return_addr=(j > 0))
-            if output is not None:
-                fmt = "%s  #%-2d %s %s\n" if is_rom else "%s  #%-2d %s in %s\n"
-                trace += fmt % (prefix, i, addr, output)
-                i += 1
+        for reg_name, addr in reg_matches:
+            if reg_name == "EXCCAUSE":
+                code = int(addr, 16)
+                desc = self.get_xtensa_exception(code)
+                if desc:
+                    trace += "%s  %s: %s (%s)\n" % (
+                        prefix, reg_name, addr, desc
+                    )
+                continue
 
-        return trace + "\n" if trace else ""
+            if reg_name == "MCAUSE":
+                code = int(addr, 16)
+                desc = self.get_riscv_exception(code)
+                if desc:
+                    trace += "%s  %s: %s (%s)\n" % (
+                        prefix, reg_name, addr, desc
+                    )
+                continue
+
+            if reg_name in self.NON_CODE_REGISTERS:
+                continue
+
+            output, _ = self._resolve_address(
+                addr, is_return_addr=(reg_name == "RA")
+            )
+            if output is not None:
+                trace += "%s  %s: %s: %s\n" % (prefix, reg_name, addr, output)
+
+        return trace
+
+    # -------------------------------------------------------------------------
+    # RISC-V panic accumulation
+    # -------------------------------------------------------------------------
+
+    def _feed_riscv_line(self, line):
+        """Feed a line to the RISC-V panic accumulator.
+
+        Returns True when a complete register + stack dump has been collected.
+        """
+        m = self.RISCV_REG_DUMP_HEADER.search(line)
+        if m:
+            self._riscv_state = self._RISCV_REGS
+            self._riscv_regs = {}
+            self._riscv_stack_lines = []
+            return False
+
+        if self._riscv_state == self._RISCV_REGS:
+            reg_matches = self.REGISTER_ENTRY.findall(line)
+            if reg_matches:
+                for name, val in reg_matches:
+                    self._riscv_regs[name] = int(val, 16)
+                return False
+
+            if self.STACK_MEM_HEADER.search(line):
+                self._riscv_state = self._RISCV_STACK
+                return False
+
+            if line.strip():
+                self._riscv_state = self._RISCV_IDLE
+            return False
+
+        if self._riscv_state == self._RISCV_STACK:
+            if self.STACK_MEM_LINE.match(line):
+                self._riscv_stack_lines.append(line)
+                return False
+
+            # End of stack section
+            if self._riscv_regs and self._riscv_stack_lines:
+                self._riscv_state = self._RISCV_IDLE
+                return True
+
+            self._riscv_state = self._RISCV_IDLE
+            return False
+
+        return False
+
+    # -------------------------------------------------------------------------
+    # GDB-based RISC-V stack unwinding
+    # -------------------------------------------------------------------------
+
+    def _build_riscv_stack_data(self):
+        """Parse accumulated stack memory lines into (base_addr, bytes)."""
+        stack_data = b""
+        base_addr = None
+
+        for line in self._riscv_stack_lines:
+            m = re.match(
+                r"\s*([0-9a-fA-F]{8}):\s+((?:0x[0-9a-fA-F]{8}\s*)+)", line
+            )
+            if not m:
+                continue
+            addr = int(m.group(1), 16)
+            if base_addr is None:
+                base_addr = addr
+            words = re.findall(r"0x([0-9a-fA-F]{8})", m.group(2))
+            for w in words:
+                stack_data += struct.pack("<I", int(w, 16))
+
+        return base_addr or 0, stack_data
+
+    def _invoke_gdb_backtrace(self):
+        """Launch GDB to produce a proper backtrace from the RISC-V panic dump."""
+        if not self._gdb_path or not self._riscv_regs:
+            return ""
+
+        stack_base, stack_data = self._build_riscv_stack_data()
+        if not stack_data:
+            return ""
+
+        panic_info = {
+            "regs": self._riscv_regs,
+            "stack_base": stack_base,
+            "stack_hex": binascii.hexlify(stack_data).decode("ascii"),
+        }
+
+        tmp = None
+        try:
+            tmp = tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False, prefix="esp_panic_"
+            )
+            json.dump(panic_info, tmp)
+            tmp.close()
+
+            this_script = os.path.abspath(__file__)
+            python_cmd = sys.executable
+
+            if IS_WINDOWS:
+                rsp_cmd = '"%s" -u "%s" --rsp-server "%s"' % (
+                    python_cmd, this_script, tmp.name,
+                )
+            else:
+                rsp_cmd = "%s -u %s --rsp-server %s" % (
+                    shlex.quote(python_cmd),
+                    shlex.quote(this_script),
+                    shlex.quote(tmp.name),
+                )
+
+            gdb_args = [
+                self._gdb_path,
+                "--batch", "-n",
+                self.firmware_path,
+                "-ex", "set pagination off",
+            ]
+
+            if self.rom_elf_path:
+                gdb_args += [
+                    "-ex", "add-symbol-file %s" % self.rom_elf_path,
+                ]
+
+            gdb_args += [
+                "-ex", "target remote | %s" % rsp_cmd,
+                "-ex", "bt",
+            ]
+
+            enc = "mbcs" if IS_WINDOWS else "utf-8"
+            output = subprocess.check_output(
+                gdb_args, stderr=subprocess.DEVNULL, timeout=10
+            ).decode(enc)
+
+            bt_lines = []
+            for bt_line in output.splitlines():
+                stripped = bt_line.strip()
+                if stripped.startswith("#"):
+                    bt_lines.append("  " + stripped)
+
+            if bt_lines:
+                result = "  GDB Backtrace:\n" + "\n".join(bt_lines) + "\n\n"
+                return self.strip_project_dir(result)
+            return ""
+
+        except (
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+            OSError,
+        ) as e:
+            sys.stderr.write(
+                "%s: GDB backtrace failed: %s\n"
+                % (self.__class__.__name__, e)
+            )
+            return ""
+        finally:
+            if tmp and os.path.exists(tmp.name):
+                os.unlink(tmp.name)
+
+    # -------------------------------------------------------------------------
+    # Utility
+    # -------------------------------------------------------------------------
 
     def strip_project_dir(self, trace):
-        """
-        Remove project directory prefix from file paths in trace output.
-        
-        This makes the output more readable by showing only relative paths.
-        
-        Args:
-            trace: Decoded trace string containing file paths
-            
-        Returns:
-            str: Trace with project directory paths removed
-        """
         while True:
             idx = trace.find(self.project_dir)
             if idx == -1:
                 break
             trace = trace[:idx] + trace[idx + len(self.project_dir) + 1 :]
         return trace
+
+
+# ---------------------------------------------------------------------------
+# GDB RSP Server  (invoked by GDB as pipe target: --rsp-server <json>)
+# ---------------------------------------------------------------------------
+
+def _run_rsp_server(panic_file):
+    """Minimal GDB Remote Serial Protocol server for RISC-V panic data."""
+    with open(panic_file, "r") as f:
+        panic_data = json.load(f)
+
+    regs = {k: int(v) if isinstance(v, str) else v
+            for k, v in panic_data["regs"].items()}
+    stack_base = panic_data["stack_base"]
+    stack_data = binascii.unhexlify(panic_data["stack_hex"])
+
+    stdin = sys.stdin.buffer
+    stdout = sys.stdout.buffer
+
+    def respond(data):
+        checksum = sum(data.encode("ascii")) & 0xFF
+        packet = ("$%s#%02x" % (data, checksum)).encode("ascii")
+        stdout.write(packet)
+        stdout.flush()
+        ack = stdin.read(1)
+        if ack == b"-":
+            sys.exit(1)
+
+    def get_regs():
+        result = ""
+        for name in GDB_REGS_RISCV_ILP32:
+            val = regs.get(name, 0)
+            result += binascii.hexlify(struct.pack("<I", val)).decode("ascii")
+        return result
+
+    def get_mem(addr, size):
+        result = ""
+        for i in range(size):
+            offset = (addr + i) - stack_base
+            if 0 <= offset < len(stack_data):
+                result += "%02x" % stack_data[offset]
+            else:
+                result += "00"
+        return result
+
+    while True:
+        c = stdin.read(1)
+        if not c:
+            break
+        if c == b"+":
+            continue
+        if c != b"$":
+            continue
+
+        data = b""
+        while True:
+            c = stdin.read(1)
+            if c == b"#":
+                stdin.read(2)  # checksum bytes
+                break
+            data += c
+
+        stdout.write(b"+")
+        stdout.flush()
+
+        cmd = data.decode("ascii", errors="replace")
+
+        if cmd == "?":
+            respond("T05")
+        elif cmd.startswith("Hg") or cmd.startswith("Hc"):
+            respond("OK")
+        elif cmd == "qfThreadInfo":
+            respond("m1")
+        elif cmd == "qsThreadInfo":
+            respond("l")
+        elif cmd == "qC":
+            respond("QC1")
+        elif cmd == "g":
+            respond(get_regs())
+        elif cmd.startswith("m"):
+            try:
+                parts = cmd[1:].split(",")
+                addr = int(parts[0], 16)
+                size = int(parts[1], 16)
+                respond(get_mem(addr, size))
+            except (ValueError, IndexError):
+                respond("E01")
+        elif cmd.startswith("vKill") or cmd == "k":
+            respond("OK")
+            break
+        elif cmd == "qSymbol::":
+            respond("OK")
+        else:
+            respond("")
+
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) >= 3 and sys.argv[1] == "--rsp-server":
+        _run_rsp_server(sys.argv[2])
+    else:
+        sys.stderr.write(
+            "Usage: %s --rsp-server <panic_data.json>\n" % sys.argv[0]
+        )
+        sys.exit(1)
