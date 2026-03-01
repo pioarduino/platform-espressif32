@@ -69,8 +69,10 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         r"CORRUPT HEAP:|"
         r"assertion .* failed:|"
         r"Debug exception reason:|"
-        r"Undefined behavior of type)",
-        re.IGNORECASE
+        r"Undefined behavior of type|"
+        r"^Exception\s+\(\d+\):|"
+        r"ELF file SHA256:)",
+        re.IGNORECASE | re.MULTILINE
     )
 
     # Chip name mapping for ROM ELF files
@@ -83,8 +85,75 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         "esp32c5": "esp32c5",
         "esp32c6": "esp32c6",
         "esp32h2": "esp32h2",
+        "esp32h4": "esp32h4",
         "esp32p4": "esp32p4",
     }
+
+    # Xtensa exception causes (EXCCAUSE register values)
+    # From Xtensa ISA Reference Manual / ESP-IDF EspExceptionDecoder
+    XTENSA_EXCEPTIONS = [
+        "IllegalInstruction",           # 0
+        "Syscall",                      # 1
+        "InstructionFetchError",        # 2
+        "LoadStoreError",               # 3
+        "Level1Interrupt",              # 4
+        "Alloca",                       # 5
+        "IntegerDivideByZero",          # 6
+        "reserved",                     # 7
+        "Privileged",                   # 8
+        "LoadStoreAlignment",           # 9
+        "reserved",                     # 10
+        "reserved",                     # 11
+        "InstrPIFDataError",            # 12
+        "LoadStorePIFDataError",        # 13
+        "InstrPIFAddrError",            # 14
+        "LoadStorePIFAddrError",        # 15
+        "InstTLBMiss",                  # 16
+        "InstTLBMultiHit",              # 17
+        "InstFetchPrivilege",           # 18
+        "reserved",                     # 19
+        "InstFetchProhibited",          # 20
+        "reserved",                     # 21
+        "reserved",                     # 22
+        "reserved",                     # 23
+        "LoadStoreTLBMiss",             # 24
+        "LoadStoreTLBMultiHit",         # 25
+        "LoadStorePrivilege",           # 26
+        "reserved",                     # 27
+        "LoadProhibited",               # 28
+        "StoreProhibited",              # 29
+    ]
+
+    # RISC-V exception causes (MCAUSE register values)
+    RISCV_EXCEPTIONS = {
+        0x0: "Instruction address misaligned",
+        0x1: "Instruction access fault",
+        0x2: "Illegal instruction",
+        0x3: "Breakpoint",
+        0x4: "Load address misaligned",
+        0x5: "Load access fault",
+        0x6: "Store/AMO address misaligned",
+        0x7: "Store/AMO access fault",
+        0x8: "Environment call from U-mode",
+        0x9: "Environment call from S-mode",
+        0xb: "Environment call from M-mode",
+        0xc: "Instruction page fault",
+        0xd: "Load page fault",
+        0xf: "Store/AMO page fault",
+    }
+
+    # Registers containing exception metadata, not code addresses
+    NON_CODE_REGISTERS = {
+        "EXCVADDR",                     # Xtensa fault address
+        "MTVAL",                        # RISC-V fault address
+        "MSTATUS", "MHARTID",          # RISC-V status registers
+        "PS",                           # Xtensa processor status
+        "SAR",                          # Xtensa shift amount register
+        "LBEG", "LEND", "LCOUNT",      # Xtensa loop registers
+    }
+
+    # Pattern to detect device reboot (terminates exception context)
+    REBOOT_RE = re.compile(r"^Rebooting\.\.\.", re.IGNORECASE)
 
     def __call__(self):
         """
@@ -308,6 +377,34 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         """
         return self.BACKTRACE_KEYWORDS.search(line) is not None
 
+    def get_xtensa_exception(self, code):
+        """
+        Look up Xtensa exception description by EXCCAUSE code.
+        
+        Args:
+            code: Integer EXCCAUSE value
+            
+        Returns:
+            str: Exception description, or None if code is unknown
+        """
+        if 0 <= code < len(self.XTENSA_EXCEPTIONS):
+            desc = self.XTENSA_EXCEPTIONS[code]
+            if desc != "reserved":
+                return desc
+        return None
+
+    def get_riscv_exception(self, code):
+        """
+        Look up RISC-V exception description by MCAUSE code.
+        
+        Args:
+            code: Integer MCAUSE value
+            
+        Returns:
+            str: Exception description, or None if code is unknown
+        """
+        return self.RISCV_EXCEPTIONS.get(code)
+
     def should_process_line(self, line):
         """
         Determine if a line should be processed for address decoding.
@@ -321,6 +418,11 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         Returns:
             bool: True if line should be processed for address decoding
         """
+        # Rebooting... terminates the exception context
+        if self.REBOOT_RE.match(line):
+            self.in_backtrace_context = False
+            return False
+
         # Check if this line starts a backtrace context
         if self.is_backtrace_context(line):
             self.in_backtrace_context = True
@@ -514,10 +616,11 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
     def build_register_trace(self, line, reg_matches):
         """
-        Build a decoded trace from a RISC-V register dump line.
+        Build a decoded trace from a register dump line.
         
-        Tries to decode each register value; only registers whose addresses
-        resolve to known symbols are shown.
+        Annotates exception cause registers (EXCCAUSE/MCAUSE) with
+        human-readable descriptions. Tries to decode code-address registers
+        (PC, MEPC, RA, etc.) via addr2line. Skips non-code registers.
         
         Args:
             line: Original register dump line
@@ -531,6 +634,26 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
         trace = ""
         for reg_name, addr in reg_matches:
+            # Annotate Xtensa exception cause with description
+            if reg_name == "EXCCAUSE":
+                code = int(addr, 16)
+                desc = self.get_xtensa_exception(code)
+                if desc:
+                    trace += "%s  %s: %s (%s)\n" % (prefix, reg_name, addr, desc)
+                continue
+
+            # Annotate RISC-V exception cause with description
+            if reg_name == "MCAUSE":
+                code = int(addr, 16)
+                desc = self.get_riscv_exception(code)
+                if desc:
+                    trace += "%s  %s: %s (%s)\n" % (prefix, reg_name, addr, desc)
+                continue
+
+            # Skip registers that don't contain code addresses
+            if reg_name in self.NON_CODE_REGISTERS:
+                continue
+
             output, _ = self._resolve_address(addr, is_return_addr=(reg_name == "RA"))
             if output is not None:
                 trace += "%s  %s: %s: %s\n" % (prefix, reg_name, addr, output)
