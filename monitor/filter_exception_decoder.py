@@ -1011,8 +1011,12 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     # -------------------------------------------------------------------------
 
     def _build_riscv_stack_data(self):
-        """Parse accumulated stack memory lines into (base_addr, bytes)."""
-        stack_data = b""
+        """Parse accumulated stack memory lines into (base_addr, bytes).
+
+        Uses per-line addresses to place words at their correct offsets,
+        zero-filling any gaps from missing or out-of-order lines.
+        """
+        stack_data = bytearray()
         base_addr = None
 
         for line in self._riscv_stack_lines:
@@ -1026,9 +1030,19 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 base_addr = addr
             words = re.findall(r"0x([0-9a-fA-F]{8})", m.group(2))
             for w in words:
-                stack_data += struct.pack("<I", int(w, 16))
+                offset = addr - base_addr
+                # Pad with zeros up to the current offset if there are gaps
+                if offset > len(stack_data):
+                    stack_data.extend(b"\x00" * (offset - len(stack_data)))
+                if offset == len(stack_data):
+                    stack_data.extend(struct.pack("<I", int(w, 16)))
+                else:
+                    # Overlapping write — overwrite existing bytes
+                    packed = struct.pack("<I", int(w, 16))
+                    stack_data[offset : offset + 4] = packed
+                addr += 4
 
-        return base_addr or 0, stack_data
+        return base_addr or 0, bytes(stack_data)
 
     def _invoke_gdb_backtrace(self):
         """Launch GDB to produce a proper backtrace from the RISC-V panic dump.
