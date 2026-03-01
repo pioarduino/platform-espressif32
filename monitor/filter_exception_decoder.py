@@ -36,6 +36,8 @@ import types
 _RSP_SERVER_MODE = len(sys.argv) >= 2 and sys.argv[1] == "--rsp-server"
 
 if not _RSP_SERVER_MODE:
+    env = DefaultEnvironment()
+    platform = env.PioPlatform()
     from platformio.compat import IS_WINDOWS
     from platformio.exception import PlatformioException
     from platformio.public import (
@@ -55,8 +57,6 @@ try:
 except ImportError:
     HAS_PYELFTOOLS = False
 
-env = DefaultEnvironment()
-platform = env.PioPlatform()
 
 # By design, __init__ is called inside miniterm and we can't pass context to it.
 # pylint: disable=attribute-defined-outside-init
