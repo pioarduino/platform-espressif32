@@ -237,6 +237,17 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         0xf: "Store/AMO page fault",
     })
 
+    # Standard RISC-V interrupt causes (MCAUSE with bit 31 set).
+    # Lower 31 bits of MCAUSE identify the interrupt source.
+    RISCV_INTERRUPT_CAUSES = types.MappingProxyType({
+        1: "Supervisor software interrupt",
+        3: "Machine software interrupt",
+        5: "Supervisor timer interrupt",
+        7: "Machine timer interrupt",
+        9: "Supervisor external interrupt",
+        11: "Machine external interrupt",
+    })
+
     NON_CODE_REGISTERS = frozenset({
         "EXCVADDR",
         "MTVAL",
@@ -543,7 +554,17 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         return None
 
     def get_riscv_exception(self, code):
-        """Return the human-readable name of a RISC-V MCAUSE value, or None."""
+        """Return a human-readable description for a RISC-V MCAUSE value.
+
+        MCAUSE bit 31 distinguishes interrupts (1) from exceptions (0).
+        Returns a descriptive string, or None if the cause is unknown.
+        """
+        if code & 0x80000000:
+            cause = code & 0x7FFFFFFF
+            desc = self.RISCV_INTERRUPT_CAUSES.get(cause)
+            if desc:
+                return "Interrupt: " + desc
+            return "Interrupt (cause %d)" % cause
         return self.RISCV_EXCEPTIONS.get(code)
 
     # -------------------------------------------------------------------------
