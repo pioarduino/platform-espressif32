@@ -343,7 +343,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
             # Install tool-esp-rom-elfs if not available
             if not rom_elfs_dir or not os.path.isdir(rom_elfs_dir):
-                print("ESP ROM ELFs tool not found, installing...")
+                print("ESP ROM ELFs tool not found, installing (this may take a moment)...")
                 try:
                     platform.install_package("tool-esp-rom-elfs")
                     rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
