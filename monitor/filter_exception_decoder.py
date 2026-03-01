@@ -471,9 +471,14 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             self._addr_cache[cache_key] = None
             return None
 
-    def _resolve_address(self, addr):
+    def _resolve_address(self, addr, is_return_addr=False):
         """
         Resolve a single address through firmware and ROM ELFs.
+        
+        Args:
+            addr: Address string (e.g., "0x420022e4")
+            is_return_addr: If True, subtract 1 before lookup so addr2line
+                reports the call site rather than the instruction after it
         
         Returns:
             tuple: (decoded_output, is_rom) or (None, False) if unresolved
@@ -481,11 +486,15 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         if self.is_address_ignored(addr):
             return None, False
 
-        output = self.decode_address(addr, self.firmware_path)
+        lookup = addr
+        if is_return_addr:
+            lookup = "0x%08x" % (int(addr, 16) - 1)
+
+        output = self.decode_address(lookup, self.firmware_path)
         is_rom = False
 
         if output is None and self.rom_elf_path:
-            output = self.decode_address(addr, self.rom_elf_path)
+            output = self.decode_address(lookup, self.rom_elf_path)
             if output is not None:
                 is_rom = True
 
@@ -522,7 +531,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
         trace = ""
         for reg_name, addr in reg_matches:
-            output, _ = self._resolve_address(addr)
+            output, _ = self._resolve_address(addr, is_return_addr=(reg_name != "MEPC"))
             if output is not None:
                 trace += "%s  %s: %s: %s\n" % (prefix, reg_name, addr, output)
 
@@ -551,7 +560,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
         trace = ""
         for addr in addresses:
-            output, _ = self._resolve_address(addr)
+            output, _ = self._resolve_address(addr, is_return_addr=True)
             if output is not None:
                 trace += "%s  %s: %s\n" % (prefix, addr, output)
 
@@ -581,8 +590,8 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
         trace = ""
         i = 0
-        for addr in addresses:
-            output, is_rom = self._resolve_address(addr)
+        for j, addr in enumerate(addresses):
+            output, is_rom = self._resolve_address(addr, is_return_addr=(j > 0))
             if output is not None:
                 fmt = "%s  #%-2d %s %s\n" if is_rom else "%s  #%-2d %s in %s\n"
                 trace += fmt % (prefix, i, addr, output)
