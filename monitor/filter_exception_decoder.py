@@ -27,8 +27,54 @@ from platformio.public import (
 )
 from platformio.package.manager.tool import ToolPackageManager
 
+try:
+    from elftools.elf.elffile import ELFFile
+    from elftools.elf.constants import SH_FLAGS
+
+    HAS_PYELFTOOLS = True
+except ImportError:
+    HAS_PYELFTOOLS = False
+
 # By design, __init__ is called inside miniterm and we can't pass context to it.
 # pylint: disable=attribute-defined-outside-init
+
+
+class PcAddressMatcher:
+    """
+    Filters addresses by checking whether they fall into an executable
+    ELF section (SHF_EXECINSTR).  This avoids unnecessary addr2line
+    subprocess calls for data addresses, timestamps, or padding values.
+    
+    Requires pyelftools.  If the ELF file cannot be read the matcher
+    silently accepts every address (fail-open).
+    """
+
+    def __init__(self, elf_path):
+        self.intervals = []
+        try:
+            with open(elf_path, "rb") as f:
+                elf = ELFFile(f)
+                for section in elf.iter_sections():
+                    if section["sh_flags"] & SH_FLAGS.SHF_EXECINSTR:
+                        start = section["sh_addr"]
+                        size = section["sh_size"]
+                        if size > 0:
+                            self.intervals.append((start, start + size))
+            self.intervals.sort()
+        except (FileNotFoundError, NotImplementedError, Exception):
+            # Fail-open: if we can't parse the ELF, accept all addresses
+            self.intervals = []
+
+    def is_executable_address(self, addr):
+        """Return True if *addr* (int) lies inside an executable section."""
+        if not self.intervals:
+            return True  # fail-open when no section info available
+        for start, end in self.intervals:
+            if start > addr:
+                return False
+            if start <= addr < end:
+                return True
+        return False
 
 
 class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
@@ -175,6 +221,8 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         self.addr2line_path = None
         self.rom_elf_path = None
         self._addr_cache = {}
+        self._firmware_matcher = None
+        self._rom_matcher = None
         self.enabled = self.setup_paths()
 
         if self.config.get("env:" + self.environment, "build_type") != "debug":
@@ -356,6 +404,12 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                     "%s: ROM ELF not found for chip %s, ROM addresses will not be decoded\n"
                     % (self.__class__.__name__, chip_name)
                 )
+            
+            # Build executable-section matchers for fast address pre-filtering
+            if HAS_PYELFTOOLS:
+                self._firmware_matcher = PcAddressMatcher(self.firmware_path)
+                if self.rom_elf_path:
+                    self._rom_matcher = PcAddressMatcher(self.rom_elf_path)
             
             return True
             
@@ -593,13 +647,20 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         if is_return_addr:
             lookup = "0x%08x" % (int(addr, 16) - 1)
 
-        output = self.decode_address(lookup, self.firmware_path)
+        int_addr = int(lookup, 16)
+
+        # Check firmware executable sections first
+        output = None
+        if self._firmware_matcher is None or self._firmware_matcher.is_executable_address(int_addr):
+            output = self.decode_address(lookup, self.firmware_path)
         is_rom = False
 
+        # Fall back to ROM ELF if not found in firmware
         if output is None and self.rom_elf_path:
-            output = self.decode_address(lookup, self.rom_elf_path)
-            if output is not None:
-                is_rom = True
+            if self._rom_matcher is None or self._rom_matcher.is_executable_address(int_addr):
+                output = self.decode_address(lookup, self.rom_elf_path)
+                if output is not None:
+                    is_rom = True
 
         if output is None:
             return None, False
