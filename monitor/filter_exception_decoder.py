@@ -315,20 +315,17 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     def get_chip_name(self, data):
         """Determine the ESP32 chip variant from build metadata.
 
-        Checks the board name and MCU field against CHIP_NAME_MAP, matching
-        longest chip names first so "esp32s3" is not confused with "esp32".
+        Checks the MCU field (from board.json ``build.mcu``, e.g.
+        ``"esp32c3"``) against CHIP_NAME_MAP, matching longest chip
+        names first so "esp32s3" is not confused with "esp32".
 
         Args:
-            data: Build metadata dict (keys: "board", "mcu", …).
+            data: Build metadata dict (keys: "mcu", …).
 
         Returns:
             Chip name string (e.g. "esp32c3"), defaults to "esp32".
         """
-        board = data.get("board", "").lower()
         sorted_chips = sorted(self.CHIP_NAME_MAP.keys(), key=len, reverse=True)
-        for chip_key in sorted_chips:
-            if chip_key in board:
-                return self.CHIP_NAME_MAP[chip_key]
         mcu = data.get("mcu", "").lower()
         for chip_key in sorted_chips:
             if chip_key in mcu:
