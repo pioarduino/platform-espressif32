@@ -23,6 +23,7 @@ import subprocess
 import sys
 import tempfile
 import types
+from pathlib import Path
 
 # This file serves two roles:
 #
@@ -352,10 +353,10 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 return None
 
             patterns = [
-                os.path.join(rom_elfs_dir, f"{chip_name}_rev*_rom.elf"),
-                os.path.join(rom_elfs_dir, f"{chip_name}_rev*.elf"),
-                os.path.join(rom_elfs_dir, f"{chip_name}*_rom.elf"),
-                os.path.join(rom_elfs_dir, f"{chip_name}*.elf"),
+                Path(rom_elfs_dir) / f"{chip_name}_rev*_rom.elf",
+                Path(rom_elfs_dir) / f"{chip_name}_rev*.elf",
+                Path(rom_elfs_dir) / f"{chip_name}*_rom.elf",
+                Path(rom_elfs_dir) / f"{chip_name}*.elf",
             ]
 
             rom_files = []
@@ -472,9 +473,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         try:
             pkg = platform.get_package_dir("tool-riscv32-esp-elf-gdb")
             if pkg:
-                gdb_bin = os.path.join(
-                    pkg.path, "bin", "riscv32-esp-elf-gdb"
-                )
+                gdb_bin = str(Path(pkg) / "bin" / "riscv32-esp-elf-gdb")
                 if IS_WINDOWS:
                     gdb_bin += ".exe"
                 if os.path.isfile(gdb_bin):
