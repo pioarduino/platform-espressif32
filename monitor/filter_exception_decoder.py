@@ -1221,6 +1221,9 @@ def _run_rsp_server(panic_file):
         data = b""
         while True:
             c = stdin.read(1)
+            if not c:
+                # EOF mid-packet — discard partial data and exit
+                sys.exit(0)
             if c == b"#":
                 stdin.read(2)  # checksum bytes
                 break
