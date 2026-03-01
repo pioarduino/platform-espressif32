@@ -1049,6 +1049,11 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             addr = int(m.group(1), 16)
             if base_addr is None:
                 base_addr = addr
+            elif addr < base_addr:
+                # Line has a lower address than current base — prepend zeros
+                delta = base_addr - addr
+                stack_data = bytearray(b"\x00" * delta) + stack_data
+                base_addr = addr
             words = re.findall(r"0x([0-9a-fA-F]{8})", m.group(2))
             for w in words:
                 offset = addr - base_addr
