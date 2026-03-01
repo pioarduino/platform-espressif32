@@ -37,6 +37,7 @@ from pathlib import Path
 _RSP_SERVER_MODE = len(sys.argv) >= 2 and sys.argv[1] == "--rsp-server"
 
 if not _RSP_SERVER_MODE:
+    from SCons.Script import DefaultEnvironment
     env = DefaultEnvironment()
     platform = env.PioPlatform()
     from platformio.compat import IS_WINDOWS
