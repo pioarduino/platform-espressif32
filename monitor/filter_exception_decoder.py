@@ -17,6 +17,7 @@ import re
 import subprocess
 import sys
 import glob
+import types
 
 from platformio.compat import IS_WINDOWS
 from platformio.exception import PlatformioException
@@ -91,7 +92,7 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
 
     # Xtensa exception causes (EXCCAUSE register values)
     # From Xtensa ISA Reference Manual / ESP-IDF EspExceptionDecoder
-    XTENSA_EXCEPTIONS = [
+    XTENSA_EXCEPTIONS = (
         "IllegalInstruction",           # 0
         "Syscall",                      # 1
         "InstructionFetchError",        # 2
@@ -122,10 +123,10 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         "reserved",                     # 27
         "LoadProhibited",               # 28
         "StoreProhibited",              # 29
-    ]
+    )
 
     # RISC-V exception causes (MCAUSE register values)
-    RISCV_EXCEPTIONS = {
+    RISCV_EXCEPTIONS = types.MappingProxyType({
         0x0: "Instruction address misaligned",
         0x1: "Instruction access fault",
         0x2: "Illegal instruction",
@@ -140,20 +141,20 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         0xc: "Instruction page fault",
         0xd: "Load page fault",
         0xf: "Store/AMO page fault",
-    }
+    })
 
     # Registers containing exception metadata, not code addresses
-    NON_CODE_REGISTERS = {
+    NON_CODE_REGISTERS = frozenset({
         "EXCVADDR",                     # Xtensa fault address
         "MTVAL",                        # RISC-V fault address
         "MSTATUS", "MHARTID",          # RISC-V status registers
         "PS",                           # Xtensa processor status
         "SAR",                          # Xtensa shift amount register
         "LBEG", "LEND", "LCOUNT",      # Xtensa loop registers
-    }
+    })
 
     # Pattern to detect device reboot (terminates exception context)
-    REBOOT_RE = re.compile(r"^Rebooting\.\.\.", re.IGNORECASE)
+    REBOOT_RE = re.compile(r"^\s*Rebooting\.\.\.", re.IGNORECASE)
 
     def __call__(self):
         """
