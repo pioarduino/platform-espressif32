@@ -97,7 +97,11 @@ class PcAddressMatcher:
                         if size > 0:
                             self.intervals.append((start, start + size))
             self.intervals.sort()
-        except (FileNotFoundError, NotImplementedError, Exception):
+        except (FileNotFoundError, NotImplementedError, Exception) as e:
+            sys.stderr.write(
+                "PcAddressMatcher: failed to load executable sections from %s: %s\n"
+                % (elf_path, e)
+            )
             self.intervals = []
 
     def is_executable_address(self, addr):
