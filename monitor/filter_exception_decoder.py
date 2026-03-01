@@ -297,12 +297,14 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     def find_rom_elf(self, chip_name):
         try:
             rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
-            if not rom_elfs_dir:
-                sys.stderr.write(
-                    "%s: tool-esp-rom-elfs package not found.\n"
-                    % self.__class__.__name__
-                )
-                return None
+            # Install tool-esp-rom-elfs if not available
+            if not rom_elfs_dir or not os.path.isdir(rom_elfs_dir):
+                print("ESP ROM ELFs tool not found, installing...")
+                try:
+                    platform.install_package("tool-esp-rom-elfs")
+                    rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
+                except Exception as e:
+                    print(f"Warning: Failed to install tool-esp-rom-elfs: {e}")
 
             if not rom_elfs_dir or not os.path.isdir(rom_elfs_dir):
                 return None
