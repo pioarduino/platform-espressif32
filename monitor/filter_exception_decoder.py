@@ -37,9 +37,7 @@ from pathlib import Path
 _RSP_SERVER_MODE = len(sys.argv) >= 2 and sys.argv[1] == "--rsp-server"
 
 if not _RSP_SERVER_MODE:
-    from SCons.Script import DefaultEnvironment
-    env = DefaultEnvironment()
-    platform = env.PioPlatform()
+    from platformio.package.manager.tool import ToolPackageManager
     from platformio.compat import IS_WINDOWS
     from platformio.exception import PlatformioException
     from platformio.public import (
@@ -351,17 +349,27 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             Absolute path to the ROM ELF, or ``None`` if not found.
         """
         try:
-            rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
-            # Install tool-esp-rom-elfs if not available
-            if not rom_elfs_dir or not os.path.isdir(rom_elfs_dir):
-                print("ESP ROM ELFs tool not found, installing (this may take a moment)...")
-                try:
-                    platform.install_package("tool-esp-rom-elfs")
-                    rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
-                except Exception as e:
-                    print(f"Warning: Failed to install tool-esp-rom-elfs: {e}")
+            # Use ToolPackageManager to access already installed packages
+            pm = ToolPackageManager()
+
+            # Get the tool-esp-rom-elfs package (must be defined in platform.json)
+            pkg = pm.get_package("tool-esp-rom-elfs")
+
+            if not pkg:
+                sys.stderr.write(
+                    "%s: tool-esp-rom-elfs package not found. "
+                    "Ensure it is defined in platform.json dependencies.\n"
+                    % self.__class__.__name__
+                )
+                return None
+
+            rom_elfs_dir = pkg.path
 
             if not rom_elfs_dir or not os.path.isdir(rom_elfs_dir):
+                sys.stderr.write(
+                    "%s: ROM ELFs directory not found at %s\n"
+                    % (self.__class__.__name__, rom_elfs_dir)
+                )
                 return None
 
             patterns = [
@@ -373,7 +381,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
             rom_files = []
             for pattern in patterns:
-                rom_files.extend(glob.glob(pattern))
+                rom_files.extend(glob.glob(str(pattern)))
             rom_files = sorted(set(rom_files))
             if not rom_files:
                 sys.stderr.write(
@@ -487,9 +495,11 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         to addr2line-only decoding.
         """
         try:
-            pkg = platform.get_package_dir("tool-riscv32-esp-elf-gdb")
-            if pkg:
-                gdb_bin = str(Path(pkg) / "bin" / "riscv32-esp-elf-gdb")
+            pm = ToolPackageManager()
+            pkg = pm.get_package("tool-riscv32-esp-elf-gdb")
+            pkg_path = pkg.path
+            if pkg_path:
+                gdb_bin = str(Path(pkg_path) / "bin" / "riscv32-esp-elf-gdb")
                 if IS_WINDOWS:
                     gdb_bin += ".exe"
                 if os.path.isfile(gdb_bin):
