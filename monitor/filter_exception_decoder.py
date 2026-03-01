@@ -717,11 +717,14 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     def _prefetch_addresses(self, addr_specs):
         """Pre-populate _addr_cache in batch for a list of (addr, is_return_addr)."""
         lookups = []
+        seen = set()
         for addr, is_ret in addr_specs:
             if self.is_address_ignored(addr):
                 continue
             lookup = "0x%08x" % (int(addr, 16) - 1) if is_ret else addr
-            lookups.append(lookup)
+            if lookup not in seen:
+                seen.add(lookup)
+                lookups.append(lookup)
 
         if not lookups:
             return
