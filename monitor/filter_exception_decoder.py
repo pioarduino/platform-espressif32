@@ -315,21 +315,65 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     def get_chip_name(self, data):
         """Determine the ESP32 chip variant from build metadata.
 
-        Checks the MCU field (from board.json ``build.mcu``, e.g.
-        ``"esp32c3"``) against CHIP_NAME_MAP, matching longest chip
-        names first so "esp32s3" is not confused with "esp32".
+        ``load_build_metadata`` does not always provide ``mcu`` or ``board``
+        keys, so this method probes several sources in order:
+
+        1. ``mcu`` field (if present).
+        2. ``ARDUINO_VARIANT`` define (e.g. ``"esp32c3"``).
+        3. Bare chip-name defines such as ``ESP32C3``, ``ESP32S3``, etc.
+        4. ``env_name`` (e.g. ``"tasmota32c3-bluetooth"``).
+        5. ``cc_path`` / ``cxx_path`` (e.g. ``xtensa-esp32s3-elf-gcc``).
+
+        Longest chip keys are compared first so that ``"esp32s3"`` is not
+        confused with ``"esp32"``.
 
         Args:
-            data: Build metadata dict (keys: "mcu", …).
+            data: Build metadata dict returned by ``load_build_metadata``.
 
         Returns:
-            Chip name string (e.g. "esp32c3"), defaults to "esp32".
+            Chip name string (e.g. ``"esp32c3"``), defaults to ``"esp32"``.
         """
         sorted_chips = sorted(self.CHIP_NAME_MAP.keys(), key=len, reverse=True)
-        mcu = data.get("mcu", "").lower()
+
+        # 1. Explicit MCU field (may be absent from load_build_metadata).
+        mcu = (data.get("mcu") or "").lower()
         for chip_key in sorted_chips:
             if chip_key in mcu:
                 return self.CHIP_NAME_MAP[chip_key]
+
+        # 2-3. Compiler defines: look for ARDUINO_VARIANT="<chip>" or bare
+        #      ESP32xx defines.  The defines list comes as a Python list.
+        defines = data.get("defines", [])
+        if isinstance(defines, str):
+            # In some PIO versions the value may be a repr'd list string.
+            defines = [defines]
+        for d in defines:
+            dl = d.lower()
+            # ARDUINO_VARIANT="esp32c3"
+            m = re.search(r'arduino_variant\s*=\s*"?([^"]+)"?', dl)
+            if m:
+                variant = m.group(1).strip()
+                for chip_key in sorted_chips:
+                    if chip_key in variant:
+                        return self.CHIP_NAME_MAP[chip_key]
+        # Bare defines like ESP32C3, ESP32S3, etc.
+        define_names = {d.split("=", 1)[0].lower() for d in defines}
+        for chip_key in sorted_chips:
+            if chip_key in define_names:
+                return self.CHIP_NAME_MAP[chip_key]
+
+        # 4. Environment name (e.g. "tasmota32c3-bluetooth").
+        env_name = (data.get("env_name") or "").lower()
+        for chip_key in sorted_chips:
+            if chip_key in env_name:
+                return self.CHIP_NAME_MAP[chip_key]
+
+        # 5. Toolchain path (e.g. xtensa-esp32s3-elf-gcc).
+        cc = (data.get("cc_path") or "").lower()
+        for chip_key in sorted_chips:
+            if chip_key in cc:
+                return self.CHIP_NAME_MAP[chip_key]
+
         return "esp32"
 
     def find_rom_elf(self, chip_name):
