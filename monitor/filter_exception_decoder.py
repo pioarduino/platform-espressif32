@@ -47,6 +47,9 @@ try:
 except ImportError:
     HAS_PYELFTOOLS = False
 
+env = DefaultEnvironment()
+platform = env.PioPlatform()
+
 # By design, __init__ is called inside miniterm and we can't pass context to it.
 # pylint: disable=attribute-defined-outside-init
 
@@ -294,16 +297,14 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
     def find_rom_elf(self, chip_name):
         try:
-            pm = ToolPackageManager()
-            pkg = pm.get_package("tool-esp-rom-elfs")
-            if not pkg:
+            rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
+            if not rom_elfs_dir:
                 sys.stderr.write(
                     "%s: tool-esp-rom-elfs package not found.\n"
                     % self.__class__.__name__
                 )
                 return None
 
-            rom_elfs_dir = pkg.path
             if not rom_elfs_dir or not os.path.isdir(rom_elfs_dir):
                 return None
 
@@ -410,8 +411,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 
     def _find_riscv_gdb(self):
         try:
-            pm = ToolPackageManager()
-            pkg = pm.get_package("tool-riscv32-esp-elf-gdb")
+            pkg = platform.get_package_dir("tool-riscv32-esp-elf-gdb")
             if pkg:
                 gdb_bin = os.path.join(
                     pkg.path, "bin", "riscv32-esp-elf-gdb"
