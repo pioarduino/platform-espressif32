@@ -24,7 +24,15 @@ import sys
 import tempfile
 import types
 
-# Defer PlatformIO imports when running as GDB RSP server
+# This file serves two roles:
+#
+# 1. As a PlatformIO monitor filter (loaded by PlatformIO, class
+#    Esp32ExceptionDecoder is instantiated, rx() processes serial data).
+#
+# 2. As a standalone GDB RSP server (launched by GDB via
+#    "target remote | python -u <this_file> --rsp-server <json>").
+#    In this mode PlatformIO packages are not on sys.path, so the
+#    imports below are skipped to avoid ImportError.
 _RSP_SERVER_MODE = len(sys.argv) >= 2 and sys.argv[1] == "--rsp-server"
 
 if not _RSP_SERVER_MODE:
@@ -35,6 +43,7 @@ if not _RSP_SERVER_MODE:
         load_build_metadata,
     )
 else:
+    # Minimal shims so the module can be parsed without PlatformIO.
     IS_WINDOWS = sys.platform == "win32"
     DeviceMonitorFilterBase = object
 
@@ -245,23 +254,33 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
     # -------------------------------------------------------------------------
 
     def __call__(self):
+        """Initialize the filter when the monitor activates it.
+
+        Called by PlatformIO's miniterm.  Sets up all internal state, locates
+        the firmware ELF, addr2line, ROM ELF, and (for RISC-V) GDB.
+
+        Returns:
+            self: The initialized filter instance.
+        """
         self.buffer = ""
         self.firmware_path = None
         self.addr2line_path = None
         self.rom_elf_path = None
-        self._addr_cache = {}
-        self._firmware_matcher = None
-        self._rom_matcher = None
-        self._has_working_matcher = False
-        self._is_riscv = False
-        self._gdb_path = None
+        self._addr_cache = {}           # (addr_str, elf_path) → decoded str | None
+        self._firmware_matcher = None   # PcAddressMatcher for firmware ELF
+        self._rom_matcher = None        # PcAddressMatcher for ROM ELF
+        self._has_working_matcher = False  # True when firmware matcher has intervals
+        self._is_riscv = False          # True when toolchain is RISC-V based
+        self._gdb_path = None           # Path to riscv32-esp-elf-gdb (or None)
 
-        # RISC-V panic accumulator
+        # RISC-V panic accumulator — collects register + stack dump across
+        # multiple rx() calls so GDB can produce a proper backtrace.
         self._riscv_state = self._RISCV_IDLE
-        self._riscv_regs = {}
-        self._riscv_stack_lines = []
+        self._riscv_regs = {}           # reg_name → int value
+        self._riscv_stack_lines = []    # raw "addr: 0xWORD …" lines
 
-        # Fallback context tracking (used when matcher unavailable)
+        # Fallback keyword-based context tracking, used only when
+        # PcAddressMatcher is unavailable (pyelftools missing or ELF unreadable).
         self._fallback_context = False
         self._fallback_lines = 0
 
@@ -283,6 +302,17 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     # -------------------------------------------------------------------------
 
     def get_chip_name(self, data):
+        """Determine the ESP32 chip variant from build metadata.
+
+        Checks the board name and MCU field against CHIP_NAME_MAP, matching
+        longest chip names first so "esp32s3" is not confused with "esp32".
+
+        Args:
+            data: Build metadata dict (keys: "board", "mcu", …).
+
+        Returns:
+            Chip name string (e.g. "esp32c3"), defaults to "esp32".
+        """
         board = data.get("board", "").lower()
         sorted_chips = sorted(self.CHIP_NAME_MAP.keys(), key=len, reverse=True)
         for chip_key in sorted_chips:
@@ -295,6 +325,18 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         return "esp32"
 
     def find_rom_elf(self, chip_name):
+        """Locate the ROM ELF file for the given chip variant.
+
+        Searches the ``tool-esp-rom-elfs`` package for ELF files matching
+        *chip_name* and picks the one with the lowest revision number for
+        maximum compatibility.
+
+        Args:
+            chip_name: Chip variant (e.g. "esp32s3").
+
+        Returns:
+            Absolute path to the ROM ELF, or ``None`` if not found.
+        """
         try:
             rom_elfs_dir = platform.get_package_dir("tool-esp-rom-elfs")
             # Install tool-esp-rom-elfs if not available
@@ -338,6 +380,16 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             return None
 
     def setup_paths(self):
+        """Locate firmware ELF, addr2line, ROM ELF, and (optionally) GDB.
+
+        Reads PlatformIO build metadata, derives toolchain paths, builds
+        PcAddressMatcher instances for ELF-section filtering, and detects
+        whether the target is RISC-V (to enable GDB stack unwinding).
+
+        Returns:
+            ``True`` if the minimum required tools (firmware ELF + addr2line)
+            were found and the filter can operate; ``False`` otherwise.
+        """
         self.project_dir = os.path.abspath(self.project_dir)
         try:
             data = load_build_metadata(
@@ -411,6 +463,12 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             return False
 
     def _find_riscv_gdb(self):
+        """Try to locate the RISC-V GDB binary from the platform package.
+
+        Sets ``self._gdb_path`` if found.  GDB is required for the RSP-based
+        stack unwinding on RISC-V targets; without it the filter falls back
+        to addr2line-only decoding.
+        """
         try:
             pkg = platform.get_package_dir("tool-riscv32-esp-elf-gdb")
             if pkg:
@@ -473,6 +531,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     # -------------------------------------------------------------------------
 
     def get_xtensa_exception(self, code):
+        """Return the human-readable name of an Xtensa EXCCAUSE value, or None."""
         if 0 <= code < len(self.XTENSA_EXCEPTIONS):
             desc = self.XTENSA_EXCEPTIONS[code]
             if desc != "reserved":
@@ -480,6 +539,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         return None
 
     def get_riscv_exception(self, code):
+        """Return the human-readable name of a RISC-V MCAUSE value, or None."""
         return self.RISCV_EXCEPTIONS.get(code)
 
     # -------------------------------------------------------------------------
@@ -487,6 +547,27 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     # -------------------------------------------------------------------------
 
     def rx(self, text):
+        """Process incoming serial text and insert decoded backtraces.
+
+        For each complete line the method:
+
+        1. Feeds RISC-V panic accumulator; when a full register + stack dump
+           is collected, invokes GDB to produce a proper backtrace.
+        2. Checks whether the line should be decoded (ELF-section matcher or
+           fallback keyword context).
+        3. Matches against known crash-output patterns (PC:SP backtrace,
+           stack memory dump, register dump) and decodes addresses via
+           addr2line in batch mode.
+
+        Decoded output is spliced into *text* immediately after the
+        originating line.
+
+        Args:
+            text: Raw text chunk received from the serial device.
+
+        Returns:
+            The text with decoded trace blocks inserted.
+        """
         if not self.enabled:
             return text
 
@@ -651,6 +732,19 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     # -------------------------------------------------------------------------
 
     def decode_address(self, addr, elf_path):
+        """Decode a single address via addr2line (cache-first).
+
+        Checks ``_addr_cache`` before spawning a subprocess.  Uses the same
+        ``-fiaC`` flags and parsing logic as the batch decoder so results
+        are consistent regardless of code path.
+
+        Args:
+            addr: Address string (e.g. "0x400d1234").
+            elf_path: Path to the ELF file containing debug symbols.
+
+        Returns:
+            Decoded string ("func at file:line") or ``None``.
+        """
         cache_key = (addr, elf_path)
         if cache_key in self._addr_cache:
             return self._addr_cache[cache_key]
@@ -680,9 +774,11 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     # -------------------------------------------------------------------------
 
     def is_address_ignored(self, address):
+        """Return True for empty or null addresses that should be skipped."""
         return address in ("", "0x00000000")
 
     def filter_addresses(self, addresses_str):
+        """Split a PC:SP address string and strip trailing null addresses."""
         addresses = self.ADDR_SPLIT.split(addresses_str)
         size = len(addresses)
         while size > 1 and self.is_address_ignored(addresses[size - 1]):
@@ -690,6 +786,16 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         return addresses[:size]
 
     def _resolve_address(self, addr, is_return_addr=False):
+        """Resolve a single address through firmware ELF, then ROM ELF.
+
+        Applies PcAddressMatcher filtering before calling addr2line.
+        For return addresses (*is_return_addr=True*) the lookup address is
+        decremented by 1 so addr2line reports the call site rather than the
+        instruction after the call.
+
+        Returns:
+            ``(decoded_string, is_rom)`` or ``(None, False)`` if unresolved.
+        """
         if self.is_address_ignored(addr):
             return None, False
 
@@ -735,6 +841,16 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     # -------------------------------------------------------------------------
 
     def build_backtrace(self, line, address_match):
+        """Decode a PC:SP backtrace line into numbered source locations.
+
+        Pre-fetches all addresses in a single batch call to addr2line,
+        then formats the results as a numbered trace block.  The first
+        address is treated as the faulting PC; subsequent addresses are
+        return addresses (decremented by 1 for accurate call-site reporting).
+
+        Returns:
+            Formatted trace string, or empty string if nothing decoded.
+        """
         addresses = self.filter_addresses(address_match)
         if not addresses:
             return ""
@@ -760,6 +876,14 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         return trace + "\n" if trace else ""
 
     def build_stack_trace(self, line, addresses_str):
+        """Decode addresses from a stack memory dump line.
+
+        Each 32-bit word on the line is checked; only those that fall into
+        an executable ELF section and resolve via addr2line are shown.
+
+        Returns:
+            Formatted trace string, or empty string if nothing decoded.
+        """
         addresses = re.findall(r"0x[0-9a-fA-F]{8}", addresses_str)
         if not addresses:
             return ""
@@ -778,6 +902,16 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         return trace
 
     def build_register_trace(self, line, reg_matches):
+        """Decode a register dump line.
+
+        Annotates EXCCAUSE / MCAUSE with human-readable exception names.
+        For code-address registers (PC, MEPC, RA, …) attempts addr2line
+        resolution.  Non-code registers (EXCVADDR, MTVAL, PS, …) are
+        skipped.
+
+        Returns:
+            Formatted annotation string, or empty string if nothing decoded.
+        """
         # Pre-fetch code-address registers
         addr_specs = []
         for reg_name, addr in reg_matches:
@@ -893,7 +1027,22 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         return base_addr or 0, stack_data
 
     def _invoke_gdb_backtrace(self):
-        """Launch GDB to produce a proper backtrace from the RISC-V panic dump."""
+        """Launch GDB to produce a proper backtrace from the RISC-V panic dump.
+
+        Workflow:
+          1. Serialize accumulated registers + stack bytes to a temp JSON file.
+          2. Start ``riscv32-esp-elf-gdb --batch`` with the firmware ELF.
+          3. GDB connects to a pipe target that re-executes *this file* as
+             ``python -u <this_file> --rsp-server <tmp.json>``.
+          4. The RSP server (see ``_run_rsp_server``) answers GDB's register
+             and memory read requests from the captured panic data.
+          5. GDB's ``bt`` command unwinds the stack and prints the backtrace.
+          6. The backtrace lines are captured and returned for insertion into
+             the monitor output.
+
+        Returns:
+            Formatted GDB backtrace string, or empty string on failure.
+        """
         if not self._gdb_path or not self._riscv_regs:
             return ""
 
@@ -981,6 +1130,10 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     # -------------------------------------------------------------------------
 
     def strip_project_dir(self, trace):
+        """Remove the absolute project directory prefix from file paths.
+
+        Makes trace output more readable by showing relative paths only.
+        """
         while True:
             idx = trace.find(self.project_dir)
             if idx == -1:
@@ -994,7 +1147,25 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
 # ---------------------------------------------------------------------------
 
 def _run_rsp_server(panic_file):
-    """Minimal GDB Remote Serial Protocol server for RISC-V panic data."""
+    """Minimal GDB Remote Serial Protocol server for RISC-V panic data.
+
+    This function is the entry point when GDB launches this file as a pipe
+    target (``target remote | python -u <this_file> --rsp-server <json>``).
+
+    It reads the captured register values and stack memory from the JSON file
+    written by ``_invoke_gdb_backtrace()``, then speaks GDB RSP over
+    stdin/stdout so GDB can query registers (``g`` packet) and memory
+    (``m`` packet) and produce a backtrace.
+
+    Supported RSP commands:
+        ?             → stop reason (T05 / SIGTRAP)
+        Hg / Hc       → set thread (always OK, single-threaded)
+        qfThreadInfo  → list threads (m1)
+        qC            → current thread (QC1)
+        g             → all register values (x0..x31 + pc in ILP32 order)
+        m addr,size   → memory read (served from captured stack region)
+        k / vKill     → terminate
+    """
     with open(panic_file, "r") as f:
         panic_data = json.load(f)
 
@@ -1007,6 +1178,7 @@ def _run_rsp_server(panic_file):
     stdout = sys.stdout.buffer
 
     def respond(data):
+        """Send an RSP packet ($data#checksum) and wait for ACK (+)."""
         checksum = sum(data.encode("ascii")) & 0xFF
         packet = ("$%s#%02x" % (data, checksum)).encode("ascii")
         stdout.write(packet)
@@ -1016,6 +1188,7 @@ def _run_rsp_server(panic_file):
             sys.exit(1)
 
     def get_regs():
+        """Pack all registers as little-endian hex for the GDB 'g' response."""
         result = ""
         for name in GDB_REGS_RISCV_ILP32:
             val = regs.get(name, 0)
@@ -1023,6 +1196,7 @@ def _run_rsp_server(panic_file):
         return result
 
     def get_mem(addr, size):
+        """Serve memory from the captured stack region; return 0x00 outside it."""
         result = ""
         for i in range(size):
             offset = (addr + i) - stack_base
