@@ -1090,8 +1090,9 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             ]
 
             if self.rom_elf_path:
+                rom_elf_for_gdb = self.rom_elf_path.replace("\\", "/")
                 gdb_args += [
-                    "-ex", "add-symbol-file %s" % self.rom_elf_path,
+                    "-ex", 'add-symbol-file "%s"' % rom_elf_for_gdb,
                 ]
 
             gdb_args += [
