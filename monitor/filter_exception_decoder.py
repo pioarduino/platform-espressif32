@@ -34,7 +34,6 @@ if not _RSP_SERVER_MODE:
         DeviceMonitorFilterBase,
         load_build_metadata,
     )
-    from platformio.package.manager.tool import ToolPackageManager
 else:
     IS_WINDOWS = sys.platform == "win32"
     DeviceMonitorFilterBase = object
