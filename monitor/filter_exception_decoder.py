@@ -316,18 +316,19 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     # Path / tool detection
     # -------------------------------------------------------------------------
 
-    def _get_mcu_from_board_config(self):
-        """Determine MCU as platform.py does.
+    def get_chip_name(self, data):
+        """Determine the ESP32 chip variant.
+
+        Longest chip keys are compared first so that ``"esp32s3"`` is not
+        confused with ``"esp32"``.
 
         Returns:
-            Lowercase MCU string (e.g. ``"esp32c3"``), or ``None`` if
-            neither source is available.
+            Chip name string (e.g. ``"esp32c3"``), defaults to ``"esp32"``.
         """
+        sorted_chips = sorted(self.CHIP_NAME_MAP.keys(), key=len, reverse=True)
         env_section = "env:" + self.environment
-        print("env_section: %s" % env_section)
         try:
             board_name = self.config.get(env_section, "board")
-            print("board_name: %s" % board_name)
             if board_name:
                 bdirs = [
                     self.config.get("platformio", "boards_dir"),
@@ -343,31 +344,11 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                             board_data = json.load(fh)
                         mcu = board_data.get("build", {}).get("mcu", "")
                         if mcu:
-                            return mcu.lower()
+                            board_mcu = mcu.lower()
                         break
         except Exception:
             pass
 
-        return None
-
-    def get_chip_name(self, data):
-        """Determine the ESP32 chip variant from build metadata.
-
-        ``board_build.mcu`` from ``platformio.ini`` or ``build.mcu``
-
-        Longest chip keys are compared first so that ``"esp32s3"`` is not
-        confused with ``"esp32"``.
-
-        Args:
-            data: Build metadata dict returned by ``load_build_metadata``.
-
-        Returns:
-            Chip name string (e.g. ``"esp32c3"``), defaults to ``"esp32"``.
-        """
-        sorted_chips = sorted(self.CHIP_NAME_MAP.keys(), key=len, reverse=True)
-
-        # board_build.mcu in platformio.ini or build.mcu in board JSON
-        board_mcu = self._get_mcu_from_board_config()
         if board_mcu:
             for chip_key in sorted_chips:
                 if chip_key in board_mcu:
