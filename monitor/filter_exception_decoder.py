@@ -658,10 +658,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         # the data has been buffered above and will be picked up by
         # the active call.  Return empty string so the caller does not
         # display the original text (it will be emitted by _process_buffer).
-        if not self._rx_lock.acquire(blocking=False):
-            return ""
-
-        try:
+        with self._rx_lock:
             out = []
             while True:
                 out.append(self._process_buffer())
@@ -669,8 +666,6 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                     if not self._rx_buf:
                         break
             return "".join(out)
-        finally:
-            self._rx_lock.release()
 
     def _process_buffer(self):
         """Drain the bounded rx buffer and process all complete lines.
