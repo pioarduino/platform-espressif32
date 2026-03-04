@@ -296,6 +296,7 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         # Bounded input buffer (64 KiB). Incoming serial data is appended
         # here; when the buffer is full further data is silently discarded
         # until the current processing cycle drains it.
+        self._buf_lock = threading.Lock()  # guards _rx_buf / _rx_buf_bytes
         self._rx_buf = deque()
         self._rx_buf_bytes = 0
         self._RX_BUF_MAX = 65536        # 64 KiB
@@ -645,17 +646,19 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             return text
 
         # Append to bounded buffer; discard if full.
-        text_len = len(text)
-        if self._rx_buf_bytes + text_len > self._RX_BUF_MAX:
-            return text
-        self._rx_buf.append(text)
-        self._rx_buf_bytes += text_len
+        with self._buf_lock:
+            text_len = len(text)
+            if self._rx_buf_bytes + text_len > self._RX_BUF_MAX:
+                return text
+            self._rx_buf.append(text)
+            self._rx_buf_bytes += text_len
 
         # Serialize processing — if another call is already running,
         # the data has been buffered above and will be picked up by
-        # the active call.
+        # the active call.  Return empty string so the caller does not
+        # display the original text (it will be emitted by _process_buffer).
         if not self._rx_lock.acquire(blocking=False):
-            return text
+            return ""
 
         try:
             return self._process_buffer()
@@ -668,11 +671,11 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         Called while holding ``_rx_lock``.  Concatenates all buffered
         chunks, processes them line-by-line, and returns the result.
         """
-        # Drain buffer
-        chunks = []
-        while self._rx_buf:
-            chunks.append(self._rx_buf.popleft())
-        self._rx_buf_bytes = 0
+        # Drain buffer atomically
+        with self._buf_lock:
+            chunks = list(self._rx_buf)
+            self._rx_buf.clear()
+            self._rx_buf_bytes = 0
 
         text = "".join(chunks)
 
