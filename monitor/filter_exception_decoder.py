@@ -294,8 +294,9 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         self._rx_lock = threading.Lock()
 
         # Bounded input buffer (64 KiB). Incoming serial data is appended
-        # here; when the buffer is full further data is silently discarded
-        # until the current processing cycle drains it.
+        # here; when the buffer is full further data is not buffered for
+        # decoding (pass-through) until the current processing cycle drains it.
+        
         self._buf_lock = threading.Lock()  # guards _rx_buf / _rx_buf_bytes
         self._rx_buf = deque()
         self._rx_buf_bytes = 0
@@ -619,8 +620,8 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         """Process incoming serial text and insert decoded backtraces.
 
         Incoming data is appended to a bounded 64 KiB buffer.  When the
-        buffer is full, further data is silently discarded until the
-        current processing cycle finishes.  A lock ensures that all
+        buffer is full, further data is not buffered for decoding (pass-through)
+        until the current processing cycle finishes.  A lock ensures that all
         processing is strictly serialized — no concurrent rx() calls.
 
         For each complete line the method:
@@ -661,7 +662,13 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             return ""
 
         try:
-            return self._process_buffer()
+            out = []
+            while True:
+                out.append(self._process_buffer())
+                with self._buf_lock:
+                    if not self._rx_buf:
+                        break
+            return "".join(out)
         finally:
             self._rx_lock.release()
 
