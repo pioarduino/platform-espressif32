@@ -22,7 +22,9 @@ import struct
 import subprocess
 import sys
 import tempfile
+import threading
 import types
+from collections import deque
 from pathlib import Path
 
 # This file serves two roles:
@@ -287,6 +289,16 @@ class Esp32ExceptionDecoder(DeviceMonitorFilterBase):
         self._has_working_matcher = False  # True when firmware matcher has intervals
         self._is_riscv = False          # True when toolchain is RISC-V based
         self._gdb_path = None           # Path to riscv32-esp-elf-gdb (or None)
+
+        # Serialization lock — ensures rx() processing is never concurrent.
+        self._rx_lock = threading.Lock()
+
+        # Bounded input buffer (64 KiB). Incoming serial data is appended
+        # here; when the buffer is full further data is silently discarded
+        # until the current processing cycle drains it.
+        self._rx_buf = deque()
+        self._rx_buf_bytes = 0
+        self._RX_BUF_MAX = 65536        # 64 KiB
 
         # RISC-V panic accumulator — collects register + stack dump across
         # multiple rx() calls so GDB can produce a proper backtrace.
@@ -605,6 +617,11 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     def rx(self, text):
         """Process incoming serial text and insert decoded backtraces.
 
+        Incoming data is appended to a bounded 64 KiB buffer.  When the
+        buffer is full, further data is silently discarded until the
+        current processing cycle finishes.  A lock ensures that all
+        processing is strictly serialized — no concurrent rx() calls.
+
         For each complete line the method:
 
         1. Feeds RISC-V panic accumulator; when a full register + stack dump
@@ -627,12 +644,45 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         if not self.enabled:
             return text
 
+        # Append to bounded buffer; discard if full.
+        text_len = len(text)
+        if self._rx_buf_bytes + text_len > self._RX_BUF_MAX:
+            return text
+        self._rx_buf.append(text)
+        self._rx_buf_bytes += text_len
+
+        # Serialize processing — if another call is already running,
+        # the data has been buffered above and will be picked up by
+        # the active call.
+        if not self._rx_lock.acquire(blocking=False):
+            return text
+
+        try:
+            return self._process_buffer()
+        finally:
+            self._rx_lock.release()
+
+    def _process_buffer(self):
+        """Drain the bounded rx buffer and process all complete lines.
+
+        Called while holding ``_rx_lock``.  Concatenates all buffered
+        chunks, processes them line-by-line, and returns the result.
+        """
+        # Drain buffer
+        chunks = []
+        while self._rx_buf:
+            chunks.append(self._rx_buf.popleft())
+        self._rx_buf_bytes = 0
+
+        text = "".join(chunks)
+
         last = 0
         while True:
             idx = text.find("\n", last)
             if idx == -1:
-                if len(self.buffer) < 4096:
-                    self.buffer += text[last:]
+                remainder = text[last:]
+                if len(self.buffer) + len(remainder) <= 4096:
+                    self.buffer += remainder
                 break
 
             line = text[last:idx]
