@@ -15,7 +15,7 @@
     "ethernet"
   ],
   "debug": {
-    "openocd_board": "esp-wroom-32.cfg"
+    "openocd_board": "esp32-wrover.cfg"
   },
   "frameworks": [
     "arduino",
