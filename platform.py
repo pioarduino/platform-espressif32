@@ -623,8 +623,7 @@ class Espressif32Platform(PlatformBase):
         return bool(
             variables.get("build_type") or
             "debug" in targets or
-            variables.get("upload_protocol") or
-            variables.get("debug_tool")
+            variables.get("upload_protocol")
         )
 
     def _configure_mcu_toolchains(
