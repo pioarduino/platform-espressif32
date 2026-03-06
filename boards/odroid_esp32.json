@@ -14,6 +14,9 @@
     "ethernet",
     "can"
   ],
+  "debug": {
+    "openocd_board": "esp32-wrover.cfg"
+  },
   "frameworks": [
     "arduino",
     "espidf"
