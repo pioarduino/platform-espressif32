@@ -1863,13 +1863,26 @@ elif upload_protocol in debug_tools:
     openocd_pkg_dir = _to_unix_slashes(
         platform.get_package_dir("tool-openocd-esp32") or ""
     )
-    openocd_args = [
-        f.replace("$PACKAGE_DIR", openocd_pkg_dir)
-        for f in openocd_args
-    ]
     if openocd_pkg_dir:
+        openocd_args = [
+            f.replace("$PACKAGE_DIR", openocd_pkg_dir)
+            for f in openocd_args
+        ]
         openocd_executable = str(Path(openocd_pkg_dir) / "bin" / "openocd")
     else:
+        filtered = []
+        skip_next = False
+        for f in openocd_args:
+            if skip_next:
+                skip_next = False
+                continue
+            if "$PACKAGE_DIR" in f:
+                continue
+            if f == "-s":
+                skip_next = True
+                continue
+            filtered.append(f)
+        openocd_args = filtered
         openocd_executable = "openocd"
     env.Replace(
         UPLOADER=openocd_executable,
