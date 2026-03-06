@@ -623,7 +623,8 @@ class Espressif32Platform(PlatformBase):
         return bool(
             variables.get("build_type") or
             "debug" in targets or
-            variables.get("upload_protocol")
+            variables.get("upload_protocol") or
+            variables.get("debug_tool")
         )
 
     def _configure_mcu_toolchains(
@@ -933,9 +934,18 @@ class Espressif32Platform(PlatformBase):
             f'{item["offset"]} verify'
             for item in flash_images
         ]
+        app_offset = build_extra_data.get("application_offset")
+        if not app_offset:
+            logger.warning(
+                "Application offset not found in build metadata, "
+                "falling back to default %s. Debug flashing may target "
+                "the wrong address for custom partition layouts.",
+                DEFAULT_APP_OFFSET,
+            )
+            app_offset = DEFAULT_APP_OFFSET
         load_cmds.append(
             f'monitor program_esp '
             f'"{to_unix_path(debug_config.build_data["prog_path"][:-4])}.bin" '
-            f'{build_extra_data.get("application_offset", DEFAULT_APP_OFFSET)} verify'
+            f'{app_offset} verify'
         )
         debug_config.load_cmds = load_cmds

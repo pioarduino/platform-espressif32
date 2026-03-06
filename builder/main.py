@@ -1860,19 +1860,18 @@ elif upload_protocol in debug_tools:
                 ]
             )
     openocd_args.extend(["-c", "reset run; shutdown"])
+    openocd_pkg_dir = _to_unix_slashes(
+        platform.get_package_dir("tool-openocd-esp32") or ""
+    )
     openocd_args = [
-        f.replace(
-            "$PACKAGE_DIR",
-            _to_unix_slashes(
-                platform.get_package_dir("tool-openocd-esp32") or ""
-            ),
-        )
+        f.replace("$PACKAGE_DIR", openocd_pkg_dir)
         for f in openocd_args
     ]
+    openocd_executable = str(Path(openocd_pkg_dir) / "bin" / "openocd")
     env.Replace(
-        UPLOADER="openocd",
+        UPLOADER=openocd_executable,
         UPLOADERFLAGS=openocd_args,
-        UPLOADCMD="$UPLOADER $UPLOADERFLAGS",
+        UPLOADCMD='"$UPLOADER" $UPLOADERFLAGS',
     )
     upload_actions = [env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE")]
 
