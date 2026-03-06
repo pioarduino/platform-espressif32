@@ -933,6 +933,10 @@ class Espressif32Platform(PlatformBase):
         ]
 
         if any(ignore_conds):
+            logger.warning(
+                "Falling back to default GDB load; "
+                "flash_images metadata missing or incomplete."
+            )
             return
 
         load_cmds = [
