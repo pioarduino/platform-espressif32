@@ -1867,7 +1867,10 @@ elif upload_protocol in debug_tools:
         f.replace("$PACKAGE_DIR", openocd_pkg_dir)
         for f in openocd_args
     ]
-    openocd_executable = str(Path(openocd_pkg_dir) / "bin" / "openocd")
+    if openocd_pkg_dir:
+        openocd_executable = str(Path(openocd_pkg_dir) / "bin" / "openocd")
+    else:
+        openocd_executable = "openocd"
     env.Replace(
         UPLOADER=openocd_executable,
         UPLOADERFLAGS=openocd_args,
