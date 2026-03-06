@@ -831,6 +831,12 @@ class Espressif32Platform(PlatformBase):
         if mcu in ESP_BUILTIN_DEBUG_MCUS:
             supported_debug_tools.append("esp-builtin")
 
+        # Auto-assign SVD path based on MCU if not already set
+        if debug and not debug.get("svd_path"):
+            svd_file = Path(self.get_dir()) / "misc" / "svd" / f"{mcu}.svd"
+            if svd_file.is_file():
+                debug["svd_path"] = str(svd_file)
+
         upload_protocol = board.manifest.get("upload", {}).get("protocol")
         upload_protocols = board.manifest.get("upload", {}).get("protocols", [])
 
@@ -919,13 +925,19 @@ class Espressif32Platform(PlatformBase):
                 "-c", f"adapter speed {debug_config.speed or DEFAULT_DEBUG_SPEED}"
             ])
 
+        if debug_config.load_cmds != ["load"]:
+            return
+
         ignore_conds = [
-            debug_config.load_cmds != ["load"],
             not flash_images,
             not all([Path(item["path"]).is_file() for item in flash_images]),
         ]
 
         if any(ignore_conds):
+            logger.warning(
+                "Falling back to default GDB load; "
+                "flash_images metadata missing or incomplete."
+            )
             return
 
         load_cmds = [
@@ -933,9 +945,18 @@ class Espressif32Platform(PlatformBase):
             f'{item["offset"]} verify'
             for item in flash_images
         ]
+        app_offset = build_extra_data.get("application_offset")
+        if not app_offset:
+            logger.warning(
+                "Application offset not found in build metadata, "
+                "falling back to default %s. Debug flashing may target "
+                "the wrong address for custom partition layouts.",
+                DEFAULT_APP_OFFSET,
+            )
+            app_offset = DEFAULT_APP_OFFSET
         load_cmds.append(
             f'monitor program_esp '
             f'"{to_unix_path(debug_config.build_data["prog_path"][:-4])}.bin" '
-            f'{build_extra_data.get("application_offset", DEFAULT_APP_OFFSET)} verify'
+            f'{app_offset} verify'
         )
         debug_config.load_cmds = load_cmds

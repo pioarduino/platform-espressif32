@@ -1860,19 +1860,34 @@ elif upload_protocol in debug_tools:
                 ]
             )
     openocd_args.extend(["-c", "reset run; shutdown"])
-    openocd_args = [
-        f.replace(
-            "$PACKAGE_DIR",
-            _to_unix_slashes(
-                platform.get_package_dir("tool-openocd-esp32") or ""
-            ),
-        )
-        for f in openocd_args
-    ]
+    openocd_pkg_dir = _to_unix_slashes(
+        platform.get_package_dir("tool-openocd-esp32") or ""
+    )
+    if openocd_pkg_dir:
+        openocd_args = [
+            f.replace("$PACKAGE_DIR", openocd_pkg_dir)
+            for f in openocd_args
+        ]
+        openocd_executable = str(Path(openocd_pkg_dir) / "bin" / "openocd")
+    else:
+        filtered = []
+        i = 0
+        while i < len(openocd_args):
+            if openocd_args[i] == "-s" and i + 1 < len(openocd_args) \
+                    and "$PACKAGE_DIR" in openocd_args[i + 1]:
+                i += 2
+                continue
+            if "$PACKAGE_DIR" in openocd_args[i]:
+                i += 1
+                continue
+            filtered.append(openocd_args[i])
+            i += 1
+        openocd_args = filtered
+        openocd_executable = "openocd"
     env.Replace(
-        UPLOADER="openocd",
+        UPLOADER=openocd_executable,
         UPLOADERFLAGS=openocd_args,
-        UPLOADCMD="$UPLOADER $UPLOADERFLAGS",
+        UPLOADCMD='"$UPLOADER" $UPLOADERFLAGS',
     )
     upload_actions = [env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE")]
 
