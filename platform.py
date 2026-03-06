@@ -926,8 +926,10 @@ class Espressif32Platform(PlatformBase):
                 "-c", f"adapter speed {debug_config.speed or DEFAULT_DEBUG_SPEED}"
             ])
 
+        if debug_config.load_cmds != ["load"]:
+            return
+
         ignore_conds = [
-            debug_config.load_cmds != ["load"],
             not flash_images,
             not all([Path(item["path"]).is_file() for item in flash_images]),
         ]
