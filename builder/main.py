@@ -1871,17 +1871,17 @@ elif upload_protocol in debug_tools:
         openocd_executable = str(Path(openocd_pkg_dir) / "bin" / "openocd")
     else:
         filtered = []
-        skip_next = False
-        for f in openocd_args:
-            if skip_next:
-                skip_next = False
+        i = 0
+        while i < len(openocd_args):
+            if openocd_args[i] == "-s" and i + 1 < len(openocd_args) \
+                    and "$PACKAGE_DIR" in openocd_args[i + 1]:
+                i += 2
                 continue
-            if "$PACKAGE_DIR" in f:
+            if "$PACKAGE_DIR" in openocd_args[i]:
+                i += 1
                 continue
-            if f == "-s":
-                skip_next = True
-                continue
-            filtered.append(f)
+            filtered.append(openocd_args[i])
+            i += 1
         openocd_args = filtered
         openocd_executable = "openocd"
     env.Replace(
