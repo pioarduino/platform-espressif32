@@ -833,7 +833,7 @@ class Espressif32Platform(PlatformBase):
             supported_debug_tools.append("esp-builtin")
 
         # Auto-assign SVD path based on MCU if not already set
-        if not debug.get("svd_path"):
+        if debug and not debug.get("svd_path"):
             svd_file = Path(self.get_dir()) / "misc" / "svd" / f"{mcu}.svd"
             if svd_file.is_file():
                 debug["svd_path"] = str(svd_file)
