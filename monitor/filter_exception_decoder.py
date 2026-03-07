@@ -800,17 +800,16 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 output += "\n     (inlined by) " + p
             self._addr_cache[(addr, elf_path)] = output
 
-    def _prefetch_addresses(self, addr_specs):
-        """Pre-populate _addr_cache in batch for a list of (addr, is_return_addr)."""
+    def _prefetch_addresses(self, addrs):
+        """Pre-populate _addr_cache in batch for a list of address strings."""
         lookups = []
         seen = set()
-        for addr, is_ret in addr_specs:
+        for addr in addrs:
             if self.is_address_ignored(addr):
                 continue
-            lookup = self._normalize_return_addr(addr, is_ret)
-            if lookup not in seen:
-                seen.add(lookup)
-                lookups.append(lookup)
+            if addr not in seen:
+                seen.add(addr)
+                lookups.append(addr)
 
         if not lookups:
             return
@@ -887,19 +886,6 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
     # Address helpers
     # -------------------------------------------------------------------------
 
-    @staticmethod
-    def _normalize_return_addr(addr, is_return_addr):
-        """Return the addr2line lookup address.
-
-        For return addresses (backtrace frames after the first, RA register,
-        stack-memory hits) the address points to the instruction *after* the
-        call.  Decrementing by 1 lets addr2line report the actual call site.
-        Non-return addresses (faulting PC) are returned unchanged.
-        """
-        if is_return_addr and int(addr, 16) != 0:
-            return "0x%08x" % (int(addr, 16) - 1)
-        return addr
-
     def is_address_ignored(self, address):
         """Return True for empty or null addresses that should be skipped."""
         return address in ("", "0x00000000")
@@ -912,13 +898,10 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             size -= 1
         return addresses[:size]
 
-    def _resolve_address(self, addr, is_return_addr=False):
+    def _resolve_address(self, addr):
         """Resolve a single address through firmware ELF, then ROM ELF.
 
         Applies PcAddressMatcher filtering before calling addr2line.
-        For return addresses (*is_return_addr=True*) the lookup address is
-        decremented by 1 so addr2line reports the call site rather than the
-        instruction after the call.
 
         Returns:
             ``(decoded_string, is_rom)`` or ``(None, False)`` if unresolved.
@@ -926,7 +909,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         if self.is_address_ignored(addr):
             return None, False
 
-        lookup = self._normalize_return_addr(addr, is_return_addr)
+        lookup = addr
         int_addr = int(lookup, 16)
 
         output = None
@@ -979,9 +962,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         if not addresses:
             return ""
 
-        self._prefetch_addresses(
-            [(addr, j > 0) for j, addr in enumerate(addresses)]
-        )
+        self._prefetch_addresses(addresses)
 
         prefix_match = self.PREFIX_RE.match(line)
         prefix = prefix_match.group(0) if prefix_match is not None else ""
@@ -989,9 +970,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         trace = ""
         i = 0
         for j, addr in enumerate(addresses):
-            output, is_rom = self._resolve_address(
-                addr, is_return_addr=(j > 0)
-            )
+            output, is_rom = self._resolve_address(addr)
             if output is not None:
                 fmt = "%s  #%-2d %s %s\n" if is_rom else "%s  #%-2d %s in %s\n"
                 trace += fmt % (prefix, i, addr, output)
@@ -1012,14 +991,14 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         if not addresses:
             return ""
 
-        self._prefetch_addresses([(addr, True) for addr in addresses])
+        self._prefetch_addresses(addresses)
 
         prefix_match = self.PREFIX_RE.match(line)
         prefix = prefix_match.group(0) if prefix_match is not None else ""
 
         trace = ""
         for addr in addresses:
-            output, _ = self._resolve_address(addr, is_return_addr=True)
+            output, _ = self._resolve_address(addr)
             if output is not None:
                 trace += "%s  %s: %s\n" % (prefix, addr, output)
 
@@ -1037,14 +1016,14 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             Formatted annotation string, or empty string if nothing decoded.
         """
         # Pre-fetch code-address registers
-        addr_specs = []
+        reg_addrs = []
         for reg_name, addr in reg_matches:
             if reg_name in ("EXCCAUSE", "MCAUSE"):
                 continue
             if reg_name in self.NON_CODE_REGISTERS:
                 continue
-            addr_specs.append((addr, reg_name == "RA"))
-        self._prefetch_addresses(addr_specs)
+            reg_addrs.append(addr)
+        self._prefetch_addresses(reg_addrs)
 
         prefix_match = self.PREFIX_RE.match(line)
         prefix = prefix_match.group(0) if prefix_match is not None else ""
@@ -1072,9 +1051,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             if reg_name in self.NON_CODE_REGISTERS:
                 continue
 
-            output, _ = self._resolve_address(
-                addr, is_return_addr=(reg_name == "RA")
-            )
+            output, _ = self._resolve_address(addr)
             if output is not None:
                 trace += "%s  %s: %s: %s\n" % (prefix, reg_name, addr, output)
 
