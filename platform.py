@@ -923,7 +923,7 @@ class Espressif32Platform(PlatformBase):
             return []
 
         try:
-            with open(roms_json) as f:
+            with open(roms_json, encoding="utf-8") as f:
                 roms = json.load(f)
         except (json.JSONDecodeError, OSError):
             return []
