@@ -994,7 +994,7 @@ class Espressif32Platform(PlatformBase):
         if link in ("esp-prog", "ftdi"):
             if board.id == "esp32-s2-kaluga-1":
                 return "ftdi/esp32s2_kaluga_v1"
-            return "ftdi/esp32_devkitj_v1"
+            return "ftdi/esp_ftdi"
         if link == "esp-bridge":
             return "esp_usb_bridge"
         if link == "esp-builtin":
