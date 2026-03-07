@@ -48,6 +48,7 @@ import logging
 import os
 import requests
 import shutil
+import struct
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Union
@@ -649,6 +650,7 @@ class Espressif32Platform(PlatformBase):
             for debug_tool in mcu_config["debug_tools"]:
                 self.install_tool(debug_tool)
             self.install_tool("tool-openocd-esp32")
+            self.install_tool("tool-esp-rom-elfs")
 
     def _configure_installer(self) -> None:
         """Configure the ESP-IDF tools installer with proper version checking."""
@@ -857,6 +859,24 @@ class Espressif32Platform(PlatformBase):
             openocd_interface = self._get_openocd_interface(link, board)
             server_args = self._get_debug_server_args(openocd_interface, debug)
 
+            init_cmds = [
+                "define pio_reset_halt_target",
+                "   monitor reset halt",
+                "   maintenance flush register-cache",
+                "end",
+                "define pio_reset_run_target",
+                "   monitor reset",
+                "end",
+            ]
+            init_cmds.extend(self._get_freertos_gdb_cmds())
+            init_cmds.extend(self._get_rom_elf_gdb_cmds(mcu))
+            init_cmds.extend([
+                "target extended-remote $DEBUG_PORT",
+                "$LOAD_CMDS",
+                "pio_reset_halt_target",
+                "$INIT_BREAK",
+            ])
+
             debug["tools"][link] = {
                 "server": {
                     "package": "tool-openocd-esp32",
@@ -864,19 +884,7 @@ class Espressif32Platform(PlatformBase):
                     "arguments": server_args,
                 },
                 "init_break": "thb app_main",
-                "init_cmds": [
-                    "define pio_reset_halt_target",
-                    "   monitor reset halt",
-                    "   flushregs",
-                    "end",
-                    "define pio_reset_run_target",
-                    "   monitor reset",
-                    "end",
-                    "target extended-remote $DEBUG_PORT",
-                    "$LOAD_CMDS",
-                    "pio_reset_halt_target",
-                    "$INIT_BREAK",
-                ],
+                "init_cmds": init_cmds,
                 "onboard": link in debug.get("onboard_tools", []),
                 "default": link == debug.get("default_tool"),
             }
@@ -886,6 +894,98 @@ class Espressif32Platform(PlatformBase):
                 debug["tools"][link]["load_cmds"] = "preload"
         board.manifest["debug"] = debug
         return board
+
+    @staticmethod
+    def _get_freertos_gdb_cmds() -> List[str]:
+        """Generate GDB commands to load FreeRTOS thread-awareness extension."""
+        return [
+            "python",
+            "try:",
+            "    import freertos_gdb",
+            "except ModuleNotFoundError:",
+            "    print('warning: python extension \"freertos_gdb\" not found.')",
+            "end",
+        ]
+
+    def _get_rom_elf_gdb_cmds(self, mcu: str) -> List[str]:
+        """Generate GDB commands for automatic ROM ELF symbol loading.
+
+        Produces a 'target hookpost-remote' GDB hook that reads the ROM
+        build-date string from a chip-specific memory address after connecting
+        and loads the matching ROM ELF symbol file.
+        """
+        rom_elfs_dir = self.get_package_dir("tool-esp-rom-elfs")
+        if not rom_elfs_dir or not Path(rom_elfs_dir).is_dir():
+            return []
+
+        roms_json = Path(self.get_dir()) / "misc" / "roms.json"
+        if not roms_json.is_file():
+            return []
+
+        try:
+            with open(roms_json) as f:
+                roms = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return []
+
+        if mcu not in roms:
+            return []
+
+        rom_elfs_path = to_unix_path(str(Path(rom_elfs_dir).resolve()))
+        if not rom_elfs_path.endswith("/"):
+            rom_elfs_path += "/"
+
+        entries = roms[mcu]
+        cmds = [
+            "define target hookpost-remote",
+            "set confirm off",
+        ]
+        cmds.extend(
+            self._build_rom_elf_conditions(entries, mcu, rom_elfs_path, depth=1)
+        )
+        cmds.extend([
+            "set confirm on",
+            "end",
+        ])
+        return cmds
+
+    @staticmethod
+    def _rom_date_condition(date_addr: int, date_str: str) -> str:
+        """Build a GDB if-condition comparing memory words to a date string."""
+        parts = []
+        for i in range(0, len(date_str), 4):
+            chunk = date_str[i:i + 4]
+            value = hex(struct.unpack('<I', chunk.encode('utf-8').ljust(4, b'\x00'))[0])
+            parts.append(f"(*(int*) {hex(date_addr + i)}) == {value}")
+        return "if " + " && ".join(parts)
+
+    @classmethod
+    def _build_rom_elf_conditions(
+        cls, entries: list, mcu: str, rom_dir: str, depth: int
+    ) -> List[str]:
+        """Recursively build nested if/else/end blocks for ROM revision matching."""
+        if not entries:
+            return []
+        indent = "  " * depth
+        entry = entries[0]
+        addr = int(entry["build_date_str_addr"], 16)
+        rom_file = f"{mcu}_rev{entry['rev']}_rom.elf"
+        lines = [
+            f"{indent}{cls._rom_date_condition(addr, entry['build_date_str'])}",
+            f"{indent}  add-symbol-file {rom_dir}{rom_file}",
+        ]
+        if len(entries) > 1:
+            lines.append(f"{indent}else")
+            lines.extend(
+                cls._build_rom_elf_conditions(entries[1:], mcu, rom_dir, depth + 1)
+            )
+        else:
+            lines.append(f"{indent}else")
+            lines.append(
+                f"{indent}  echo Warning: Unknown {mcu} ROM revision.\\n"
+            )
+        lines.append(f"{indent}end")
+        return lines
 
     def _get_openocd_interface(self, link: str, board) -> str:
         """Determine OpenOCD interface configuration for debug link."""
