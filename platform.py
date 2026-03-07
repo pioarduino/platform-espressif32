@@ -906,8 +906,11 @@ class Espressif32Platform(PlatformBase):
             if not pkg_dir:
                 continue
             toolchain_arch = "xtensa-esp-elf" if mcu in MCU_TOOLCHAIN_CONFIG["xtensa"]["mcus"] else "riscv32-esp-elf"
-            gdb_path = Path(pkg_dir) / "bin" / f"{toolchain_arch}-gdb"
-            if not gdb_path.is_file():
+            candidates = [Path(pkg_dir) / "bin" / f"{toolchain_arch}-gdb"]
+            if IS_WINDOWS:
+                candidates.insert(0, Path(pkg_dir) / "bin" / f"{toolchain_arch}-gdb.exe")
+            gdb_path = next((path for path in candidates if path.is_file()), None)
+            if not gdb_path:
                 continue
             try:
                 result = subprocess.run(
