@@ -851,10 +851,6 @@ class Espressif32Platform(PlatformBase):
         if "tools" not in debug:
             debug["tools"] = {}
 
-        # Debug tool configuration
-        has_gdb_python = self._gdb_has_python(mcu)
-        rom_elf_cmds = self._get_rom_elf_gdb_cmds(mcu)
-
         for link in upload_protocols:
             if link in non_debug_protocols or link in debug["tools"]:
                 continue
@@ -871,9 +867,6 @@ class Espressif32Platform(PlatformBase):
                 "   monitor reset",
                 "end",
             ]
-            if has_gdb_python:
-                init_cmds.extend(self._get_freertos_gdb_cmds())
-            init_cmds.extend(rom_elf_cmds)
             init_cmds.extend([
                 "target extended-remote $DEBUG_PORT",
                 "$LOAD_CMDS",
@@ -941,7 +934,7 @@ class Espressif32Platform(PlatformBase):
     def _get_rom_elf_gdb_cmds(self, mcu: str) -> List[str]:
         """Generate GDB commands for automatic ROM ELF symbol loading.
 
-        Produces a 'target hookpost-remote' GDB hook that reads the ROM
+        Produces a 'target hookpost-extended-remote' GDB hook that reads the ROM
         build-date string from a chip-specific memory address after connecting
         and loads the matching ROM ELF symbol file.
         """
@@ -968,7 +961,7 @@ class Espressif32Platform(PlatformBase):
 
         entries = roms[mcu]
         cmds = [
-            "define target hookpost-remote",
+            "define target hookpost-extended-remote",
             "set confirm off",
         ]
         cmds.extend(
@@ -1049,6 +1042,8 @@ class Espressif32Platform(PlatformBase):
 
     def configure_debug_session(self, debug_config):
         """Configure debug session with flash image loading."""
+        self._inject_debug_extensions(debug_config)
+
         build_extra_data = debug_config.build_data.get("extra", {})
         flash_images = build_extra_data.get("flash_images", [])
 
@@ -1092,3 +1087,28 @@ class Espressif32Platform(PlatformBase):
             f'{app_offset} verify'
         )
         debug_config.load_cmds = load_cmds
+
+    def _inject_debug_extensions(self, debug_config):
+        """Inject FreeRTOS thread-awareness and ROM ELF commands into init_cmds.
+
+        Called from configure_debug_session() so toolchain packages are
+        guaranteed to be installed when the probes run.
+        """
+        mcu = debug_config.board_config.get("build.mcu", "")
+        if not mcu:
+            return
+        tool_init_cmds = debug_config.tool_settings.get("init_cmds")
+        if tool_init_cmds is None:
+            return
+        # Find insertion point: just before "target extended-remote"
+        insert_idx = next(
+            (i for i, cmd in enumerate(tool_init_cmds)
+             if "target extended-remote" in cmd),
+            len(tool_init_cmds),
+        )
+        extra_cmds = []
+        if self._gdb_has_python(mcu):
+            extra_cmds.extend(self._get_freertos_gdb_cmds())
+        extra_cmds.extend(self._get_rom_elf_gdb_cmds(mcu))
+        for i, cmd in enumerate(extra_cmds):
+            tool_init_cmds.insert(insert_idx + i, cmd)
