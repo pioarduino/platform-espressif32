@@ -970,9 +970,10 @@ class Espressif32Platform(PlatformBase):
         entry = entries[0]
         addr = int(entry["build_date_str_addr"], 16)
         rom_file = f"{mcu}_rev{entry['rev']}_rom.elf"
+        rom_path = f"{rom_dir}{rom_file}"
         lines = [
             f"{indent}{cls._rom_date_condition(addr, entry['build_date_str'])}",
-            f"{indent}  add-symbol-file {rom_dir}{rom_file}",
+            f'{indent}  add-symbol-file "{rom_path}"',
         ]
         if len(entries) > 1:
             lines.append(f"{indent}else")
