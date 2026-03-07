@@ -852,6 +852,9 @@ class Espressif32Platform(PlatformBase):
             debug["tools"] = {}
 
         # Debug tool configuration
+        has_gdb_python = self._gdb_has_python(mcu)
+        rom_elf_cmds = self._get_rom_elf_gdb_cmds(mcu)
+
         for link in upload_protocols:
             if link in non_debug_protocols or link in debug["tools"]:
                 continue
@@ -868,9 +871,9 @@ class Espressif32Platform(PlatformBase):
                 "   monitor reset",
                 "end",
             ]
-            if self._gdb_has_python(mcu):
+            if has_gdb_python:
                 init_cmds.extend(self._get_freertos_gdb_cmds())
-            init_cmds.extend(self._get_rom_elf_gdb_cmds(mcu))
+            init_cmds.extend(rom_elf_cmds)
             init_cmds.extend([
                 "target extended-remote $DEBUG_PORT",
                 "$LOAD_CMDS",
