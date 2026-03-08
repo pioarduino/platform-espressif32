@@ -4,7 +4,7 @@ This tool decodes ESP32 crash logs (exception backtraces) using the firmware ELF
 
 ## Features
 
-- **Offline Operation**: Works without pioarduino or active project
+- **Offline Operation**: Works without an active project
 - **Auto-Detection**: Automatically detects architecture (RISC-V or Xtensa)
 - **Auto-Discovery**: Finds toolchain binaries (addr2line, GDB) automatically
 - **Multiple Architectures**: Supports ESP32, ESP32-S2, ESP32-S3, ESP32-C3, ESP32-C6, ESP32-H2, etc.
@@ -57,9 +57,7 @@ python3 filter_exception_decoder.py --help
 ## How It Works
 
 1. **Architecture Detection**: Reads the ELF header to determine if the firmware is RISC-V or Xtensa
-2. **Toolchain Discovery**: Searches for `addr2line` and `gdb` in:
-   - `~/.platformio/packages/toolchain-*/bin/`
-   - System PATH
+2. **Toolchain Discovery**: Searches for `addr2line` and `gdb` in `~/.platformio/packages/toolchain-*/bin/`
 3. **Address Decoding**: Uses `addr2line` to convert memory addresses to function names and source locations
 4. **Stack Unwinding**: For RISC-V, optionally uses GDB for complete stack unwinding
 
@@ -67,7 +65,7 @@ python3 filter_exception_decoder.py --help
 
 The tool adds decoded information inline with the original crash log:
 
-```
+```text
 Core  0 register dump:
 MEPC    : 0x4080c1aa  RA      : 0x4080c16e  SP      : 0x40823630  GP      : 0x40813ae4
   MEPC: 0x4080c1aa: panic_abort at panic.c:491

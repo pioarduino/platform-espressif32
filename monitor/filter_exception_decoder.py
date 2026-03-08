@@ -27,18 +27,28 @@ import types
 from collections import deque
 from pathlib import Path
 
-# This file serves two roles:
+# This file serves three roles:
 #
 # 1. As a PlatformIO monitor filter (loaded by PlatformIO, class
 #    Esp32ExceptionDecoder is instantiated, rx() processes serial data).
 #
 # 2. As a standalone GDB RSP server (launched by GDB via
 #    "target remote | python -u <this_file> --rsp-server <json>").
-#    In this mode PlatformIO packages are not on sys.path, so the
-#    imports below are skipped to avoid ImportError.
-_RSP_SERVER_MODE = len(sys.argv) >= 2 and sys.argv[1] == "--rsp-server"
+#
+# 3. As a standalone CLI tool for offline crash log decoding.
+#
+# In modes 2 and 3, PlatformIO packages are not required, so imports
+# are guarded to avoid ImportError.
 
-if not _RSP_SERVER_MODE:
+_RSP_SERVER_MODE = len(sys.argv) >= 2 and sys.argv[1] == "--rsp-server"
+# CLI mode: has arguments and first arg is not --rsp-server and looks like a file path or option
+_CLI_MODE = (len(sys.argv) >= 2 and 
+             sys.argv[1] not in ("--rsp-server",) and
+             (sys.argv[1].startswith("-") or os.path.exists(sys.argv[1]) or "/" in sys.argv[1] or "\\" in sys.argv[1]))
+_STANDALONE_MODE = _RSP_SERVER_MODE or _CLI_MODE
+
+if not _STANDALONE_MODE:
+    # PlatformIO monitor filter mode - import dependencies
     from platformio.package.manager.tool import ToolPackageManager
     from platformio.compat import IS_WINDOWS
     from platformio.exception import PlatformioException
@@ -47,9 +57,19 @@ if not _RSP_SERVER_MODE:
         load_build_metadata,
     )
 else:
-    # Minimal shims so the module can be parsed without PlatformIO.
+    # Standalone mode - create minimal shims
     IS_WINDOWS = sys.platform == "win32"
     DeviceMonitorFilterBase = object
+    
+    class PlatformioException(Exception):
+        pass
+    
+    class ToolPackageManager:
+        def get_package(self, name):
+            return None
+    
+    def load_build_metadata(project_dir, environment, cache=True):
+        raise PlatformioException("Not available in standalone mode")
 
 try:
     from elftools.elf.elffile import ELFFile
@@ -1479,10 +1499,6 @@ def _run_standalone_decoder(elf_path, crash_log_path, output_path=None):
         sys.stderr.write("Error: Crash log file not found: %s\n" % crash_log_path)
         sys.exit(1)
     
-    # Read crash log
-    with open(crash_log_path, 'r', encoding='utf-8', errors='replace') as f:
-        crash_log_content = f.read()
-    
     # Auto-detect toolchain
     addr2line_path, gdb_path, is_riscv = _find_toolchain_binaries(elf_path)
     
@@ -1508,18 +1524,6 @@ def _run_standalone_decoder(elf_path, crash_log_path, output_path=None):
             if key == "build_type":
                 return "debug"
             return ""
-    
-    class StandaloneBuildMetadata:
-        def __init__(self, elf_path, addr2line_path):
-            self.data = {
-                "prog_path": os.path.abspath(elf_path),
-                "cc_path": addr2line_path.replace("-addr2line", "-gcc"),
-            }
-    
-    # Mock PlatformIO functions if not available
-    if _RSP_SERVER_MODE or 'platformio' not in sys.modules:
-        # Create minimal mocks
-        pass
     
     # Create decoder instance
     decoder = Esp32ExceptionDecoder()
@@ -1560,8 +1564,45 @@ def _run_standalone_decoder(elf_path, crash_log_path, output_path=None):
     
     sys.stderr.write("Decoding crash log...\n\n")
     
-    # Process the crash log
-    decoded_output = decoder.rx(crash_log_content)
+    # Process the crash log incrementally (not single-shot)
+    # Read file in chunks to respect _RX_BUF_MAX and allow proper
+    # RISC-V backtrace accumulation and EOF detection
+    output_buffer = []
+    chunk_size = min(8192, decoder._RX_BUF_MAX // 2)  # Use reasonable chunk size
+    
+    with open(crash_log_path, 'r', encoding='utf-8', errors='replace') as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            
+            # Feed chunk to decoder incrementally
+            decoded_chunk = decoder.rx(chunk)
+            output_buffer.append(decoded_chunk)
+    
+    # Flush any remaining buffered data and trigger EOF processing
+    # This is critical for RISC-V backtrace generation
+    if decoder.buffer:
+        # Process any remaining incomplete line
+        final_line = decoder.buffer + "\n"
+        decoder.buffer = ""
+        
+        # Feed final line and check for RISC-V backtrace
+        if decoder._is_riscv and decoder._feed_riscv_line(final_line.rstrip('\n')):
+            trace = decoder._invoke_gdb_backtrace()
+            if trace:
+                output_buffer.append(trace)
+        
+        output_buffer.append(final_line)
+    
+    # Check if we have accumulated RISC-V state that needs final processing
+    if decoder._is_riscv and decoder._riscv_state != decoder._RISCV_IDLE:
+        if decoder._riscv_regs and decoder._riscv_stack_lines:
+            trace = decoder._invoke_gdb_backtrace()
+            if trace:
+                output_buffer.append(trace)
+    
+    decoded_output = "".join(output_buffer)
     
     # Write output
     if output_path:
