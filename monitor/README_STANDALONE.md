@@ -13,8 +13,8 @@ This tool decodes ESP32 crash logs (exception backtraces) using the firmware ELF
 ## Requirements
 
 - Python 3.10 or higher
-- ESP-IDF toolchain installed (via pioarduino or standalone)
-- Optional: `pyelftools` for improved address filtering (`uv pip install pyelftools`)
+- ESP-IDF toolchain installed (default installed from pioarduino)
+- Optional: `pyelftools` for improved address filtering (default installed from pioarduino)
 
 ## Installation
 
@@ -80,25 +80,19 @@ Stack memory:
 
 ### Via pioarduino
 
-No manual install needed, pioarduino does everything.
-
-### Standalone ESP-IDF
-
-Follow the [ESP-IDF installation guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html)
+No manual install needed, pioarduino does install everything automatically.
 
 ## Troubleshooting
 
 ### "addr2line tool not found"
 
 The toolchain is not installed or not in the search path. Install via:
-- pioarduino: (re)install pioarduino
-- ESP-IDF: Follow official installation guide
+- (re)install pioarduino / platform espressif32
 
 ### "ELF file not found"
 
 Check that the path to the firmware ELF file is correct. The ELF file is typically:
 - pioarduino: `.pio/build/<env>/firmware.elf`
-- ESP-IDF: `build/<project>.elf`
 
 ### "Crash log file not found"
 
