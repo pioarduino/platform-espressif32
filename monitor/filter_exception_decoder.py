@@ -607,20 +607,25 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             pass
         
         # Fallback: Search in PlatformIO packages directory manually
+        # Use the same logic as ToolPackageManager mode to find the correct toolchain
         home = os.path.expanduser("~")
         pio_packages = os.path.join(home, ".platformio/packages")
         
         if os.path.isdir(pio_packages):
-            for pkg_dir in os.listdir(pio_packages):
-                if pkg_dir.startswith("toolchain-"):
-                    bin_dir = os.path.join(pio_packages, pkg_dir, "bin")
+            for tool_name in tool_names:
+                # Derive package name from tool name (same logic as above)
+                base_name = tool_name.rsplit("-", 1)[0]
+                pkg_name = "toolchain-" + base_name
+                pkg_dir = os.path.join(pio_packages, pkg_name)
+                
+                if os.path.isdir(pkg_dir):
+                    bin_dir = os.path.join(pkg_dir, "bin")
                     if os.path.isdir(bin_dir):
-                        for tool_name in tool_names:
-                            candidate = os.path.join(bin_dir, tool_name)
-                            if IS_WINDOWS:
-                                candidate += ".exe"
-                            if os.path.isfile(candidate):
-                                return candidate
+                        candidate = os.path.join(bin_dir, tool_name)
+                        if IS_WINDOWS:
+                            candidate += ".exe"
+                        if os.path.isfile(candidate):
+                            return candidate
         
         return None
 
