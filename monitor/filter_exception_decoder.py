@@ -341,6 +341,7 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         """
         sorted_chips = sorted(self.CHIP_NAME_MAP.keys(), key=len, reverse=True)
         env_section = "env:" + self.environment
+        board_mcu = None
         try:
             board_name = self.config.get(env_section, "board")
             if board_name:
@@ -553,6 +554,33 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 "stack unwinding will be limited to addr2line\n"
                 % self.__class__.__name__
             )
+
+    def _find_toolchain_in_path(self, tool_names):
+        """Search for a toolchain binary in common locations.
+        
+        Args:
+            tool_names: List of possible binary names to search for
+            
+        Returns:
+            Path to the tool if found, None otherwise
+        """
+        # Search in PlatformIO packages
+        home = os.path.expanduser("~")
+        pio_packages = os.path.join(home, ".platformio/packages")
+        
+        if os.path.isdir(pio_packages):
+            for pkg_dir in os.listdir(pio_packages):
+                if pkg_dir.startswith("toolchain-"):
+                    bin_dir = os.path.join(pio_packages, pkg_dir, "bin")
+                    if os.path.isdir(bin_dir):
+                        for tool_name in tool_names:
+                            candidate = os.path.join(bin_dir, tool_name)
+                            if IS_WINDOWS:
+                                candidate += ".exe"
+                            if os.path.isfile(candidate):
+                                return candidate
+        
+        return None
 
     # -------------------------------------------------------------------------
     # Line filtering
@@ -1392,11 +1420,211 @@ def _run_rsp_server(panic_file):
     sys.exit(0)
 
 
-if __name__ == "__main__":
-    if len(sys.argv) >= 3 and sys.argv[1] == "--rsp-server":
-        _run_rsp_server(sys.argv[2])
+# ---------------------------------------------------------------------------
+# Standalone CLI Mode
+# ---------------------------------------------------------------------------
+
+def _find_toolchain_binaries(elf_path):
+    """Auto-detect toolchain binaries (addr2line, GDB) based on ELF architecture.
+    
+    Returns:
+        tuple: (addr2line_path, gdb_path, is_riscv)
+    """
+    addr2line_path = None
+    gdb_path = None
+    is_riscv = False
+    
+    # Detect architecture from ELF file
+    try:
+        with open(elf_path, "rb") as f:
+            # Read ELF header to detect architecture
+            elf_header = f.read(20)
+            if len(elf_header) >= 18:
+                e_machine = struct.unpack("<H", elf_header[18:20])[0]
+                # 0xF3 = EM_RISCV, 0x5E = EM_XTENSA
+                is_riscv = (e_machine == 0xF3)
+    except Exception:
+        pass
+    
+    # Determine toolchain names based on architecture
+    if is_riscv:
+        addr2line_names = ["riscv32-esp-elf-addr2line"]
+        gdb_names = ["riscv32-esp-elf-gdb"]
     else:
+        addr2line_names = ["xtensa-esp32-elf-addr2line", "xtensa-esp-elf-addr2line"]
+        gdb_names = ["xtensa-esp32-elf-gdb", "xtensa-esp-elf-gdb"]
+    
+    # Create a temporary decoder instance to use its search method
+    decoder = Esp32ExceptionDecoder()
+    addr2line_path = decoder._find_toolchain_in_path(addr2line_names)
+    gdb_path = decoder._find_toolchain_in_path(gdb_names)
+    
+    return addr2line_path, gdb_path, is_riscv
+
+
+def _run_standalone_decoder(elf_path, crash_log_path, output_path=None):
+    """Run the decoder in standalone mode with provided ELF and crash log files.
+    
+    Args:
+        elf_path: Path to firmware ELF file
+        crash_log_path: Path to crash log text file
+        output_path: Optional output file path (default: stdout)
+    """
+    # Validate inputs
+    if not os.path.isfile(elf_path):
+        sys.stderr.write("Error: ELF file not found: %s\n" % elf_path)
+        sys.exit(1)
+    
+    if not os.path.isfile(crash_log_path):
+        sys.stderr.write("Error: Crash log file not found: %s\n" % crash_log_path)
+        sys.exit(1)
+    
+    # Read crash log
+    with open(crash_log_path, 'r', encoding='utf-8', errors='replace') as f:
+        crash_log_content = f.read()
+    
+    # Auto-detect toolchain
+    addr2line_path, gdb_path, is_riscv = _find_toolchain_binaries(elf_path)
+    
+    if not addr2line_path:
         sys.stderr.write(
-            "Usage: %s --rsp-server <panic_data.json>\n" % sys.argv[0]
+            "Error: addr2line tool not found.\n"
+            "Please install ESP-IDF toolchain or PlatformIO with espressif32 platform.\n"
         )
         sys.exit(1)
+    
+    sys.stderr.write("Found addr2line: %s\n" % addr2line_path)
+    if gdb_path:
+        sys.stderr.write("Found GDB: %s\n" % gdb_path)
+    sys.stderr.write("Architecture: %s\n" % ("RISC-V" if is_riscv else "Xtensa"))
+    sys.stderr.write("\n")
+    
+    # Create a minimal mock environment for the decoder
+    class StandaloneConfig:
+        def __init__(self):
+            pass
+        
+        def get(self, section, key):
+            if key == "build_type":
+                return "debug"
+            return ""
+    
+    class StandaloneBuildMetadata:
+        def __init__(self, elf_path, addr2line_path):
+            self.data = {
+                "prog_path": os.path.abspath(elf_path),
+                "cc_path": addr2line_path.replace("-addr2line", "-gcc"),
+            }
+    
+    # Mock PlatformIO functions if not available
+    if _RSP_SERVER_MODE or 'platformio' not in sys.modules:
+        # Create minimal mocks
+        pass
+    
+    # Create decoder instance
+    decoder = Esp32ExceptionDecoder()
+    decoder.project_dir = os.path.dirname(os.path.abspath(elf_path))
+    decoder.environment = "standalone"
+    decoder.config = StandaloneConfig()
+    
+    # Manually set paths (bypass PlatformIO dependency)
+    decoder.firmware_path = os.path.abspath(elf_path)
+    decoder.addr2line_path = addr2line_path
+    decoder.rom_elf_path = None  # ROM ELF not needed for basic decoding
+    decoder._addr_cache = {}
+    decoder._is_riscv = is_riscv
+    decoder._gdb_path = gdb_path
+    
+    # Initialize matchers
+    if HAS_PYELFTOOLS:
+        decoder._firmware_matcher = PcAddressMatcher(decoder.firmware_path)
+        decoder._has_working_matcher = bool(decoder._firmware_matcher.intervals)
+    else:
+        decoder._firmware_matcher = None
+        decoder._rom_matcher = None
+        decoder._has_working_matcher = False
+    
+    # Initialize state
+    decoder.buffer = ""
+    decoder._rx_lock = threading.Lock()
+    decoder._buf_lock = threading.Lock()
+    decoder._rx_buf = deque()
+    decoder._rx_buf_bytes = 0
+    decoder._RX_BUF_MAX = 65536
+    decoder._riscv_state = decoder._RISCV_IDLE
+    decoder._riscv_regs = {}
+    decoder._riscv_stack_lines = []
+    decoder._fallback_context = False
+    decoder._fallback_lines = 0
+    decoder.enabled = True
+    
+    sys.stderr.write("Decoding crash log...\n\n")
+    
+    # Process the crash log
+    decoded_output = decoder.rx(crash_log_content)
+    
+    # Write output
+    if output_path:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(decoded_output)
+        sys.stderr.write("\nDecoded output written to: %s\n" % output_path)
+    else:
+        sys.stdout.write(decoded_output)
+
+
+if __name__ == "__main__":
+    import argparse
+    
+    # Check for RSP server mode first
+    if len(sys.argv) >= 3 and sys.argv[1] == "--rsp-server":
+        _run_rsp_server(sys.argv[2])
+        sys.exit(0)
+    
+    # CLI mode
+    parser = argparse.ArgumentParser(
+        description="ESP32 Exception Decoder - Decode crash logs from ESP32 devices",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Decode crash log and print to stdout
+  %(prog)s firmware.elf crash.txt
+  
+  # Decode crash log and save to file
+  %(prog)s firmware.elf crash.txt -o decoded.txt
+  
+  # Decode with specific output file
+  %(prog)s /path/to/firmware.elf /path/to/crash.log --output result.txt
+
+The tool will automatically detect the architecture (RISC-V or Xtensa) and
+find the required toolchain binaries (addr2line, GDB) in:
+  - ~/.platformio/packages/
+  - System PATH
+"""
+    )
+    
+    parser.add_argument(
+        "elf_file",
+        help="Path to firmware ELF file"
+    )
+    
+    parser.add_argument(
+        "crash_log",
+        help="Path to crash log text file"
+    )
+    
+    parser.add_argument(
+        "-o", "--output",
+        dest="output_file",
+        help="Output file path (default: stdout)",
+        default=None
+    )
+    
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="ESP32 Exception Decoder 1.0 (Standalone Mode)"
+    )
+    
+    args = parser.parse_args()
+    
+    _run_standalone_decoder(args.elf_file, args.crash_log, args.output_file)
