@@ -589,19 +589,32 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         try:
             pm = ToolPackageManager()
             for tool_name in tool_names:
-                # Derive package name from tool name
-                # e.g., "riscv32-esp-elf-addr2line" -> "toolchain-riscv32-esp-elf"
-                # e.g., "xtensa-esp32-elf-addr2line" -> "toolchain-xtensa-esp32-elf"
+                # Derive possible package names from tool name
+                # e.g., "riscv32-esp-elf-addr2line" could be in:
+                #   - "toolchain-riscv32-esp-elf"
+                #   - "toolchain-riscv32-esp"
+                # e.g., "xtensa-esp32-elf-addr2line" could be in:
+                #   - "toolchain-xtensa-esp32-elf"
+                #   - "toolchain-xtensa-esp32"
                 base_name = tool_name.rsplit("-", 1)[0]  # Remove last part (addr2line, gdb, etc.)
-                pkg_name = "toolchain-" + base_name
                 
-                pkg = pm.get_package(pkg_name)
-                if pkg and pkg.path:
-                    tool_bin = str(Path(pkg.path) / "bin" / tool_name)
-                    if IS_WINDOWS:
-                        tool_bin += ".exe"
-                    if os.path.isfile(tool_bin):
-                        return tool_bin
+                # Try different package name variations
+                pkg_name_candidates = [
+                    "toolchain-" + base_name,  # e.g., toolchain-riscv32-esp-elf
+                ]
+                
+                # Also try without the "-elf" suffix if present
+                if base_name.endswith("-elf"):
+                    pkg_name_candidates.append("toolchain-" + base_name[:-4])  # e.g., toolchain-riscv32-esp
+                
+                for pkg_name in pkg_name_candidates:
+                    pkg = pm.get_package(pkg_name)
+                    if pkg and pkg.path:
+                        tool_bin = str(Path(pkg.path) / "bin" / tool_name)
+                        if IS_WINDOWS:
+                            tool_bin += ".exe"
+                        if os.path.isfile(tool_bin):
+                            return tool_bin
         except (PlatformioException, OSError, AttributeError):
             # Fall back to manual search if ToolPackageManager is not available
             pass
@@ -613,19 +626,27 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         
         if os.path.isdir(pio_packages):
             for tool_name in tool_names:
-                # Derive package name from tool name (same logic as above)
+                # Derive possible package names from tool name (same logic as above)
                 base_name = tool_name.rsplit("-", 1)[0]
-                pkg_name = "toolchain-" + base_name
-                pkg_dir = os.path.join(pio_packages, pkg_name)
                 
-                if os.path.isdir(pkg_dir):
-                    bin_dir = os.path.join(pkg_dir, "bin")
-                    if os.path.isdir(bin_dir):
-                        candidate = os.path.join(bin_dir, tool_name)
-                        if IS_WINDOWS:
-                            candidate += ".exe"
-                        if os.path.isfile(candidate):
-                            return candidate
+                pkg_name_candidates = [
+                    "toolchain-" + base_name,
+                ]
+                
+                if base_name.endswith("-elf"):
+                    pkg_name_candidates.append("toolchain-" + base_name[:-4])
+                
+                for pkg_name in pkg_name_candidates:
+                    pkg_dir = os.path.join(pio_packages, pkg_name)
+                    
+                    if os.path.isdir(pkg_dir):
+                        bin_dir = os.path.join(pkg_dir, "bin")
+                        if os.path.isdir(bin_dir):
+                            candidate = os.path.join(bin_dir, tool_name)
+                            if IS_WINDOWS:
+                                candidate += ".exe"
+                            if os.path.isfile(candidate):
+                                return candidate
         
         return None
 
