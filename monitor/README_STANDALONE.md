@@ -18,7 +18,7 @@ This tool decodes ESP32 crash logs (exception backtraces) using the firmware ELF
 
 ## Installation
 
-No installation required! Just use the script directly:
+Done by using `pioarduino - platform espressif32`! Just use the script directly:
 
 ```bash
 python3 filter_exception_decoder.py <elf_file> <crash_log>
