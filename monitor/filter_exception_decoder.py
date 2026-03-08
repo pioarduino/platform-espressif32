@@ -1485,7 +1485,7 @@ def _find_toolchain_binaries(elf_path):
                 e_machine = struct.unpack("<H", elf_header[18:20])[0]
                 # 0xF3 = EM_RISCV, 0x5E = EM_XTENSA
                 is_riscv = (e_machine == 0xF3)
-    except Exception as e:
+    except (OSError, struct.error) as e:
         sys.stderr.write("Warning: Could not detect ELF architecture, defaulting to Xtensa: %s\n" % e)
     
     # Determine toolchain names based on architecture
