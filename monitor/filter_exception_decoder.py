@@ -41,11 +41,12 @@ from pathlib import Path
 # are guarded to avoid ImportError.
 
 _RSP_SERVER_MODE = len(sys.argv) >= 2 and sys.argv[1] == "--rsp-server"
-# CLI mode: has arguments and first arg is not --rsp-server and looks like a file path or option
+# CLI mode: has arguments and first arg looks like a file path or option (no filesystem check)
 _CLI_MODE = (len(sys.argv) >= 2 and 
              sys.argv[1] not in ("--rsp-server",) and
-             (sys.argv[1].startswith("-") or os.path.exists(sys.argv[1]) or "/" in sys.argv[1] or "\\" in sys.argv[1]))
-_STANDALONE_MODE = _RSP_SERVER_MODE or _CLI_MODE
+             (sys.argv[1].startswith("-") or "/" in sys.argv[1] or "\\" in sys.argv[1]))
+# Standalone mode: running as main script, RSP server, or CLI mode
+_STANDALONE_MODE = (__name__ == "__main__") or _RSP_SERVER_MODE or _CLI_MODE
 
 if not _STANDALONE_MODE:
     # PlatformIO monitor filter mode - import dependencies
