@@ -784,7 +784,8 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 remainder = text[last:]
                 if len(self.buffer) + len(remainder) <= 4096:
                     self.buffer += remainder
-                break
+                # Return only the processed part (up to last), not the remainder
+                return text[:last]
 
             line = text[last:idx]
             if self.buffer:
