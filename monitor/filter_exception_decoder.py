@@ -1463,8 +1463,8 @@ def _find_toolchain_binaries(elf_path):
                 e_machine = struct.unpack("<H", elf_header[18:20])[0]
                 # 0xF3 = EM_RISCV, 0x5E = EM_XTENSA
                 is_riscv = (e_machine == 0xF3)
-    except Exception:
-        pass
+    except Exception as e:
+        sys.stderr.write("Warning: Could not detect ELF architecture, defaulting to Xtensa: %s\n" % e)
     
     # Determine toolchain names based on architecture
     if is_riscv:
@@ -1543,6 +1543,7 @@ def _run_standalone_decoder(elf_path, crash_log_path, output_path=None):
     if HAS_PYELFTOOLS:
         decoder._firmware_matcher = PcAddressMatcher(decoder.firmware_path)
         decoder._has_working_matcher = bool(decoder._firmware_matcher.intervals)
+        decoder._rom_matcher = None  # ROM ELF not used in standalone mode
     else:
         decoder._firmware_matcher = None
         decoder._rom_matcher = None
@@ -1639,7 +1640,6 @@ Examples:
 The tool will automatically detect the architecture (RISC-V or Xtensa) and
 find the required toolchain binaries (addr2line, GDB) in:
   - ~/.platformio/packages/
-  - System PATH
 """
     )
     
