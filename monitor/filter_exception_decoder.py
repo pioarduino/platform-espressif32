@@ -1532,7 +1532,7 @@ def _run_standalone_decoder(elf_path, crash_log_path, output_path=None):
     if not addr2line_path:
         sys.stderr.write(
             "Error: addr2line tool not found.\n"
-            "Please install ESP-IDF toolchain or PlatformIO with espressif32 platform.\n"
+            "Please install pioarduino with espressif32 platform.\n"
         )
         sys.exit(1)
     
