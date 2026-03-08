@@ -585,7 +585,28 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
         Returns:
             Path to the tool if found, None otherwise
         """
-        # Search in PlatformIO packages
+        # Try using ToolPackageManager first (PlatformIO mode)
+        try:
+            pm = ToolPackageManager()
+            for tool_name in tool_names:
+                # Derive package name from tool name
+                # e.g., "riscv32-esp-elf-addr2line" -> "toolchain-riscv32-esp-elf"
+                # e.g., "xtensa-esp32-elf-addr2line" -> "toolchain-xtensa-esp32-elf"
+                base_name = tool_name.rsplit("-", 1)[0]  # Remove last part (addr2line, gdb, etc.)
+                pkg_name = "toolchain-" + base_name
+                
+                pkg = pm.get_package(pkg_name)
+                if pkg and pkg.path:
+                    tool_bin = str(Path(pkg.path) / "bin" / tool_name)
+                    if IS_WINDOWS:
+                        tool_bin += ".exe"
+                    if os.path.isfile(tool_bin):
+                        return tool_bin
+        except (PlatformioException, OSError, AttributeError):
+            # Fall back to manual search if ToolPackageManager is not available
+            pass
+        
+        # Fallback: Search in PlatformIO packages directory manually
         home = os.path.expanduser("~")
         pio_packages = os.path.join(home, ".platformio/packages")
         
