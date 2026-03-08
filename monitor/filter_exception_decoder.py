@@ -1615,8 +1615,9 @@ def _run_standalone_decoder(elf_path, crash_log_path, output_path=None):
             trace = decoder._invoke_gdb_backtrace()
             if trace:
                 output_buffer.append(trace)
-        
-        output_buffer.append(final_line)
+            # Line was consumed as part of RISC-V dump
+        else:
+            output_buffer.append(final_line)
     
     # Check if we have accumulated RISC-V state that needs final processing
     if decoder._is_riscv and decoder._riscv_state != decoder._RISCV_IDLE:
