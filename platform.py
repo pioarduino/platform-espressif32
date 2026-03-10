@@ -85,15 +85,13 @@ ESP_BUILTIN_DEBUG_MCUS = frozenset([
 MCU_TOOLCHAIN_CONFIG = {
     "xtensa": {
         "mcus": frozenset(["esp32", "esp32s2", "esp32s3"]),
-        "toolchains": ["toolchain-xtensa-esp-elf"],
-        "debug_tools": ["tool-xtensa-esp-elf-gdb"]
+        "toolchains": ["toolchain-xtensa-esp-elf", "tool-xtensa-esp-elf-gdb"]
     },
     "riscv": {
         "mcus": frozenset([
             "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32p4"
         ]),
-        "toolchains": ["toolchain-riscv32-esp"],
-        "debug_tools": ["tool-riscv32-esp-elf-gdb"]
+        "toolchains": ["toolchain-riscv32-esp", "tool-riscv32-esp-elf-gdb"]
     }
 }
 
@@ -633,9 +631,9 @@ class Espressif32Platform(PlatformBase):
         """
         Install toolchains and debugging packages required for the specified MCU.
         
-        Installs the MCU's base toolchains from the MCU configuration. If an "ulp" directory exists,
-        installs the ULP toolchain entries. When build variables or targets indicate debugging is required,
-        installs debug-related tools (including OpenOCD and ROM-ELF helper).
+        Installs the MCU's base toolchains (including GDB) from the MCU configuration. If an "ulp" 
+        directory exists, installs the ULP toolchain entries. When build variables or targets indicate 
+        debugging is required, installs debug-related tools (OpenOCD and ROM-ELF helper).
         
         Parameters:
             mcu (str): MCU identifier (e.g., "esp32", "esp32c3").
@@ -647,7 +645,7 @@ class Espressif32Platform(PlatformBase):
             logger.warning(f"Unknown MCU: {mcu}")
             return
 
-        # Install base toolchains
+        # Install base toolchains (including GDB)
         for toolchain in mcu_config["toolchains"]:
             self.install_tool(toolchain)
 
@@ -656,10 +654,8 @@ class Espressif32Platform(PlatformBase):
             for toolchain in mcu_config["ulp_toolchain"]:
                 self.install_tool(toolchain)
 
-        # Debug tools when needed
+        # Additional debug tools when needed
         if self._needs_debug_tools(variables, targets):
-            for debug_tool in mcu_config["debug_tools"]:
-                self.install_tool(debug_tool)
             self.install_tool("tool-openocd-esp32")
             self.install_tool("tool-esp-rom-elfs")
 
@@ -934,7 +930,9 @@ class Espressif32Platform(PlatformBase):
         mcu_config = self._get_mcu_config(mcu)
         if not mcu_config:
             return False
-        for tool_pkg in mcu_config["debug_tools"]:
+        # Filter toolchains to get only GDB tools
+        gdb_tools = [tool for tool in mcu_config["toolchains"] if "gdb" in tool]
+        for tool_pkg in gdb_tools:
             pkg_dir = self.get_package_dir(tool_pkg)
             if not pkg_dir:
                 continue
