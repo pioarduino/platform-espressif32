@@ -555,6 +555,74 @@ if config.has_option(current_env_section, "custom_sdkconfig"):
 if board_sdkconfig:
     flag_custom_sdkconfig = True
 
+# Auto-configure ULP support when ulp/ directory with sources is present on an
+# LP-Core MCU. Injects custom_sdkconfig entries to trigger lib recompilation
+# with ULP loader functions, and removes components that break the recompile.
+# Keep in sync with LP_CORE_MCUS and ULP_SOURCE_SUFFIXES in ulp_lp_core.py
+_lp_core_mcus = ("esp32c5", "esp32c6", "esp32p4")
+_ulp_source_suffixes = (".c", ".S", ".s")
+
+
+def _has_ulp_sources(ulp_dir):
+    """Check if a directory tree contains LP-Core source files."""
+    return ulp_dir.is_dir() and any(
+        f.suffix in _ulp_source_suffixes
+        for f in ulp_dir.rglob("*") if f.is_file()
+    )
+
+
+_ulp_dir = Path(project_dir) / "ulp"
+if mcu in _lp_core_mcus and _has_ulp_sources(_ulp_dir):
+    _ulp_sdkconfig_entries = [
+        "CONFIG_ULP_COPROC_ENABLED=y",
+        "CONFIG_ULP_COPROC_TYPE_LP_CORE=y",
+        # 8192 gives headroom beyond IDF's 4096 default. Users can
+        # override via custom_sdkconfig if they need more (or less).
+        "CONFIG_ULP_COPROC_RESERVE_MEM=8192",
+    ]
+    for entry in _ulp_sdkconfig_entries:
+        key = entry.split("=")[0]
+        if key not in entry_custom_sdkconfig:
+            entry_custom_sdkconfig += "\n" + entry
+    flag_custom_sdkconfig = True
+    config.set(current_env_section, "custom_sdkconfig",
+               entry_custom_sdkconfig)
+
+    # Components that fail the lib-recompile build on most pioarduino
+    # targets. If future IDF versions fix these, they can be removed.
+    _ulp_component_remove = [
+        "espressif/esp_insights",
+        "espressif/esp_rainmaker",
+        "espressif/rmaker_common",
+        "espressif/esp_diag_data_store",
+        "espressif/esp_diagnostics",
+    ]
+    existing_removes = env.GetProjectOption("custom_component_remove", "")
+    new_removes = []
+    for comp in _ulp_component_remove:
+        if comp not in existing_removes:
+            new_removes.append(comp)
+    if new_removes:
+        combined = existing_removes.strip()
+        if combined:
+            combined += "\n"
+        combined += "\n".join(new_removes)
+        config.set(current_env_section, "custom_component_remove", combined)
+    flag_custom_component_remove = True
+
+    _ulp_lib_ignore = ["RainMaker", "Insights"]
+    existing_ignores = env.GetProjectOption("lib_ignore", [])
+    if isinstance(existing_ignores, str):
+        existing_ignores = [existing_ignores]
+    new_ignores = [lib for lib in _ulp_lib_ignore
+                   if lib not in existing_ignores]
+    if new_ignores:
+        config.set(current_env_section, "lib_ignore",
+                   existing_ignores + new_ignores)
+    flag_lib_ignore = True
+
+    print("*** ULP auto-config: sdkconfig, component_remove, lib_ignore ***")
+
 extra_flags_raw = board.get("build.extra_flags", [])
 if isinstance(extra_flags_raw, list):
     extra_flags = " ".join(extra_flags_raw).replace("-D", " ")
@@ -568,8 +636,14 @@ FRAMEWORK_LIB_DIR = path_cache.framework_lib_dir
 
 SConscript("_embed_files.py", exports="env")
 
-flag_any_custom_sdkconfig = (FRAMEWORK_LIB_DIR is not None and 
-                            exists(str(Path(FRAMEWORK_LIB_DIR) / "sdkconfig")))
+# Check if libs were previously recompiled for THIS chip.  idf_lib_copy()
+# renames the stock sdkconfig to sdkconfig.orig during recompilation, so its
+# presence is a reliable per-chip indicator.  Using the chip-specific path
+# (instead of the root "sdkconfig") prevents cross-env flip-flopping: an env
+# for a different MCU won't see another chip's recompilation artefact and
+# trigger a spurious framework reinstall (check_reinstall_frwrk line 722).
+flag_any_custom_sdkconfig = (FRAMEWORK_LIB_DIR is not None and
+                            exists(str(Path(FRAMEWORK_LIB_DIR) / chip_variant / "sdkconfig.orig")))
 
 
 def has_unicore_flags():
@@ -996,3 +1070,7 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
 
     build_script_path = str(Path(FRAMEWORK_DIR) / "tools" / "pioarduino-build.py")
     SConscript(build_script_path)
+
+    # LP-Core ULP support for Arduino-only builds
+    if _has_ulp_sources(Path(env.subst("$PROJECT_DIR")) / "ulp"):
+        SConscript("ulp_lp_core.py", exports="env")

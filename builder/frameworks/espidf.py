@@ -812,6 +812,12 @@ if flag_custom_sdkonfig == True and "arduino" in env.subst("$PIOFRAMEWORK") and 
     if not bool(os.path.exists(str(Path(PROJECT_DIR) / ".dummy"))):
         shutil.copytree(LIB_SOURCE, str(Path(PROJECT_DIR) / ".dummy"))
     PROJECT_SRC_DIR = str(Path(PROJECT_DIR) / ".dummy")
+    # Save user's build_flags before clearing — PlatformIO core already
+    # parsed them into CPPDEFINES/CCFLAGS, and env.Replace() only clears
+    # the string variables, not the parsed effects.  Removing the user's
+    # build_flags prevents conflicts with CMake code model defines during
+    # lib recompilation (e.g. -DARDUINO_USB_CDC_ON_BOOT=0 vs =1).
+    _saved_build_flags = env.get("BUILD_FLAGS", "")
     env.Replace(
         PROJECT_SRC_DIR=PROJECT_SRC_DIR,
         BUILD_FLAGS="",
@@ -820,6 +826,10 @@ if flag_custom_sdkonfig == True and "arduino" in env.subst("$PIOFRAMEWORK") and 
         PIOFRAMEWORK="arduino",
         ARDUINO_LIB_COMPILE_FLAG="Build",
     )
+    if _saved_build_flags:
+        env.ProcessUnFlags(
+            _saved_build_flags if isinstance(_saved_build_flags, str)
+            else " ".join(_saved_build_flags))
     env["INTEGRATION_EXTRA_DATA"].update({"arduino_lib_compile_flag": env.subst("$ARDUINO_LIB_COMPILE_FLAG")})
 
 def get_project_lib_includes(env):
@@ -2652,6 +2662,9 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
 
         _replace_copy(str(Path(lib_dst) / "libspi_flash.a"), str(Path(mem_var) / "libspi_flash.a"))
         _replace_copy(str(Path(env_build) / "memory.ld"), str(Path(ld_dst) / "memory.ld"))
+        sections_ld = str(Path(env_build) / "sections.ld")
+        if os.path.isfile(sections_ld):
+            _replace_copy(sections_ld, str(Path(ld_dst) / "sections.ld"))
         if mcu == "esp32s3":
             _replace_copy(str(Path(lib_dst) / "libesp_psram.a"), str(Path(mem_var) / "libesp_psram.a"))
             _replace_copy(str(Path(lib_dst) / "libesp_system.a"), str(Path(mem_var) / "libesp_system.a"))
@@ -2664,7 +2677,10 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
         if not bool(os.path.isfile(str(Path(arduino_libs) / chip_variant / "sdkconfig.orig"))):
             shutil.move(str(Path(arduino_libs) / chip_variant / "sdkconfig"), str(Path(arduino_libs) / chip_variant / "sdkconfig.orig"))
         shutil.copyfile(str(Path(env.subst("$PROJECT_DIR")) / ("sdkconfig." + env["PIOENV"])), str(Path(arduino_libs) / chip_variant / "sdkconfig"))
-        shutil.copyfile(str(Path(env.subst("$PROJECT_DIR")) / ("sdkconfig." + env["PIOENV"])), str(Path(arduino_libs) / "sdkconfig"))
+        # Note: intentionally NOT copying to the libs root (arduino_libs / "sdkconfig").
+        # The root copy caused cross-env flip-flopping: any env for a different MCU
+        # without custom_sdkconfig would see it, trigger check_reinstall_frwrk(),
+        # and reinstall the stock libs — wiping out this chip's recompiled artefacts.
         try:
             # clean env build folder to avoid issues with following Arduino build
             shutil.rmtree(env_build)

@@ -56,6 +56,28 @@ pio run -t download_fatfs # Download and extract FatFS from device
 
 See the [arduino-fatfs example](examples/arduino-fatfs/) for a complete working example.
 
+## LP-Core ULP Coprocessor Support
+
+pioarduino supports building LP-Core (Ultra Low Power) coprocessor programs directly from Arduino-only projects — no ESP-IDF CMake pipeline or custom build scripts required.
+
+**Supported MCUs:** ESP32-C5, ESP32-C6, ESP32-P4
+
+**Quick Start:**
+
+1. Create a `ulp/` directory in your project root with your LP-Core C or assembly sources.
+2. Build normally — the platform detects `ulp/` and compiles + embeds the ULP binary automatically.
+
+```ini
+[env:esp32c6]
+platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
+framework = arduino
+board = esp32-c6-devkitc-1
+```
+
+The builder generates `ulp_main.h` (symbol map) and `ulp_main_bin.h` (binary declarations) in the build directory, available via `#include`. The first build triggers a one-time lib recompilation to enable ULP loader APIs. An optional `ulp/sdkconfig.h` can override the default ULP configuration (8 KB reserved memory).
+
+See the [arduino-ulp-blink](examples/arduino-ulp-blink/) example for a complete working project. For ESP-IDF or hybrid (arduino + espidf) projects, the existing CMake-based ULP pipeline is used instead — see [espidf-ulp-lp](examples/espidf-ulp-lp/) and [espidf-arduino-C6-ULP-blink](examples/espidf-arduino-C6-ULP-blink/).
+
 ### Stable Arduino
 currently espressif Arduino 3.3.7 and IDF v5.5.2+
 
