@@ -787,8 +787,7 @@ class Espressif32Platform(PlatformBase):
             self._configure_mcu_toolchains(mcu, variables, targets)
             
             # Install freertos-gdb after MCU toolchains are installed
-            install_freertos_gdb(self, get_executable_path(Path(penv_python).parent, "uv"), 
-                               penv_python, str(Path(core_dir) / ".cache" / "uv"))
+            install_freertos_gdb(self, get_executable_path(str(Path(core_dir) / "penv"), "uv"), penv_python, str(Path(core_dir) / ".cache" / "uv"))
 
             if "espidf" in frameworks:
                 self._install_common_idf_packages()
