@@ -677,7 +677,7 @@ def install_freertos_gdb(platform, uv_executable, penv_executable, uv_cache_dir=
         penv_executable (str): Path to penv Python executable
         uv_cache_dir: Optional path to uv cache directory
     """
-    if not has_network::
+    if not has_network:
         return
         
     gdb_tool_packages = [
