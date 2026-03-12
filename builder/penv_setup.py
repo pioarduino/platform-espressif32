@@ -36,6 +36,7 @@ if sys.version_info < (3, 10):
     sys.exit(1)
 
 github_actions = bool(os.getenv("GITHUB_ACTIONS"))
+has_network = False  # Will be set during penv setup
 
 PLATFORMIO_URL_VERSION_RE = re.compile(
     r'/v?(\d+\.\d+\.\d+(?:[.-](?:alpha|beta|rc|dev|post|pre)\d*)?(?:\.\d+)?)(?:\.(?:zip|tar\.gz|tar\.bz2))?$',
@@ -515,6 +516,7 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
     uv_executable = get_executable_path(penv_dir, "uv")
 
     # Install required Python dependencies for ESP32 platform
+    global has_network
     has_network = has_internet_connection() or github_actions
     if has_network:
         if not install_python_deps(penv_python, used_uv_executable, uv_cache_dir):
