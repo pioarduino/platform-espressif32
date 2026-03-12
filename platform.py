@@ -88,13 +88,13 @@ ESP_BUILTIN_DEBUG_MCUS = frozenset([
 MCU_TOOLCHAIN_CONFIG = {
     "xtensa": {
         "mcus": frozenset(["esp32", "esp32s2", "esp32s3"]),
-        "toolchains": ["toolchain-xtensa-esp-elf", GDB_TOOL_PACKAGES[0]]
+        "toolchains": ["toolchain-xtensa-esp-elf", GDB_TOOL_PACKAGES["xtensa"]]
     },
     "riscv": {
         "mcus": frozenset([
             "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32p4"
         ]),
-        "toolchains": ["toolchain-riscv32-esp", GDB_TOOL_PACKAGES[1]]
+        "toolchains": ["toolchain-riscv32-esp", GDB_TOOL_PACKAGES["riscv"]]
     }
 }
 
@@ -942,10 +942,17 @@ class Espressif32Platform(PlatformBase):
             pkg_dir = self.get_package_dir(tool_pkg)
             if not pkg_dir:
                 continue
-            toolchain_arch = "xtensa-esp-elf" if mcu in MCU_TOOLCHAIN_CONFIG["xtensa"]["mcus"] else "riscv32-esp-elf"
-            candidates = [Path(pkg_dir) / "bin" / f"{toolchain_arch}-gdb"]
-            if IS_WINDOWS:
-                candidates.insert(0, Path(pkg_dir) / "bin" / f"{toolchain_arch}-gdb.exe")
+            is_xtensa = mcu in MCU_TOOLCHAIN_CONFIG["xtensa"]["mcus"]
+            if is_xtensa:
+                # Per-target binary first, then the generic name
+                arch_prefixes = [f"xtensa-{mcu}-elf", "xtensa-esp-elf"]
+            else:
+                arch_prefixes = ["riscv32-esp-elf"]
+            candidates = []
+            for prefix in arch_prefixes:
+                if IS_WINDOWS:
+                    candidates.append(Path(pkg_dir) / "bin" / f"{prefix}-gdb.exe")
+                candidates.append(Path(pkg_dir) / "bin" / f"{prefix}-gdb")
             gdb_path = next((path for path in candidates if path.is_file()), None)
             if not gdb_path:
                 continue
