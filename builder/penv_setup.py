@@ -515,13 +515,11 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
     uv_executable = get_executable_path(penv_dir, "uv")
 
     # Install required Python dependencies for ESP32 platform
-    if has_internet_connection() or github_actions:
+    has_network = has_internet_connection() or github_actions
+    if has_network:
         if not install_python_deps(penv_python, used_uv_executable, uv_cache_dir):
             sys.stderr.write("Error: Failed to install Python dependencies into penv\n")
             sys.exit(1)
-
-        # Install freertos-gdb into GDB tool packages
-        install_freertos_gdb(platform, uv_executable, penv_python, uv_cache_dir)
     else:
         print("Warning: No internet connection detected, Python dependency check will be skipped.")
 
@@ -679,6 +677,9 @@ def install_freertos_gdb(platform, uv_executable, penv_executable, uv_cache_dir=
         penv_executable (str): Path to penv Python executable
         uv_cache_dir: Optional path to uv cache directory
     """
+    if not has_network::
+        return
+        
     gdb_tool_packages = [
         "tool-xtensa-esp-elf-gdb",
         "tool-riscv32-esp-elf-gdb",

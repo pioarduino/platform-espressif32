@@ -68,6 +68,7 @@ spec.loader.exec_module(penv_setup_module)
 setup_penv_minimal = penv_setup_module.setup_penv_minimal
 get_executable_path = penv_setup_module.get_executable_path
 has_internet_connection = penv_setup_module.has_internet_connection
+install_freertos_gdb = penv_setup_module.install_freertos_gdb
 
 
 # Constants
@@ -784,6 +785,10 @@ class Espressif32Platform(PlatformBase):
             self._configure_arduino_framework(frameworks, mcu)
             self._configure_espidf_framework(frameworks, variables, board_config, mcu)
             self._configure_mcu_toolchains(mcu, variables, targets)
+            
+            # Install freertos-gdb after MCU toolchains are installed
+            install_freertos_gdb(self, get_executable_path(Path(penv_python).parent, "uv"), 
+                               penv_python, str(Path(core_dir) / ".cache" / "uv"))
 
             if "espidf" in frameworks:
                 self._install_common_idf_packages()
