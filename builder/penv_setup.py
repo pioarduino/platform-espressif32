@@ -26,6 +26,11 @@ from urllib.parse import urlparse
 from platformio.package.version import pepver_to_semver
 from platformio.compat import IS_WINDOWS
 
+GDB_TOOL_PACKAGES = [
+    "tool-xtensa-esp-elf-gdb",
+    "tool-riscv32-esp-elf-gdb",
+]
+
 # Check Python version requirement
 if sys.version_info < (3, 10):
     sys.stderr.write(
@@ -682,17 +687,12 @@ def install_freertos_gdb(platform, uv_executable, penv_executable, uv_cache_dir=
     if not has_network:
         return
         
-    gdb_tool_packages = [
-        "tool-xtensa-esp-elf-gdb",
-        "tool-riscv32-esp-elf-gdb",
-    ]
-
     uv_env = None
     if uv_cache_dir:
         uv_env = dict(os.environ)
         uv_env["UV_CACHE_DIR"] = str(uv_cache_dir)
 
-    for tool_pkg in gdb_tool_packages:
+    for tool_pkg in GDB_TOOL_PACKAGES:
         pkg_dir = platform.get_package_dir(tool_pkg)
         if not pkg_dir or not Path(pkg_dir).is_dir():
             continue
