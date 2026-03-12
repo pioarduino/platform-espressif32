@@ -963,12 +963,11 @@ class Espressif32Platform(PlatformBase):
             list[str]: GDB command strings that attempt to import the `freertos_gdb` Python
             extension and print a warning if it is not available.
         """
+        # Use single-line try/except to survive cleanup_cmds stripping indentation
         return [
             "python",
-            "try:",
-            "    import freertos_gdb",
-            "except ModuleNotFoundError:",
-            "    print('warning: python extension \"freertos_gdb\" not found.')",
+            "try: import freertos_gdb",
+            "except ModuleNotFoundError: print('warning: python extension \"freertos_gdb\" not found.')",
             "end",
         ]
 
