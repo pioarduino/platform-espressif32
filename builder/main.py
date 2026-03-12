@@ -68,6 +68,9 @@ spec.loader.exec_module(spiffsgen)
 SpiffsFS = spiffsgen.SpiffsFS
 SpiffsBuildConfig = spiffsgen.SpiffsBuildConfig
 
+# Import GDB_TOOL_PACKAGES from penv_setup (already loaded into sys.modules by platform.py)
+from penv_setup import GDB_TOOL_PACKAGES
+
 # Load board configuration and determine MCU architecture
 board = env.BoardConfig()
 board_id = env.subst("$BOARD")
@@ -839,9 +842,11 @@ env.Replace(
     CXX="%s-elf-g++" % toolchain_arch,
     GDB=join(
         platform.get_package_dir(
-            "tool-riscv32-esp-elf-gdb"
+            # risc-v GDB
+            GDB_TOOL_PACKAGES[1]
             if not is_xtensa
-            else "tool-xtensa-esp-elf-gdb"
+            # xtensa GDB
+            else GDB_TOOL_PACKAGES[0]
         )
         or "",
         "bin",
