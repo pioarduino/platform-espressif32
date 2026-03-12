@@ -843,10 +843,10 @@ env.Replace(
     GDB=join(
         platform.get_package_dir(
             # risc-v GDB
-            GDB_TOOL_PACKAGES[1]
+            GDB_TOOL_PACKAGES["riscv"]
             if not is_xtensa
             # xtensa GDB
-            else GDB_TOOL_PACKAGES[0]
+            else GDB_TOOL_PACKAGES["xtensa"]
         )
         or "",
         "bin",
