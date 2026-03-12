@@ -36,7 +36,6 @@ if sys.version_info < (3, 10):
     sys.exit(1)
 
 github_actions = bool(os.getenv("GITHUB_ACTIONS"))
-has_network = has_internet_connection() or github_actions
 
 PLATFORMIO_URL_VERSION_RE = re.compile(
     r'/v?(\d+\.\d+\.\d+(?:[.-](?:alpha|beta|rc|dev|post|pre)\d*)?(?:\.\d+)?)(?:\.(?:zip|tar\.gz|tar\.bz2))?$',
@@ -108,6 +107,9 @@ def has_internet_connection(timeout=5):
     # Direct DNS:53 connection is abolished due to many false positives on enterprise networks
     # (add it at the end if necessary)
     return False
+
+
+has_network = has_internet_connection() or github_actions
 
 
 def get_executable_path(penv_dir, executable_name):
@@ -699,10 +701,11 @@ def install_freertos_gdb(platform, uv_executable, penv_executable, uv_cache_dir=
             continue
         try:
             subprocess.check_call([
-            uv_executable, "pip", "install", "--quiet",
-                 f"--python={penv_executable}",
-                 "--target", target_dir,
-                "freertos-gdb"],
+                uv_executable, "pip", "install", "--quiet",
+                f"--python={penv_executable}",
+                "--target", str(target_dir),
+                "freertos-gdb"
+            ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT,
                 timeout=60,
