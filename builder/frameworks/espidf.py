@@ -1431,8 +1431,56 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
         build_env = default_env.Clone()
         build_env.SetOption("implicit_cache", 1)
         for cc in compile_commands:
-            build_flags = cc.get("fragment", "").strip("\" ")
-            if not build_flags.startswith("-D"):
+            build_flags = cc.get("fragment", "").strip()
+            from_response_file = False
+            if build_flags.startswith('"') and build_flags.endswith('"'):
+                build_flags = build_flags[1:-1]
+            if build_flags.startswith("@"):
+                from_response_file = True
+                # Parse @"path" or @path, possibly followed by extra flags
+                rest = build_flags[1:]
+                if rest.startswith('"'):
+                    end_quote = rest.find('"', 1)
+                    if end_quote != -1:
+                        resp_path = rest[1:end_quote]
+                        extra = rest[end_quote + 1:].strip()
+                    else:
+                        resp_path = rest.strip('" ')
+                        extra = ""
+                else:
+                    parts = rest.split(None, 1)
+                    if not parts:
+                        # malformed response-file fragment (e.g. "@")
+                        continue
+                    resp_path = parts[0]
+                    extra = parts[1] if len(parts) > 1 else ""
+
+                # Try to resolve response file path
+                resolved_resp_path = None
+                if os.path.isabs(resp_path):
+                    if os.path.isfile(resp_path):
+                        resolved_resp_path = resp_path
+                else:
+                    # Prefer BUILD_DIR-relative resolution for response files from CMake/Ninja
+                    candidate = os.path.join(BUILD_DIR, resp_path)
+                    if os.path.isfile(candidate):
+                        resolved_resp_path = candidate
+                    elif os.path.isfile(resp_path):
+                        # fallback for legacy cwd-relative cases
+                        resolved_resp_path = resp_path
+
+                if resolved_resp_path:
+                    with open(resolved_resp_path, "r", encoding="utf-8") as rf:
+                        expanded = rf.read().replace("\n", " ").strip()
+                    build_flags = (expanded + " " + extra).strip() if extra else expanded
+                else:
+                    # Response file not found - preserve extra flags
+                    if extra:
+                        build_flags = extra
+                    else:
+                        # No extra flags, skip this fragment entirely
+                        continue
+            if from_response_file or not build_flags.startswith("-D"):
                 if build_flags.startswith("-include") and ".." in build_flags:
                     source_index = cg.get("sourceIndexes")[0]
                     build_flags = _fix_component_relative_include(
