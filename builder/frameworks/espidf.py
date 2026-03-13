@@ -1470,7 +1470,7 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
                         resolved_resp_path = resp_path
 
                 if resolved_resp_path:
-                    with open(resolved_resp_path, "r") as rf:
+                    with open(resolved_resp_path, "r", encoding="utf-8") as rf:
                         expanded = rf.read().replace("\n", " ").strip()
                     build_flags = (expanded + " " + extra).strip() if extra else expanded
                 else:
