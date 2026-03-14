@@ -1486,6 +1486,25 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
                     with open(resolved_resp_path, "r", encoding="utf-8") as rf:
                         expanded = rf.read().replace("\n", " ").strip()
                     parsed_flags = build_env.ParseFlags(expanded)
+                    # Preserve existing workaround for relative -include paths
+                    source_indexes = cg.get("sourceIndexes") or []
+                    if source_indexes:
+                        source_index = source_indexes[0]
+                        for key in ("CCFLAGS", "ASFLAGS", "ASPPFLAGS"):
+                            flags_list = parsed_flags.get(key, [])
+                            i = 0
+                            while i + 1 < len(flags_list):
+                                if (
+                                    flags_list[i] == "-include"
+                                    and isinstance(flags_list[i + 1], str)
+                                    and ".." in flags_list[i + 1]
+                                ):
+                                    flags_list[i + 1] = _fix_component_relative_include(
+                                        config, flags_list[i + 1], source_index
+                                    )
+                                    i += 2
+                                    continue
+                                i += 1
                     parsed_flags.pop("CXXFLAGS", None)
                     parsed_flags.pop("LINKFLAGS", None)
                     for key in ("CCFLAGS", "ASFLAGS", "ASPPFLAGS"):
