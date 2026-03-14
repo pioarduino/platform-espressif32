@@ -1408,6 +1408,19 @@ def _fix_component_relative_include(config, build_flags, source_index):
 
 
 def prepare_build_envs(config, default_env, debug_allowed=True):
+    """
+    Prepare and return per-compile-group SCons build environments for a component.
+    
+    This builds a cloned environment for each compile group in `config["compileGroups"]`, applies include paths (regular and system), preprocessor defines, parsed compiler flags (including expansion of response files referenced with `@`), and language-specific adjustments; it also applies debug flags when appropriate.
+    
+    Parameters:
+        config (dict): Component configuration containing keys like `"name"`, and `"compileGroups"` where each compile group may include `"includes"`, `"compileCommandFragments"`, `"sourceIndexes"`, and `"language"`.
+        default_env (SCons.Environment): Base build environment to clone for each compile group.
+        debug_allowed (bool): If True, enable debug flag configuration when the global build type is debug.
+    
+    Returns:
+        list: A list of SCons build environments, one per compile group, with flags, includes, and defines applied.
+    """
     build_envs = []
     target_compile_groups = config.get("compileGroups", [])
     if not target_compile_groups:
@@ -1472,7 +1485,44 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
                 if resolved_resp_path:
                     with open(resolved_resp_path, "r", encoding="utf-8") as rf:
                         expanded = rf.read().replace("\n", " ").strip()
-                    build_flags = (expanded + " " + extra).strip() if extra else expanded
+                    parsed_flags = build_env.ParseFlags(expanded)
+                    # Preserve existing workaround for relative -include paths
+                    source_indexes = cg.get("sourceIndexes") or []
+                    if source_indexes:
+                        source_index = source_indexes[0]
+                        for key in ("CCFLAGS", "ASFLAGS", "ASPPFLAGS"):
+                            flags_list = parsed_flags.get(key, [])
+                            i = 0
+                            while i + 1 < len(flags_list):
+                                if (
+                                    flags_list[i] == "-include"
+                                    and isinstance(flags_list[i + 1], str)
+                                    and ".." in flags_list[i + 1]
+                                ):
+                                    flags_list[i + 1] = _fix_component_relative_include(
+                                        config, flags_list[i + 1], source_index
+                                    )
+                                    i += 2
+                                    continue
+                                i += 1
+                    parsed_flags.pop("CXXFLAGS", None)
+                    parsed_flags.pop("LINKFLAGS", None)
+                    for key in ("CCFLAGS", "ASFLAGS", "ASPPFLAGS"):
+                        if key in parsed_flags:
+                            parsed_flags[key] = [
+                                f for f in parsed_flags[key]
+                                if not (isinstance(f, str) and f.startswith("-specs="))
+                            ]
+                            if not parsed_flags[key]:
+                                del parsed_flags[key]
+                    build_env.AppendUnique(**parsed_flags)
+                    # SCons ParseFlags puts -march= into CCFLAGS; the assembler needs it in ASPPFLAGS
+                    if cg.get("language", "") == "ASM":
+                        build_env.AppendUnique(ASPPFLAGS=parsed_flags.get("CCFLAGS", []))
+                    if extra:
+                        build_flags = extra
+                    else:
+                        continue
                 else:
                     # Response file not found - preserve extra flags
                     if extra:
