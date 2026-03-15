@@ -1152,6 +1152,7 @@ def filter_args(args, allowed, ignore=None):
 
 def get_app_flags(app_config, default_config):
     def _extract_flags(config):
+        import shlex
         flags = {}
         for cg in config["compileGroups"]:
             flags[cg["language"]] = []
@@ -1164,16 +1165,18 @@ def get_app_flags(app_config, default_config):
                 # Read the file contents and extract flags so they are
                 # included in the global build environment
                 if fragment.startswith("@"):
-                    import shlex
                     tokens = shlex.split(raw_fragment.strip())
                     for t in tokens:
                         if t.startswith("@"):
                             resp_path = t[1:]
                             if os.path.isfile(resp_path):
-                                with open(resp_path) as f:
-                                    for rf in shlex.split(f.read()):
-                                        if not rf.startswith("-D"):
-                                            flags[cg["language"]].append(rf)
+                                try:
+                                    with open(resp_path, encoding="utf-8") as f:
+                                        for rf in shlex.split(f.read()):
+                                            if not rf.startswith("-D"):
+                                                flags[cg["language"]].append(rf)
+                                except (OSError, ValueError) as e:
+                                    print(f"Warning: Could not read response file {resp_path}: {e}")
                         elif not t.startswith("-D"):
                             flags[cg["language"]].append(t)
                     continue
@@ -1451,25 +1454,9 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
         for cc in compile_commands:
             raw_fragment = cc.get("fragment", "")
             # Handle GCC response files (@file) introduced in IDF 6.0
-            # Read the file contents and add flags individually instead of
-            # passing @file to GCC, which avoids shlex parsing issues
+            # Response file flags are already in the global env via
+            # get_app_flags; skip them here to avoid duplicates
             if raw_fragment.strip().startswith("@"):
-                import shlex
-                tokens = shlex.split(raw_fragment.strip())
-                extra_flags = []
-                for t in tokens:
-                    if t.startswith("@"):
-                        # Read the response file and add its flags
-                        resp_path = t[1:]
-                        if os.path.isfile(resp_path):
-                            with open(resp_path) as f:
-                                extra_flags.extend(shlex.split(f.read()))
-                    else:
-                        extra_flags.append(t)
-                # Response file flags are already in the global env via
-                # get_app_flags; skip them here to avoid duplicates
-                # (duplicate -specs= causes GCC errors, duplicate
-                # -mlongcalls is harmless but wasteful)
                 continue
             build_flags = raw_fragment.strip("\" ")
             if not build_flags.startswith("-D"):
