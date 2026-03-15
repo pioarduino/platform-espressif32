@@ -1170,7 +1170,7 @@ def get_app_flags(app_config, default_config):
                         if t.startswith("@"):
                             resp_path = t[1:]
                             if os.path.isfile(resp_path):
-                                with open(resp_path, encoding="utf-8") as f
+                                with open(resp_path, encoding="utf-8") as f:
                                     for rf in shlex.split(f.read()):
                                         if not rf.startswith("-D"):
                                             flags[cg["language"]].append(rf)
