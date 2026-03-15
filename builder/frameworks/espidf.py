@@ -1156,8 +1156,26 @@ def get_app_flags(app_config, default_config):
         for cg in config["compileGroups"]:
             flags[cg["language"]] = []
             for ccfragment in cg["compileCommandFragments"]:
-                fragment = ccfragment.get("fragment", "").strip("\" ")
+                raw_fragment = ccfragment.get("fragment", "")
+                fragment = raw_fragment.strip("\" ")
                 if not fragment or fragment.startswith("-D"):
+                    continue
+                # Handle GCC response files (@file) introduced in IDF 6.0
+                # Read the file contents and extract flags so they are
+                # included in the global build environment
+                if fragment.startswith("@"):
+                    import shlex
+                    tokens = shlex.split(raw_fragment.strip())
+                    for t in tokens:
+                        if t.startswith("@"):
+                            resp_path = t[1:]
+                            if os.path.isfile(resp_path):
+                                with open(resp_path) as f:
+                                    for rf in shlex.split(f.read()):
+                                        if not rf.startswith("-D"):
+                                            flags[cg["language"]].append(rf)
+                        elif not t.startswith("-D"):
+                            flags[cg["language"]].append(t)
                     continue
                 flags[cg["language"]].extend(
                     click.parser.split_arg_string(fragment.strip())
@@ -1408,19 +1426,6 @@ def _fix_component_relative_include(config, build_flags, source_index):
 
 
 def prepare_build_envs(config, default_env, debug_allowed=True):
-    """
-    Prepare and return per-compile-group SCons build environments for a component.
-    
-    This builds a cloned environment for each compile group in `config["compileGroups"]`, applies include paths (regular and system), preprocessor defines, parsed compiler flags (including expansion of response files referenced with `@`), and language-specific adjustments; it also applies debug flags when appropriate.
-    
-    Parameters:
-        config (dict): Component configuration containing keys like `"name"`, and `"compileGroups"` where each compile group may include `"includes"`, `"compileCommandFragments"`, `"sourceIndexes"`, and `"language"`.
-        default_env (SCons.Environment): Base build environment to clone for each compile group.
-        debug_allowed (bool): If True, enable debug flag configuration when the global build type is debug.
-    
-    Returns:
-        list: A list of SCons build environments, one per compile group, with flags, includes, and defines applied.
-    """
     build_envs = []
     target_compile_groups = config.get("compileGroups", [])
     if not target_compile_groups:
@@ -1444,93 +1449,30 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
         build_env = default_env.Clone()
         build_env.SetOption("implicit_cache", 1)
         for cc in compile_commands:
-            build_flags = cc.get("fragment", "").strip()
-            from_response_file = False
-            if build_flags.startswith('"') and build_flags.endswith('"'):
-                build_flags = build_flags[1:-1]
-            if build_flags.startswith("@"):
-                from_response_file = True
-                # Parse @"path" or @path, possibly followed by extra flags
-                rest = build_flags[1:]
-                if rest.startswith('"'):
-                    end_quote = rest.find('"', 1)
-                    if end_quote != -1:
-                        resp_path = rest[1:end_quote]
-                        extra = rest[end_quote + 1:].strip()
+            raw_fragment = cc.get("fragment", "")
+            # Handle GCC response files (@file) introduced in IDF 6.0
+            # Read the file contents and add flags individually instead of
+            # passing @file to GCC, which avoids shlex parsing issues
+            if raw_fragment.strip().startswith("@"):
+                import shlex
+                tokens = shlex.split(raw_fragment.strip())
+                extra_flags = []
+                for t in tokens:
+                    if t.startswith("@"):
+                        # Read the response file and add its flags
+                        resp_path = t[1:]
+                        if os.path.isfile(resp_path):
+                            with open(resp_path) as f:
+                                extra_flags.extend(shlex.split(f.read()))
                     else:
-                        resp_path = rest.strip('" ')
-                        extra = ""
-                else:
-                    parts = rest.split(None, 1)
-                    if not parts:
-                        # malformed response-file fragment (e.g. "@")
-                        continue
-                    resp_path = parts[0]
-                    extra = parts[1] if len(parts) > 1 else ""
-
-                # Try to resolve response file path
-                resolved_resp_path = None
-                if os.path.isabs(resp_path):
-                    if os.path.isfile(resp_path):
-                        resolved_resp_path = resp_path
-                else:
-                    # Prefer BUILD_DIR-relative resolution for response files from CMake/Ninja
-                    candidate = os.path.join(BUILD_DIR, resp_path)
-                    if os.path.isfile(candidate):
-                        resolved_resp_path = candidate
-                    elif os.path.isfile(resp_path):
-                        # fallback for legacy cwd-relative cases
-                        resolved_resp_path = resp_path
-
-                if resolved_resp_path:
-                    with open(resolved_resp_path, "r", encoding="utf-8") as rf:
-                        expanded = rf.read().replace("\n", " ").strip()
-                    parsed_flags = build_env.ParseFlags(expanded)
-                    # Preserve existing workaround for relative -include paths
-                    source_indexes = cg.get("sourceIndexes") or []
-                    if source_indexes:
-                        source_index = source_indexes[0]
-                        for key in ("CCFLAGS", "ASFLAGS", "ASPPFLAGS"):
-                            flags_list = parsed_flags.get(key, [])
-                            i = 0
-                            while i + 1 < len(flags_list):
-                                if (
-                                    flags_list[i] == "-include"
-                                    and isinstance(flags_list[i + 1], str)
-                                    and ".." in flags_list[i + 1]
-                                ):
-                                    flags_list[i + 1] = _fix_component_relative_include(
-                                        config, flags_list[i + 1], source_index
-                                    )
-                                    i += 2
-                                    continue
-                                i += 1
-                    parsed_flags.pop("CXXFLAGS", None)
-                    parsed_flags.pop("LINKFLAGS", None)
-                    for key in ("CCFLAGS", "ASFLAGS", "ASPPFLAGS"):
-                        if key in parsed_flags:
-                            parsed_flags[key] = [
-                                f for f in parsed_flags[key]
-                                if not (isinstance(f, str) and f.startswith("-specs="))
-                            ]
-                            if not parsed_flags[key]:
-                                del parsed_flags[key]
-                    build_env.AppendUnique(**parsed_flags)
-                    # SCons ParseFlags puts -march= into CCFLAGS; the assembler needs it in ASPPFLAGS
-                    if cg.get("language", "") == "ASM":
-                        build_env.AppendUnique(ASPPFLAGS=parsed_flags.get("CCFLAGS", []))
-                    if extra:
-                        build_flags = extra
-                    else:
-                        continue
-                else:
-                    # Response file not found - preserve extra flags
-                    if extra:
-                        build_flags = extra
-                    else:
-                        # No extra flags, skip this fragment entirely
-                        continue
-            if from_response_file or not build_flags.startswith("-D"):
+                        extra_flags.append(t)
+                # Response file flags are already in the global env via
+                # get_app_flags; skip them here to avoid duplicates
+                # (duplicate -specs= causes GCC errors, duplicate
+                # -mlongcalls is harmless but wasteful)
+                continue
+            build_flags = raw_fragment.strip("\" ")
+            if not build_flags.startswith("-D"):
                 if build_flags.startswith("-include") and ".." in build_flags:
                     source_index = cg.get("sourceIndexes")[0]
                     build_flags = _fix_component_relative_include(
@@ -2462,6 +2404,17 @@ framework_components_map = get_components_map(
     [project_target_name, default_config_name],
 )
 
+project_config = target_configs.get(project_target_name, {})
+default_config = target_configs.get(default_config_name, {})
+project_defines = get_app_defines(project_config)
+project_flags = get_app_flags(project_config, default_config)
+link_args = extract_link_args(elf_config)
+
+# Merge compile flags (including response file contents like -mlongcalls
+# and -specs=picolibc.specs) into the global env BEFORE building
+# components so all compilations use the correct flags
+env.MergeFlags(project_flags)
+
 build_components(env, framework_components_map, PROJECT_DIR)
 
 if not elf_config:
@@ -2470,12 +2423,6 @@ if not elf_config:
 
 for component_config in framework_components_map.values():
     env.Depends(project_ld_script, component_config["lib"])
-
-project_config = target_configs.get(project_target_name, {})
-default_config = target_configs.get(default_config_name, {})
-project_defines = get_app_defines(project_config)
-project_flags = get_app_flags(project_config, default_config)
-link_args = extract_link_args(elf_config)
 app_includes = get_app_includes(elf_config)
 
 #
@@ -2590,7 +2537,7 @@ env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", partition_table)
 #
 
 project_flags.update(link_args)
-env.MergeFlags(project_flags)
+env.MergeFlags(link_args)
 env.Prepend(
     CPPPATH=app_includes["plain_includes"],
     CPPDEFINES=project_defines,
