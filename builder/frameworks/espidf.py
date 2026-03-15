@@ -1170,13 +1170,10 @@ def get_app_flags(app_config, default_config):
                         if t.startswith("@"):
                             resp_path = t[1:]
                             if os.path.isfile(resp_path):
-                                try:
-                                    with open(resp_path, encoding="utf-8") as f:
-                                        for rf in shlex.split(f.read()):
-                                            if not rf.startswith("-D"):
-                                                flags[cg["language"]].append(rf)
-                                except (OSError, ValueError) as e:
-                                    print(f"Warning: Could not read response file {resp_path}: {e}")
+                                with open(resp_path, encoding="utf-8") as f
+                                    for rf in shlex.split(f.read()):
+                                        if not rf.startswith("-D"):
+                                            flags[cg["language"]].append(rf)
                         elif not t.startswith("-D"):
                             flags[cg["language"]].append(t)
                     continue
@@ -1429,6 +1426,7 @@ def _fix_component_relative_include(config, build_flags, source_index):
 
 
 def prepare_build_envs(config, default_env, debug_allowed=True):
+    import shlex
     build_envs = []
     target_compile_groups = config.get("compileGroups", [])
     if not target_compile_groups:
@@ -1454,9 +1452,24 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
         for cc in compile_commands:
             raw_fragment = cc.get("fragment", "")
             # Handle GCC response files (@file) introduced in IDF 6.0
-            # Response file flags are already in the global env via
-            # get_app_flags; skip them here to avoid duplicates
+            # Read the file contents and add flags individually instead of
+            # passing @file to GCC, which avoids shlex parsing issues
             if raw_fragment.strip().startswith("@"):
+                tokens = shlex.split(raw_fragment.strip())
+                extra_flags = []
+                for t in tokens:
+                    if t.startswith("@"):
+                        # Read the response file and add its flags
+                        resp_path = t[1:]
+                        if os.path.isfile(resp_path):
+                            with open(resp_path) as f:
+                                extra_flags.extend(shlex.split(f.read()))
+                    else:
+                        extra_flags.append(t)
+                # Response file flags are already in the global env via
+                # get_app_flags; skip them here to avoid duplicates
+                # (duplicate -specs= causes GCC errors, duplicate
+                # -mlongcalls is harmless but wasteful)
                 continue
             build_flags = raw_fragment.strip("\" ")
             if not build_flags.startswith("-D"):
