@@ -1161,7 +1161,7 @@ def get_app_flags(app_config, default_config):
                 fragment = raw_fragment.strip("\" ")
                 if not fragment or fragment.startswith("-D"):
                     continue
-                # Handle GCC response files (@file) introduced in IDF 6.0
+                # Handle GCC response files (@file) introduced in IDF 5.5.3+
                 # Read the file contents and extract flags so they are
                 # included in the global build environment
                 if fragment.startswith("@"):
