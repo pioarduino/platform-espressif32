@@ -1237,20 +1237,41 @@ def extract_linker_script_fragments_backup(framework_components_dir, sdk_config)
     if mcu not in ("esp32", "esp32s2", "esp32s3"):
         result.append(str(Path(framework_components_dir) / "riscv" / "linker.lf"))
 
+    # Determine which libc component directory to use
+    # IDF v6+: esp_libc component
+    # IDF v5.x: newlib component (contains both newlib and picolibc)
+    use_picolibc = sdk_config.get("LIBC_PICOLIBC", False)
+    
+    # Check for IDF v6+ structure (esp_libc component)
+    esp_libc_dir = str(Path(framework_components_dir) / "esp_libc")
+    if os.path.isdir(esp_libc_dir):
+        libc_component_dir = "esp_libc"
+    else:
+        # IDF v5.x: use newlib component (contains both implementations)
+        libc_component_dir = "newlib"
+
     # Add extra linker fragments
     for fragment in (
         str(Path("esp_system") / "app.lf"),
         str(Path("esp_common") / "common.lf"),
         str(Path("esp_common") / "soc.lf"),
-        str(Path("newlib") / "system_libs.lf"),
-        str(Path("newlib") / "newlib.lf"),
     ):
         result.append(str(Path(framework_components_dir) / fragment))
 
-    if sdk_config.get("SPIRAM_CACHE_WORKAROUND", False):
-        result.append(
-            str(Path(framework_components_dir) / "newlib" / "esp32-spiram-rom-functions-c.lf")
-        )
+    # Add libc-specific linker fragments
+    # In IDF v5.x, both newlib and picolibc use the same linker fragments from newlib/
+    # In IDF v6+, they are in esp_libc/
+    for fragment_name in ("system_libs.lf", f"{libc_component_dir}.lf"):
+        fragment_path = str(Path(framework_components_dir) / libc_component_dir / fragment_name)
+        if os.path.isfile(fragment_path):
+            result.append(fragment_path)
+
+    # SPIRAM workaround: only for newlib (not picolibc)
+    # This fragment contains ROM function replacements specific to newlib
+    if not use_picolibc and sdk_config.get("SPIRAM_CACHE_WORKAROUND", False):
+        spiram_fragment = str(Path(framework_components_dir) / libc_component_dir / "esp32-spiram-rom-functions-c.lf")
+        if os.path.isfile(spiram_fragment):
+            result.append(spiram_fragment)
 
     if board.get("build.esp-idf.extra_lf_files", ""):
         result.extend(
