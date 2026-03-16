@@ -1333,6 +1333,10 @@ class ComponentManager:
             with open(build_py_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
+            # Idempotency guard: exit early if picolibc.specs is already present
+            if '-specs=picolibc.specs' in content:
+                return True
+
             modified = False
 
             # Step 1: Remove all entries containing "newlib" from LINKFLAGS
@@ -1343,15 +1347,18 @@ class ComponentManager:
                 # Remove lines containing "newlib"
                 linkflags_lines = linkflags_content.split('\n')
                 filtered_lines = [line for line in linkflags_lines if 'newlib' not in line]
-                new_linkflags_content = '\n'.join(filtered_lines)
-                content = content[:linkflags_match.start(2)] + new_linkflags_content + content[linkflags_match.end(2):]
-                modified = True
+                # Only mark as modified if lines were actually removed
+                if len(filtered_lines) != len(linkflags_lines):
+                    new_linkflags_content = '\n'.join(filtered_lines)
+                    content = content[:linkflags_match.start(2)] + new_linkflags_content + content[linkflags_match.end(2):]
+                    modified = True
 
             # Step 2: Remove all "-specs=..." entries from all sections
             # Pattern matches "-specs=..." with optional quotes and comma
             specs_pattern = r'["\']?-specs=[^"\']*["\']?,?\s*\n?\s*'
-            content = re.sub(specs_pattern, '', content)
-            modified = True
+            content, n_subs = re.subn(specs_pattern, '', content)
+            if n_subs > 0:
+                modified = True
 
             # Step 3: Add "-specs=picolibc.specs" to CFLAGS, CXXFLAGS, and LINKFLAGS
             # Add to CFLAGS
