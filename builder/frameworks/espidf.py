@@ -2514,6 +2514,25 @@ env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", partition_table)
 
 project_flags.update(link_args)
 env.MergeFlags(project_flags)
+
+# Filter out conflicting picolibc specs AFTER merging flags
+# This handles both normal and HybridCompile modes
+# The specs files try to rename 'link' to 'picolibc_link' which can only happen once
+if sdk_config.get("LIBC_PICOLIBC", False):
+    for flag_var in ("CFLAGS", "CXXFLAGS", "CCFLAGS", "LINKFLAGS", "ASPPFLAGS"):
+        if flag_var in env:
+            current_flags = env.get(flag_var, [])
+            # After MergeFlags(), these should be lists. Always treat as list.
+            if isinstance(current_flags, str):
+                # Convert string to list for processing
+                current_flags = current_flags.split() if current_flags.strip() else []
+            
+            # Filter out picolibc specs and keep as list
+            env[flag_var] = [
+                flag for flag in current_flags
+                if not (isinstance(flag, str) and "-specs=picolibc" in flag)
+            ]
+
 env.Prepend(
     CPPPATH=app_includes["plain_includes"],
     CPPDEFINES=project_defines,
