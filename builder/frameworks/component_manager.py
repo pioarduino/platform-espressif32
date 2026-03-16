@@ -1398,7 +1398,7 @@ class ComponentManager:
                     f.write(content)
 
                 print("*** Applied picolibc flags for Arduino compile ***")
-                return True
+            return True
 
         except (IOError, OSError) as e:
             print(f"Error applying picolibc flags: {e}")
