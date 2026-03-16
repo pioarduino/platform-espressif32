@@ -930,6 +930,11 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
     component_manager = ComponentManager(env)
     component_manager.handle_component_settings()
 
+    # Create backup once if any build script patches are needed
+    needs_build_script_patch = flag_lto or has_picolibc_config()
+    if needs_build_script_patch:
+        component_manager.backup_manager.backup_pioarduino_build_py()
+
     # Handle LTO flags if flag_lto is set
     if flag_lto:
         # First remove existing -fno-lto flags, then add LTO flags
