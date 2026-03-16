@@ -1311,6 +1311,98 @@ class ComponentManager:
             print(f"Error removing -fno-lto flags: {e}")
             return False
 
+    def apply_picolibc_flags(self) -> bool:
+        """
+        Apply picolibc-specific flags to pioarduino-build.py.
+
+        When CONFIG_LIBC_PICOLIBC is enabled in custom_sdkconfig:
+        - Removes all entries containing "newlib" from LINKFLAGS
+        - Removes all "-specs=..." entries from all flag sections
+        - Adds "-specs=picolibc.specs" to CFLAGS, CXXFLAGS, and LINKFLAGS
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
+
+        if not os.path.exists(build_py_path):
+            print(f"Warning: pioarduino-build.py not found at {build_py_path}")
+            return False
+
+        try:
+            with open(build_py_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Idempotency guard: skip if picolibc flags already applied
+            if '"-specs=picolibc.specs"' in content or "'-specs=picolibc.specs'" in content:
+                return True
+
+            modified = False
+
+            # Step 1: Remove all entries containing "newlib" from LINKFLAGS
+            linkflags_pattern = r'(LINKFLAGS=\[)(.*?)(\])'
+            linkflags_match = re.search(linkflags_pattern, content, re.DOTALL)
+            if linkflags_match:
+                linkflags_content = linkflags_match.group(2)
+                # Remove lines containing "newlib"
+                linkflags_lines = linkflags_content.split('\n')
+                filtered_lines = [line for line in linkflags_lines if 'newlib' not in line]
+                if filtered_lines != linkflags_lines:
+                    new_linkflags_content = '\n'.join(filtered_lines)
+                    content = content[:linkflags_match.start(2)] + new_linkflags_content + content[linkflags_match.end(2):]
+                    modified = True
+
+            # Step 2: Remove all "-specs=..." entries from all sections
+            # Pattern matches "-specs=..." with optional quotes and comma
+            specs_pattern = r'["\']?-specs=[^"\']*["\']?,?\s*\n?\s*'
+            content, count = re.subn(specs_pattern, '', content)
+            if count > 0:
+                modified = True
+
+            # Step 3: Add "-specs=picolibc.specs" to CFLAGS, CXXFLAGS, and LINKFLAGS
+            # Add to CFLAGS
+            if 'CFLAGS=[' in content:
+                cflags_start = content.find('CFLAGS=[')
+                cflags_section_start = cflags_start + len('CFLAGS=[')
+                content = (content[:cflags_section_start] + 
+                          '\n        "-specs=picolibc.specs",' + 
+                          content[cflags_section_start:])
+                modified = True
+
+            # Add to CXXFLAGS
+            if 'CXXFLAGS=[' in content:
+                cxxflags_start = content.find('CXXFLAGS=[')
+                cxxflags_section_start = cxxflags_start + len('CXXFLAGS=[')
+                content = (content[:cxxflags_section_start] + 
+                          '\n        "-specs=picolibc.specs",' + 
+                          content[cxxflags_section_start:])
+                modified = True
+
+            # Add to LINKFLAGS
+            if 'LINKFLAGS=[' in content:
+                linkflags_start = content.find('LINKFLAGS=[')
+                linkflags_section_start = linkflags_start + len('LINKFLAGS=[')
+                content = (content[:linkflags_section_start] + 
+                          '\n        "-specs=picolibc.specs",' + 
+                          content[linkflags_section_start:])
+                modified = True
+
+            # Clean up any resulting formatting issues
+            content = re.sub(r',\s*,', ',', content)
+            content = re.sub(r'\[\s*,', '[', content)
+            content = re.sub(r',\s*\]', ']', content)
+
+            if modified:
+                with open(build_py_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+
+                print("*** Applied picolibc flags for Arduino compile ***")
+                return True
+
+        except (IOError, OSError) as e:
+            print(f"Error applying picolibc flags: {e}")
+            return False
+
     def add_lto_flags(self) -> bool:
         """
         Add LTO flags to pioarduino-build.py.
