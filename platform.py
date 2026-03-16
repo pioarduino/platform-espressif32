@@ -63,11 +63,14 @@ from platformio.package.manager.tool import ToolPackageManager
 penv_setup_path = Path(__file__).parent / "builder" / "penv_setup.py"
 spec = importlib.util.spec_from_file_location("penv_setup", str(penv_setup_path))
 penv_setup_module = importlib.util.module_from_spec(spec)
+sys.modules["penv_setup"] = penv_setup_module
 spec.loader.exec_module(penv_setup_module)
 
 setup_penv_minimal = penv_setup_module.setup_penv_minimal
 get_executable_path = penv_setup_module.get_executable_path
 has_internet_connection = penv_setup_module.has_internet_connection
+install_freertos_gdb = penv_setup_module.install_freertos_gdb
+GDB_TOOL_PACKAGES = penv_setup_module.GDB_TOOL_PACKAGES
 
 
 # Constants
@@ -85,13 +88,13 @@ ESP_BUILTIN_DEBUG_MCUS = frozenset([
 MCU_TOOLCHAIN_CONFIG = {
     "xtensa": {
         "mcus": frozenset(["esp32", "esp32s2", "esp32s3"]),
-        "toolchains": ["toolchain-xtensa-esp-elf", "tool-xtensa-esp-elf-gdb"]
+        "toolchains": ["toolchain-xtensa-esp-elf", GDB_TOOL_PACKAGES["xtensa"]]
     },
     "riscv": {
         "mcus": frozenset([
             "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32p4"
         ]),
-        "toolchains": ["toolchain-riscv32-esp", "tool-riscv32-esp-elf-gdb"]
+        "toolchains": ["toolchain-riscv32-esp", GDB_TOOL_PACKAGES["riscv"]]
     }
 }
 
@@ -784,6 +787,9 @@ class Espressif32Platform(PlatformBase):
             self._configure_arduino_framework(frameworks, mcu)
             self._configure_espidf_framework(frameworks, variables, board_config, mcu)
             self._configure_mcu_toolchains(mcu, variables, targets)
+            
+            # Install freertos-gdb after MCU toolchains are installed
+            install_freertos_gdb(self, get_executable_path(str(Path(core_dir) / "penv"), "uv"), penv_python, str(Path(core_dir) / ".cache" / "uv"))
 
             if "espidf" in frameworks:
                 self._install_common_idf_packages()
@@ -936,10 +942,17 @@ class Espressif32Platform(PlatformBase):
             pkg_dir = self.get_package_dir(tool_pkg)
             if not pkg_dir:
                 continue
-            toolchain_arch = "xtensa-esp-elf" if mcu in MCU_TOOLCHAIN_CONFIG["xtensa"]["mcus"] else "riscv32-esp-elf"
-            candidates = [Path(pkg_dir) / "bin" / f"{toolchain_arch}-gdb"]
-            if IS_WINDOWS:
-                candidates.insert(0, Path(pkg_dir) / "bin" / f"{toolchain_arch}-gdb.exe")
+            is_xtensa = mcu in MCU_TOOLCHAIN_CONFIG["xtensa"]["mcus"]
+            if is_xtensa:
+                # Per-target binary first, then the generic name
+                arch_prefixes = [f"xtensa-{mcu}-elf", "xtensa-esp-elf"]
+            else:
+                arch_prefixes = ["riscv32-esp-elf"]
+            candidates = []
+            for prefix in arch_prefixes:
+                if IS_WINDOWS:
+                    candidates.append(Path(pkg_dir) / "bin" / f"{prefix}-gdb.exe")
+                candidates.append(Path(pkg_dir) / "bin" / f"{prefix}-gdb")
             gdb_path = next((path for path in candidates if path.is_file()), None)
             if not gdb_path:
                 continue
@@ -963,12 +976,11 @@ class Espressif32Platform(PlatformBase):
             list[str]: GDB command strings that attempt to import the `freertos_gdb` Python
             extension and print a warning if it is not available.
         """
+        # Use single-line try/except to survive cleanup_cmds stripping indentation
         return [
             "python",
-            "try:",
-            "    import freertos_gdb",
-            "except ModuleNotFoundError:",
-            "    print('warning: python extension \"freertos_gdb\" not found.')",
+            "try: import freertos_gdb",
+            "except ModuleNotFoundError: print('warning: python extension \"freertos_gdb\" not found.')",
             "end",
         ]
 

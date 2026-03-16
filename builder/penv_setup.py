@@ -26,6 +26,11 @@ from urllib.parse import urlparse
 from platformio.package.version import pepver_to_semver
 from platformio.compat import IS_WINDOWS
 
+GDB_TOOL_PACKAGES = {
+    "xtensa": "tool-xtensa-esp-elf-gdb",
+    "riscv": "tool-riscv32-esp-elf-gdb",
+}
+
 # Check Python version requirement
 if sys.version_info < (3, 10):
     sys.stderr.write(
@@ -80,7 +85,7 @@ def has_internet_connection(timeout=5):
     # Check if offline mode is forced via environment variable
     if os.getenv("PLATFORMIO_OFFLINE", "").strip().lower() in ("1", "true", "yes"):
         return False
-    
+
     # 1) Test TCP connectivity to the proxy endpoint.
     proxy = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy") or os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
     if proxy:
@@ -107,6 +112,9 @@ def has_internet_connection(timeout=5):
     # Direct DNS:53 connection is abolished due to many false positives on enterprise networks
     # (add it at the end if necessary)
     return False
+
+
+has_network = has_internet_connection() or github_actions
 
 
 def get_executable_path(penv_dir, executable_name):
@@ -515,7 +523,7 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
     uv_executable = get_executable_path(penv_dir, "uv")
 
     # Install required Python dependencies for ESP32 platform
-    if has_internet_connection() or github_actions:
+    if has_network:
         if not install_python_deps(penv_python, used_uv_executable, uv_cache_dir):
             sys.stderr.write("Error: Failed to install Python dependencies into penv\n")
             sys.exit(1)
@@ -661,6 +669,51 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable, uv_cac
     except subprocess.CalledProcessError as e:
         print(f"Warning: Failed to install esptool from {esptool_repo_path} (exit {e.returncode})")
         # Don't exit - esptool installation is not critical for penv setup
+
+
+def install_freertos_gdb(platform, uv_executable, penv_executable, uv_cache_dir=None):
+    """
+    Install freertos-gdb into each GDB tool's embedded Python site (share/gdb/python/).
+
+    Iterates over all GDB tool packages known to the platform and installs
+    the freertos-gdb PyPI package via uv if not already present.
+
+    Args:
+        platform: PlatformIO platform object
+        uv_executable (str): Path to uv executable
+        penv_executable (str): Path to penv Python executable
+        uv_cache_dir: Optional path to uv cache directory
+    """
+    if not has_network:
+        return
+        
+    uv_env = None
+    if uv_cache_dir:
+        uv_env = dict(os.environ)
+        uv_env["UV_CACHE_DIR"] = str(uv_cache_dir)
+
+    for tool_pkg in GDB_TOOL_PACKAGES.values():
+        pkg_dir = platform.get_package_dir(tool_pkg)
+        if not pkg_dir or not Path(pkg_dir).is_dir():
+            continue
+        target_dir = Path(pkg_dir, "share", "gdb", "python")
+        if Path(target_dir, "freertos_gdb").is_dir():
+            continue
+        try:
+            subprocess.check_call([
+                uv_executable, "pip", "install", "--quiet",
+                f"--python={penv_executable}",
+                "--target", str(target_dir),
+                "freertos-gdb"
+            ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
+                timeout=60,
+                env=uv_env,
+            )
+            print(f"Installed freertos-gdb into {target_dir}")
+        except Exception as exc:
+            print(f"Warning: Failed to install freertos-gdb into {target_dir}: {exc}")
 
 
 def _setup_certifi_env(env, python_exe):
