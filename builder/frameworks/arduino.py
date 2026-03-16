@@ -586,6 +586,12 @@ def has_psram_config():
             or "CONFIG_SPIRAM=y" in board_sdkconfig)
 
 
+def has_picolibc_config():
+    """Check if picolibc is configured in custom_sdkconfig"""
+    return ("CONFIG_LIBC_PICOLIBC=y" in entry_custom_sdkconfig or
+            "CONFIG_LIBC_PICOLIBC=y" in board_sdkconfig)
+
+
 # Esp32 settings for solo1 and PSRAM
 if flag_custom_sdkconfig:
     if not env.get('BUILD_UNFLAGS'):  # Initialize if not set
@@ -929,6 +935,10 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
         # First remove existing -fno-lto flags, then add LTO flags
         component_manager.remove_no_lto_flags()
         component_manager.add_lto_flags()
+
+    # Handle picolibc flags if picolibc is configured
+    if has_picolibc_config():
+        component_manager.apply_picolibc_flags()
 
     silent_action = env.Action(component_manager.restore_pioarduino_build_py)
     # silence scons command output
