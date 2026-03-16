@@ -1311,7 +1311,6 @@ class ComponentManager:
             print(f"Error removing -fno-lto flags: {e}")
             return False
 
-
     def add_lto_flags(self) -> bool:
         """
         Add LTO flags to pioarduino-build.py.
