@@ -1152,12 +1152,30 @@ def filter_args(args, allowed, ignore=None):
 
 def get_app_flags(app_config, default_config):
     def _extract_flags(config):
+        import shlex
         flags = {}
         for cg in config["compileGroups"]:
             flags[cg["language"]] = []
             for ccfragment in cg["compileCommandFragments"]:
-                fragment = ccfragment.get("fragment", "").strip("\" ")
+                raw_fragment = ccfragment.get("fragment", "")
+                fragment = raw_fragment.strip("\" ")
                 if not fragment or fragment.startswith("-D"):
+                    continue
+                # Handle GCC response files (@file) introduced in IDF 5.5.3+
+                # Read the file contents and extract flags so they are
+                # included in the global build environment
+                if fragment.startswith("@"):
+                    tokens = shlex.split(raw_fragment.strip())
+                    for t in tokens:
+                        if t.startswith("@"):
+                            resp_path = t[1:]
+                            if os.path.isfile(resp_path):
+                                with open(resp_path, encoding="utf-8") as f:
+                                    for rf in shlex.split(f.read()):
+                                        if not rf.startswith("-D"):
+                                            flags[cg["language"]].append(rf)
+                        elif not t.startswith("-D"):
+                            flags[cg["language"]].append(t)
                     continue
                 flags[cg["language"]].extend(
                     click.parser.split_arg_string(fragment.strip())
@@ -1241,7 +1259,7 @@ def extract_linker_script_fragments_backup(framework_components_dir, sdk_config)
     # IDF v6+: esp_libc component
     # IDF v5.x: newlib component (contains both newlib and picolibc)
     use_picolibc = sdk_config.get("LIBC_PICOLIBC", False)
-    
+
     # Check for IDF v6+ structure (esp_libc component)
     esp_libc_dir = str(Path(framework_components_dir) / "esp_libc")
     if os.path.isdir(esp_libc_dir):
@@ -1255,6 +1273,8 @@ def extract_linker_script_fragments_backup(framework_components_dir, sdk_config)
         str(Path("esp_system") / "app.lf"),
         str(Path("esp_common") / "common.lf"),
         str(Path("esp_common") / "soc.lf"),
+        str(Path("newlib") / "system_libs.lf"),
+        str(Path("newlib") / "newlib.lf"),
     ):
         result.append(str(Path(framework_components_dir) / fragment))
 
@@ -1429,6 +1449,7 @@ def _fix_component_relative_include(config, build_flags, source_index):
 
 
 def prepare_build_envs(config, default_env, debug_allowed=True):
+    import shlex
     build_envs = []
     target_compile_groups = config.get("compileGroups", [])
     if not target_compile_groups:
@@ -1452,7 +1473,28 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
         build_env = default_env.Clone()
         build_env.SetOption("implicit_cache", 1)
         for cc in compile_commands:
-            build_flags = cc.get("fragment", "").strip("\" ")
+            raw_fragment = cc.get("fragment", "")
+            # Handle GCC response files (@file) introduced in IDF 5.5.3+
+            # Read the file contents and add flags individually instead of
+            # passing @file to GCC, which avoids shlex parsing issues
+            if raw_fragment.strip().startswith("@"):
+                tokens = shlex.split(raw_fragment.strip())
+                extra_flags = []
+                for t in tokens:
+                    if t.startswith("@"):
+                        # Read the response file and add its flags
+                        resp_path = t[1:]
+                        if os.path.isfile(resp_path):
+                            with open(resp_path) as f:
+                                extra_flags.extend(shlex.split(f.read()))
+                    else:
+                        extra_flags.append(t)
+                # Response file flags are already in the global env via
+                # get_app_flags; skip them here to avoid duplicates
+                # (duplicate -specs= causes GCC errors, duplicate
+                # -mlongcalls is harmless but wasteful)
+                continue
+            build_flags = raw_fragment.strip("\" ")
             if not build_flags.startswith("-D"):
                 if build_flags.startswith("-include") and ".." in build_flags:
                     source_index = cg.get("sourceIndexes")[0]
@@ -2385,6 +2427,17 @@ framework_components_map = get_components_map(
     [project_target_name, default_config_name],
 )
 
+project_config = target_configs.get(project_target_name, {})
+default_config = target_configs.get(default_config_name, {})
+project_defines = get_app_defines(project_config)
+project_flags = get_app_flags(project_config, default_config)
+link_args = extract_link_args(elf_config)
+
+# Merge compile flags (including response file contents like -mlongcalls
+# and -specs=picolibc.specs) into the global env BEFORE building
+# components so all compilations use the correct flags
+env.MergeFlags(project_flags)
+
 build_components(env, framework_components_map, PROJECT_DIR)
 
 if not elf_config:
@@ -2393,12 +2446,6 @@ if not elf_config:
 
 for component_config in framework_components_map.values():
     env.Depends(project_ld_script, component_config["lib"])
-
-project_config = target_configs.get(project_target_name, {})
-default_config = target_configs.get(default_config_name, {})
-project_defines = get_app_defines(project_config)
-project_flags = get_app_flags(project_config, default_config)
-link_args = extract_link_args(elf_config)
 app_includes = get_app_includes(elf_config)
 
 #
@@ -2526,13 +2573,12 @@ if sdk_config.get("LIBC_PICOLIBC", False):
             if isinstance(current_flags, str):
                 # Convert string to list for processing
                 current_flags = current_flags.split() if current_flags.strip() else []
-            
+
             # Filter out picolibc specs and keep as list
             env[flag_var] = [
                 flag for flag in current_flags
                 if not (isinstance(flag, str) and "-specs=picolibc" in flag)
             ]
-
 env.Prepend(
     CPPPATH=app_includes["plain_includes"],
     CPPDEFINES=project_defines,
