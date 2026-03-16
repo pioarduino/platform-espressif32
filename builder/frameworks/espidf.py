@@ -2558,7 +2558,7 @@ env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", partition_table)
 #
 
 project_flags.update(link_args)
-env.MergeFlags(project_flags)
+env.MergeFlags(link_args)
 
 # Filter out conflicting picolibc specs AFTER merging flags
 # This handles both normal and HybridCompile modes
