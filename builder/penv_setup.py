@@ -20,6 +20,7 @@ import site
 import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -87,6 +88,7 @@ def has_internet_connection(timeout=5):
         return False
 
     # 1) Test TCP connectivity to the proxy endpoint.
+    probe_started_at = time.monotonic()
     proxy = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy") or os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
     if proxy:
         try:
@@ -95,6 +97,7 @@ def has_internet_connection(timeout=5):
             port = u.port or (443 if u.scheme == "https" else 80)
             if host and port:
                 socket.create_connection((host, port), timeout=timeout).close()
+                print(f"[penv] Internet reachable via proxy in {time.monotonic() - probe_started_at:.2f}s")
                 return True
         except Exception:
             # If proxy connection fails, fall back to direct connection test
@@ -105,16 +108,22 @@ def has_internet_connection(timeout=5):
     for host in https_hosts:
         try:
             socket.create_connection((host, 443), timeout=timeout).close()
+            print(f"[penv] Internet reachable via {host}:443 in {time.monotonic() - probe_started_at:.2f}s")
             return True
         except Exception:
             continue
+
+    print(f"[penv] No internet connection detected after {time.monotonic() - probe_started_at:.2f}s")
 
     # Direct DNS:53 connection is abolished due to many false positives on enterprise networks
     # (add it at the end if necessary)
     return False
 
 
-has_network = has_internet_connection() or github_actions
+connectivity_started_at = time.monotonic()
+online = has_internet_connection()
+print(f"[penv] Internet connectivity phase took {time.monotonic() - connectivity_started_at:.2f}s")
+has_network = online or github_actions
 
 
 def get_executable_path(penv_dir, executable_name):
@@ -245,6 +254,8 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
     Returns:
         bool: True if successful, False otherwise
     """
+    install_started_at = time.monotonic()
+    print("[penv] Checking Python dependencies...")
     # Get the penv directory to locate uv within it
     penv_dir = os.path.dirname(os.path.dirname(python_exe))
     penv_uv_executable = get_executable_path(penv_dir, "uv")
@@ -258,6 +269,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
     # Check if uv is available in the penv
     uv_in_penv_available = False
     try:
+        uv_check_started_at = time.monotonic()
         result = subprocess.run(
             [penv_uv_executable, "--version"],
             capture_output=True,
@@ -265,6 +277,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
             timeout=10
         )
         uv_in_penv_available = result.returncode == 0
+        print(f"[penv] uv availability check took {time.monotonic() - uv_check_started_at:.2f}s")
     except (FileNotFoundError, subprocess.TimeoutExpired):
         uv_in_penv_available = False
     
@@ -273,6 +286,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
         if external_uv_executable:
             # Try external uv first to install uv into the penv
             try:
+                uv_install_started_at = time.monotonic()
                 subprocess.check_call(
                     [external_uv_executable, "pip", "install", "uv>=0.1.0", f"--python={python_exe}", "--quiet"],
                     stdout=subprocess.DEVNULL,
@@ -281,18 +295,21 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
                     env=uv_env
                 )
                 uv_in_penv_available = True
+                print(f"[penv] Installed uv via external uv in {time.monotonic() - uv_install_started_at:.2f}s")
             except Exception:
                 print("Warning: uv installation via external uv failed, falling back to pip")
 
         if not uv_in_penv_available:
             # Fallback to pip to install uv into penv
             try:
+                pip_uv_started_at = time.monotonic()
                 subprocess.check_call(
                     [python_exe, "-m", "pip", "install", "uv>=0.1.0", "--quiet", "--no-cache-dir"],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.STDOUT,
                     timeout=300
                 )
+                print(f"[penv] Installed uv via pip in {time.monotonic() - pip_uv_started_at:.2f}s")
             except subprocess.CalledProcessError as e:
                 print(f"Error: uv installation via pip failed with exit code {e.returncode}")
                 return False
@@ -317,6 +334,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
         result = {}
         try:
             cmd = [penv_uv_executable, "pip", "list", f"--python={python_exe}", "--format=json"]
+            list_started_at = time.monotonic()
             result_obj = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -325,6 +343,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
                 timeout=300,
                 env=uv_env
             )
+            print(f"[penv] uv pip list took {time.monotonic() - list_started_at:.2f}s")
             
             if result_obj.returncode == 0:
                 content = result_obj.stdout.strip()
@@ -350,6 +369,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
 
     installed_packages = _get_installed_uv_packages()
     packages_to_install = list(get_packages_to_install(python_deps, installed_packages))
+    print(f"[penv] python packages needing install: {len(packages_to_install)}")
     
     if packages_to_install:
         packages_list = []
@@ -367,6 +387,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
         ] + packages_list
         
         try:
+            deps_install_started_at = time.monotonic()
             subprocess.check_call(
                 cmd,
                 stdout=subprocess.DEVNULL,
@@ -374,6 +395,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
                 timeout=300,
                 env=uv_env
             )
+            print(f"[penv] uv pip install finished in {time.monotonic() - deps_install_started_at:.2f}s")
                 
         except subprocess.CalledProcessError as e:
             print(f"Error: Failed to install Python dependencies (exit code: {e.returncode})")
@@ -388,6 +410,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
             print(f"Error installing Python dependencies: {e}")
             return False
     
+    print(f"[penv] Python dependency check/install total: {time.monotonic() - install_started_at:.2f}s")
     return True
 
 
