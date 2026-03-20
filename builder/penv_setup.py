@@ -80,12 +80,24 @@ def _deps_state_paths(platformio_dir):
     return cache_dir / DEPS_STATE_FILE_NAME, cache_dir / DEPS_LOCK_FILE_NAME
 
 
+def _get_penv_dir(penv_python):
+    return Path(penv_python).parent.parent
+
+
 def _deps_fingerprint(penv_python):
     normalized_deps = json.dumps(python_deps, sort_keys=True, separators=(",", ":"))
+    penv_dir = _get_penv_dir(penv_python)
+    pyvenv_cfg = penv_dir / "pyvenv.cfg"
+    try:
+        pyvenv_cfg_stat = pyvenv_cfg.stat()
+        penv_marker = f"{pyvenv_cfg_stat.st_size}:{pyvenv_cfg_stat.st_mtime_ns}"
+    except OSError:
+        penv_marker = "missing"
     payload = "|".join([
         normalized_deps,
         f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
-        str(Path(penv_python).resolve()),
+        str(penv_dir.resolve()),
+        penv_marker,
     ])
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
@@ -137,6 +149,34 @@ def _release_file_lock(lock_file, fd):
 def _deps_state_matches(state_file, fingerprint):
     state = _read_deps_state(state_file)
     return bool(state and state.get("fingerprint") == fingerprint)
+
+
+def _is_penv_dependency_cache_valid(state_file, fingerprint, penv_python):
+    if not _deps_state_matches(state_file, fingerprint):
+        return False
+
+    penv_dir = _get_penv_dir(penv_python)
+    if not Path(get_executable_path(str(penv_dir), "uv")).is_file():
+        print("[penv] Dependency cache invalidated: uv is missing from penv")
+        return False
+
+    try:
+        subprocess.run(
+            [
+                penv_python,
+                "-c",
+                "import certifi, platformio, rich, yaml",
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=10,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        print("[penv] Dependency cache invalidated: required Python packages are missing from penv")
+        return False
+
+    return True
 
 
 def has_internet_connection(timeout=5):
@@ -626,11 +666,17 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
             lock_fd = _acquire_file_lock(lock_file)
             print(f"[penv] Dependency lock acquired in {time.monotonic() - lock_wait_started_at:.2f}s")
         except TimeoutError as e:
-            print(f"[penv] {e}; continue without cross-process cache")
             lock_fd = None
+            if _is_penv_dependency_cache_valid(state_file, fingerprint, penv_python):
+                print(f"[penv] {e}; dependency state already satisfied by another process")
+            else:
+                sys.stderr.write(
+                    f"Error: {e}. Refusing to install Python dependencies without synchronization.\n"
+                )
+                sys.exit(1)
 
         try:
-            if _deps_state_matches(state_file, fingerprint):
+            if _is_penv_dependency_cache_valid(state_file, fingerprint, penv_python):
                 print("[penv] Cross-process dependency cache hit, skipping dependency check")
             else:
                 if has_network:
