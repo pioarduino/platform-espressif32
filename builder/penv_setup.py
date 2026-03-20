@@ -21,6 +21,7 @@ import socket
 import subprocess
 import sys
 import time
+import hashlib
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -42,6 +43,9 @@ if sys.version_info < (3, 10):
     sys.exit(1)
 
 github_actions = bool(os.getenv("GITHUB_ACTIONS"))
+_python_deps_checked = False
+DEPS_STATE_FILE_NAME = "penv_python_deps_state.json"
+DEPS_LOCK_FILE_NAME = "penv_python_deps.lock"
 
 PLATFORMIO_URL_VERSION_RE = re.compile(
     r'/v?(\d+\.\d+\.\d+(?:[.-](?:alpha|beta|rc|dev|post|pre)\d*)?(?:\.\d+)?)(?:\.(?:zip|tar\.gz|tar\.bz2))?$',
@@ -70,6 +74,71 @@ python_deps = {
 }
 
 
+def _deps_state_paths(platformio_dir):
+    cache_dir = Path(platformio_dir) / ".cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir / DEPS_STATE_FILE_NAME, cache_dir / DEPS_LOCK_FILE_NAME
+
+
+def _deps_fingerprint(penv_python):
+    normalized_deps = json.dumps(python_deps, sort_keys=True, separators=(",", ":"))
+    payload = "|".join([
+        normalized_deps,
+        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        str(Path(penv_python).resolve()),
+    ])
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _read_deps_state(state_file):
+    try:
+        if state_file.is_file():
+            with state_file.open("r", encoding="utf-8") as fp:
+                return json.load(fp)
+    except Exception:
+        return None
+    return None
+
+
+def _write_deps_state(state_file, fingerprint):
+    payload = {
+        "fingerprint": fingerprint,
+        "updated_at": int(time.time()),
+    }
+    tmp_file = state_file.with_suffix(".tmp")
+    with tmp_file.open("w", encoding="utf-8") as fp:
+        json.dump(payload, fp)
+    os.replace(tmp_file, state_file)
+
+
+def _acquire_file_lock(lock_file, timeout_sec=60):
+    started = time.monotonic()
+    while True:
+        try:
+            fd = os.open(str(lock_file), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode("ascii"))
+            return fd
+        except FileExistsError:
+            if time.monotonic() - started >= timeout_sec:
+                raise TimeoutError(f"Timeout waiting lock: {lock_file}")
+            time.sleep(0.1)
+
+
+def _release_file_lock(lock_file, fd):
+    try:
+        os.close(fd)
+    finally:
+        try:
+            os.unlink(str(lock_file))
+        except FileNotFoundError:
+            pass
+
+
+def _deps_state_matches(state_file, fingerprint):
+    state = _read_deps_state(state_file)
+    return bool(state and state.get("fingerprint") == fingerprint)
+
+
 def has_internet_connection(timeout=5):
     """
     Checks practical internet reachability for dependency installation.
@@ -86,7 +155,7 @@ def has_internet_connection(timeout=5):
     # Check if offline mode is forced via environment variable
     if os.getenv("PLATFORMIO_OFFLINE", "").strip().lower() in ("1", "true", "yes"):
         return False
-
+    
     # 1) Test TCP connectivity to the proxy endpoint.
     probe_started_at = time.monotonic()
     proxy = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy") or os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
@@ -546,12 +615,37 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
     uv_executable = get_executable_path(penv_dir, "uv")
 
     # Install required Python dependencies for ESP32 platform
-    if has_network:
-        if not install_python_deps(penv_python, used_uv_executable, uv_cache_dir):
-            sys.stderr.write("Error: Failed to install Python dependencies into penv\n")
-            sys.exit(1)
+    global _python_deps_checked
+    if _python_deps_checked:
+        print("[penv] Python dependency check already completed in this process, skipping")
     else:
-        print("Warning: No internet connection detected, Python dependency check will be skipped.")
+        state_file, lock_file = _deps_state_paths(platformio_dir)
+        fingerprint = _deps_fingerprint(penv_python)
+        try:
+            lock_wait_started_at = time.monotonic()
+            lock_fd = _acquire_file_lock(lock_file)
+            print(f"[penv] Dependency lock acquired in {time.monotonic() - lock_wait_started_at:.2f}s")
+        except TimeoutError as e:
+            print(f"[penv] {e}; continue without cross-process cache")
+            lock_fd = None
+
+        try:
+            if _deps_state_matches(state_file, fingerprint):
+                print("[penv] Cross-process dependency cache hit, skipping dependency check")
+            else:
+                if has_network:
+                    if not install_python_deps(penv_python, used_uv_executable, uv_cache_dir):
+                        sys.stderr.write("Error: Failed to install Python dependencies into penv\n")
+                        sys.exit(1)
+                    if lock_fd is not None:
+                        _write_deps_state(state_file, fingerprint)
+                        print("[penv] Dependency cache state updated")
+                else:
+                    print("Warning: No internet connection detected, Python dependency check will be skipped.")
+            _python_deps_checked = True
+        finally:
+            if lock_fd is not None:
+                _release_file_lock(lock_file, lock_fd)
 
     # Install esptool package if required
     if should_install_esptool:
