@@ -482,7 +482,7 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
         env["TEMPFILEPREFIX"] = "@"
         env["TEMPFILESUFFIX"] = ".rsp"
 
-        for _var in ["CCCOM", "CXXCOM", "ASCOM", "ASPPCOM", "ARCOM", "LINKCOM"]:
+        for _var in ["CCCOM", "CXXCOM", "ASCOM", "ASPPCOM", "LINKCOM"]:
             if _var in env and "TEMPFILE" not in str(env[_var]):
                 env[_var] = "${TEMPFILE('%s')}" % env[_var]
 
