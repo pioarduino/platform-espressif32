@@ -476,11 +476,12 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
 
         check_and_warn_long_path_support()
 
-        # TempFileMunge fuer alle *COM-Variablen - vor SConscript setzen.
-        # env.Append im MCU-Script ueberschreibt den Wrapper nicht.
+        # TempFileMunge for *COM-variables - set before SCons script
+        # env.Append in MCU-Script does not overwrite the wrapper
         env["TEMPFILE"]       = TempFileMunge
         env["TEMPFILEPREFIX"] = "@"
         env["TEMPFILESUFFIX"] = ".rsp"
+        env["MAXLINELENGTH"]  = 30000  # only use .rsp when nearing the 32767 Windows limit
 
         for _var in ["CCCOM", "CXXCOM", "ASCOM", "ASPPCOM", "LINKCOM"]:
             if _var in env and "TEMPFILE" not in str(env[_var]):
