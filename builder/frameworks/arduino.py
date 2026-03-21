@@ -481,7 +481,7 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
         env["TEMPFILE"]       = TempFileMunge
         env["TEMPFILEPREFIX"] = "@"
         env["TEMPFILESUFFIX"] = ".rsp"
-        env["MAXLINELENGTH"]  = 30000  # only use .rsp when nearing the 32767 Windows limit
+        env["MAXLINELENGTH"]  = 4096  # increase the conservative default value of 2048
 
         for _var in ["CCCOM", "CXXCOM", "ASCOM", "ASPPCOM", "LINKCOM"]:
             if _var in env and "TEMPFILE" not in str(env[_var]):
