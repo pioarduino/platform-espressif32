@@ -312,6 +312,7 @@ def has_psram_config():
             or "CONFIG_SPIRAM=y" in entry_custom_sdkconfig
             or "CONFIG_SPIRAM=y" in board_sdkconfig)
 
+
 def has_picolibc_config():
     """Check if picolibc is configured in custom_sdkconfig"""
     return ("CONFIG_LIBC_PICOLIBC=y" in entry_custom_sdkconfig or
