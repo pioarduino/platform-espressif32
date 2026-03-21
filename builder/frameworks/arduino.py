@@ -496,27 +496,6 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
             if _var in env and "TEMPFILE" not in str(env[_var]):
                 env[_var] = "${TEMPFILE('%s')}" % env[_var]
 
-        def include_prefix_middleware(env, node):
-            includes = [fs.to_unix_path(i) for i in env.get("CPPPATH", [])]
-            framework_includes = []
-            generic_includes = []
-            for inc in includes:
-                if is_framework_subfolder(inc):
-                    rel = fs.to_unix_path(relpath(inc, FRAMEWORK_SDK_DIR))
-                    framework_includes.append("-iwithprefix/" + rel)
-                else:
-                    generic_includes.append(inc)
-            if not framework_includes:
-                return env.Object(node)
-            iprefix_flags = ["-iprefix", FRAMEWORK_SDK_DIR] + framework_includes
-            return env.Object(
-                node,
-                CPPPATH=generic_includes,
-                CCFLAGS=env["CCFLAGS"] + iprefix_flags,
-                ASFLAGS=env["ASFLAGS"] + iprefix_flags,
-            )
-
-        env.AddBuildMiddleware(include_prefix_middleware)
 
     build_script_path = str(Path(FRAMEWORK_DIR) / "tools" / "pioarduino-build.py")
     SConscript(build_script_path)
