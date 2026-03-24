@@ -111,6 +111,7 @@ def generate_ulp_config(target_config):
             "-DIDF_PATH=" + fs.to_unix_path(FRAMEWORK_DIR),
             "-DSDKCONFIG_HEADER=" + str(Path(BUILD_DIR) / "config" / "sdkconfig.h"),
             "-DPYTHON=" + env.subst("$PYTHONEXE"),
+            "-DADD_PICOLIBC_SPECS=" + ("ON" if sdk_config.get("LIBC_PICOLIBC", False) else "OFF"),
             "-DSDKCONFIG_CMAKE=" + str(Path(BUILD_DIR) / "config" / "sdkconfig.cmake"),
             "-DCMAKE_MODULE_PATH=" + fs.to_unix_path(str(Path(FRAMEWORK_DIR) / "components" / "ulp" / "cmake")),
             "-GNinja",
