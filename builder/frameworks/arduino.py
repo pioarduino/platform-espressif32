@@ -75,6 +75,8 @@ class PathCache:
     @property
     def sdk_dir(self):
         if self._sdk_dir is None:
+            if self.framework_lib_dir is None:
+                return None
             self._sdk_dir = fs.to_unix_path(
                 str(Path(self.framework_lib_dir) / self.chip_variant / "include")
             )
@@ -277,6 +279,23 @@ if config.has_option(current_env_section, "custom_component_remove"):
 # Custom SDKConfig check
 if config.has_option(current_env_section, "custom_sdkconfig"):
     entry_custom_sdkconfig = env.GetProjectOption("custom_sdkconfig")
+    # When custom_sdkconfig references a file, include its contents in the
+    # value used for hash computation. Otherwise, editing the file doesn't
+    # change the hash and stale libs are silently reused.
+    # Combine file content with inline options (both are applied by the build).
+    for line in entry_custom_sdkconfig.splitlines():
+        line = line.strip()
+        if line.startswith("file://"):
+            file_ref = line[7:]
+            file_path = file_ref if isabs(file_ref) else join(project_dir, file_ref)
+            if exists(file_path):
+                try:
+                    with open(file_path, 'r') as f:
+                        file_content = f.read()
+                    entry_custom_sdkconfig = file_content + "\n" + entry_custom_sdkconfig
+                except IOError:
+                    pass
+            break
     flag_custom_sdkconfig = True
 
 if board_sdkconfig:

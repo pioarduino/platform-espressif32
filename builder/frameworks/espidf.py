@@ -779,11 +779,18 @@ def HandleArduinoIDFsettings(env):
     # Convert to list for processing
     idf_config_list = [line for line in idf_config_flags.splitlines() if line.strip()]
     
-    # Write final configuration file with checksum
+    # Write final configuration file with checksum.
+    # Include resolved file content (not just the raw "file://..." reference)
+    # so that editing the referenced file changes the hash and triggers
+    # recompilation. Combine file content + inline options to match what
+    # build_idf_config_flags() produces.
     custom_sdk_config_flags = ""
     if config.has_option("env:" + env["PIOENV"], "custom_sdkconfig"):
-        custom_sdk_config_flags = env.GetProjectOption("custom_sdkconfig").rstrip("\n") + "\n"
-    
+        raw = env.GetProjectOption("custom_sdkconfig")
+        resolved = load_custom_sdkconfig_file()
+        # Combine resolved file content with raw inline options (both are applied)
+        custom_sdk_config_flags = ((resolved + "\n") if resolved else "") + raw.rstrip("\n") + "\n"
+
     write_sdkconfig_file(idf_config_list, custom_sdk_config_flags)
 
 
