@@ -77,7 +77,6 @@ GDB_TOOL_PACKAGES = penv_setup_module.GDB_TOOL_PACKAGES
 DEFAULT_DEBUG_SPEED = "5000"
 DEFAULT_APP_OFFSET = "0x10000"
 tl_install_name = "tool-esp_install"
-ARDUINO_ESP32_PACKAGE_URL = "https://raw.githubusercontent.com/espressif/arduino-esp32/master/package/package_esp32_index.template.json"
 
 # MCUs that support ESP-builtin debug
 ESP_BUILTIN_DEBUG_MCUS = frozenset([
@@ -574,19 +573,6 @@ class Espressif32Platform(PlatformBase):
         safe_remove_directory_pattern(Path(self.packages_dir), f"framework-arduinoespressif32.*")
         self.packages["framework-arduinoespressif32"]["optional"] = False
         self.packages["framework-arduinoespressif32-libs"]["optional"] = False
-        if is_internet_available():
-            try:
-                response = requests.get(ARDUINO_ESP32_PACKAGE_URL, timeout=30)
-                response.raise_for_status()
-                packjdata = response.json()
-                dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
-                self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
-            except (requests.RequestException, KeyError, IndexError) as e:
-                logger.error(f"Failed to fetch Arduino framework library URL: {e}")
-        if mcu == "esp32c2":
-            self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
-        if mcu == "esp32c61":
-            self.packages["framework-arduino-c61-skeleton-lib"]["optional"] = False
 
     def _configure_espidf_framework(
         self, frameworks: List[str], variables: Dict, board_config: Dict, mcu: str
