@@ -1751,7 +1751,7 @@ def build_bootloader(sdk_config):
                     bootloader_script_in_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / script_name_in)
                     
                     # ESP32-P4 specific: Check for bootloader.rev3.ld.in
-                    if idf_variant == "esp32p4" and chip_variant == "esp32p4":
+                    if idf_variant == "esp32p4" and script_basename == "bootloader.ld":
                         bootloader_rev3_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / "bootloader.rev3.ld.in")
                         if os.path.isfile(bootloader_rev3_path):
                             bootloader_script_in_path = bootloader_rev3_path
