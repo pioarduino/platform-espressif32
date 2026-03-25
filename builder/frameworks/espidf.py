@@ -1152,6 +1152,7 @@ def filter_args(args, allowed, ignore=None):
 
 def get_app_flags(app_config, default_config):
     def _extract_flags(config):
+        import shlex
         flags = {}
         for cg in config["compileGroups"]:
             flags[cg["language"]] = []
@@ -1160,17 +1161,16 @@ def get_app_flags(app_config, default_config):
                 fragment = raw_fragment.strip("\" ")
                 if not fragment or fragment.startswith("-D"):
                     continue
-                # Handle GCC response files (@file) introduced in IDF 6.0
+                # Handle GCC response files (@file) introduced in IDF 5.5.3+
                 # Read the file contents and extract flags so they are
                 # included in the global build environment
                 if fragment.startswith("@"):
-                    import shlex
                     tokens = shlex.split(raw_fragment.strip())
                     for t in tokens:
                         if t.startswith("@"):
                             resp_path = t[1:]
                             if os.path.isfile(resp_path):
-                                with open(resp_path) as f:
+                                with open(resp_path, encoding="utf-8") as f:
                                     for rf in shlex.split(f.read()):
                                         if not rf.startswith("-D"):
                                             flags[cg["language"]].append(rf)
@@ -1426,6 +1426,7 @@ def _fix_component_relative_include(config, build_flags, source_index):
 
 
 def prepare_build_envs(config, default_env, debug_allowed=True):
+    import shlex
     build_envs = []
     target_compile_groups = config.get("compileGroups", [])
     if not target_compile_groups:
@@ -1454,7 +1455,6 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
             # Read the file contents and add flags individually instead of
             # passing @file to GCC, which avoids shlex parsing issues
             if raw_fragment.strip().startswith("@"):
-                import shlex
                 tokens = shlex.split(raw_fragment.strip())
                 extra_flags = []
                 for t in tokens:
