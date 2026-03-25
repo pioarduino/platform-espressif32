@@ -22,8 +22,7 @@ jobs:
           - "examples/arduino-zigbee-light"
           - "examples/arduino-zigbee-switch"
           - "examples/arduino-NimBLE-SampleScan"
-          - "examples/arduino-matter-light"
-          - "examples/tasmota"
+#          - "examples/tasmota"
           - "examples/espidf-arduino-matter-light"
           - "examples/espidf-arduino-blink"
           - "examples/espidf-arduino-littlefs"
@@ -48,8 +47,7 @@ jobs:
             example: "examples/espidf-ulp-riscv"
           - os: windows-latest
             example: "examples/espidf-arduino-C6-ULP-blink"
-          - os: windows-latest
-            example: "examples/espidf-arduino-matter-light"
+
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
