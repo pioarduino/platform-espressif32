@@ -42,7 +42,7 @@ board = ...
 ## Removed
 - Matter
 - Rainmaker
-- Speech recoginition
+- Speech recognition
 
 ## Known limitations / bugs
 - Ethernet PHY (wired Ethernet) is not implemented in Arduino
