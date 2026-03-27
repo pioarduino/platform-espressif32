@@ -52,6 +52,8 @@ build_dir = Path(projectconfig.get("platformio", "build_dir"))
 PYTHON_EXE, esptool_binary_path = platform.setup_python_env(env)
 
 from littlefs import LittleFS
+from littlefs import lfs as _lfs
+_lfs.FILENAME_ENCODING = "utf-8"
 from fatfs import Partition, RamDisk, create_extended_partition
 from fatfs import create_esp32_wl_image
 from fatfs import calculate_esp32_wl_overhead
