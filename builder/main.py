@@ -300,7 +300,7 @@ def _parse_partitions(env):
     next_offset = 0
     app_offset = 0x10000  # Default address for firmware
 
-    with open(partitions_csv, encoding="utf-8") as fp:
+    with open(partitions_csv) as fp:
         for line in fp.readlines():
             line = line.strip()
             if not line or line.startswith("#"):
