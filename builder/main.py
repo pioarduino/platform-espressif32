@@ -52,6 +52,8 @@ build_dir = Path(projectconfig.get("platformio", "build_dir"))
 PYTHON_EXE, esptool_binary_path = platform.setup_python_env(env)
 
 from littlefs import LittleFS
+from littlefs import lfs as _lfs
+_lfs.FILENAME_ENCODING = "utf-8"
 from fatfs import Partition, RamDisk, create_extended_partition
 from fatfs import create_esp32_wl_image
 from fatfs import calculate_esp32_wl_overhead
@@ -298,7 +300,7 @@ def _parse_partitions(env):
     next_offset = 0
     app_offset = 0x10000  # Default address for firmware
 
-    with open(partitions_csv) as fp:
+    with open(partitions_csv, encoding="utf-8") as fp:
         for line in fp.readlines():
             line = line.strip()
             if not line or line.startswith("#"):
