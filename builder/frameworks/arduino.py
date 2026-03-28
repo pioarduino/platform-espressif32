@@ -277,6 +277,20 @@ if config.has_option(current_env_section, "custom_component_remove"):
 # Custom SDKConfig check
 if config.has_option(current_env_section, "custom_sdkconfig"):
     entry_custom_sdkconfig = env.GetProjectOption("custom_sdkconfig")
+    # When custom_sdkconfig references a file, include its mtime in the
+    # value used for hash computation. A changed mtime means a new hash
+    # and triggers the existing Reinstall path.
+    for line in entry_custom_sdkconfig.splitlines():
+        line = line.strip()
+        if line.startswith("file://"):
+            file_ref = line[7:]
+            file_path = file_ref if isabs(file_ref) else join(project_dir, file_ref)
+            try:
+                mtime = str(os.path.getmtime(file_path))
+                entry_custom_sdkconfig = mtime + "\n" + entry_custom_sdkconfig
+            except OSError:
+                pass
+            break
     flag_custom_sdkconfig = True
 
 if board_sdkconfig:
