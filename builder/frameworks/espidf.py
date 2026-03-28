@@ -24,7 +24,6 @@ import copy
 import importlib.util
 import json
 import os
-import platform as sys_platform
 import re
 import requests
 import shutil
@@ -2111,9 +2110,6 @@ def install_python_deps():
         "idf-component-manager": "~=2.4.8",
         "esp-idf-kconfig": "~=3.7.0"
     }
-
-    if sys_platform.system() == "Darwin" and "arm" in sys_platform.machine().lower():
-        deps["chardet"] = ">=3.0.2,<4"
 
     python_exe_path = get_python_exe()
     installed_packages = _get_installed_uv_packages(python_exe_path)
