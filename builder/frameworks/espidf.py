@@ -24,7 +24,6 @@ import copy
 import importlib.util
 import json
 import os
-import platform as sys_platform
 import re
 import requests
 import shutil
