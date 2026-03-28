@@ -779,9 +779,23 @@ def HandleArduinoIDFsettings(env):
     idf_config_list = [line for line in idf_config_flags.splitlines() if line.strip()]
     
     # Write final configuration file with checksum
+    # Include the mtime of any referenced file (not just the raw "file://..."
+    # string) so that editing the file changes the hash and triggers recompilation. 
     custom_sdk_config_flags = ""
     if config.has_option("env:" + env["PIOENV"], "custom_sdkconfig"):
-        custom_sdk_config_flags = env.GetProjectOption("custom_sdkconfig").rstrip("\n") + "\n"
+        raw = env.GetProjectOption("custom_sdkconfig")
+        file_mtime = ""
+        for entry in raw.splitlines():
+            entry = entry.strip()
+            if entry.startswith("file://"):
+                file_ref = entry[7:]
+                file_path = file_ref if os.path.isabs(file_ref) else str(Path(PROJECT_DIR) / file_ref)
+                try:
+                    file_mtime = str(os.path.getmtime(file_path))
+                except OSError:
+                    pass
+                break
+        custom_sdk_config_flags = (file_mtime + "\n" if file_mtime else "") + raw.rstrip("\n") + "\n"
     
     write_sdkconfig_file(idf_config_list, custom_sdk_config_flags)
 
