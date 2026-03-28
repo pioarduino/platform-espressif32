@@ -75,6 +75,8 @@ class PathCache:
     @property
     def sdk_dir(self):
         if self._sdk_dir is None:
+            if not self.framework_lib_dir:
+                return None
             self._sdk_dir = fs.to_unix_path(
                 str(Path(self.framework_lib_dir) / self.chip_variant / "include")
             )
