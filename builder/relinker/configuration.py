@@ -191,8 +191,9 @@ def generator(library_file, object_file, function_file, sdkconfig_file, missing_
     libraries = libraries_c()
     with open(function_file, 'r') as f:
         for d in csv.DictReader(f):
-            if d['option'] and not sdkconfig.check(d['option']):
-                print('skip %s(%s)'%(d['function'], d['option']))
+            option = (d.get('option') or '').strip()
+            if option and not sdkconfig.check(option):
+                print('skip %s(%s)' % (d['function'], option))
                 continue
             lib_path = lib_paths.index(d['library'], '*')
             obj_path = obj_paths.index(d['library'], d['object'])
