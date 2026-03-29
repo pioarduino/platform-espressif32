@@ -1611,6 +1611,8 @@ def _ensure_generated_sources(config, project_src_dir, build_dir):
             continue
         if ninja_target not in ninja_custom_targets:
             continue
+        if os.path.exists(abs_path):
+            continue
         generated_targets.append((ninja_target, src_path))
 
     if not generated_targets:
