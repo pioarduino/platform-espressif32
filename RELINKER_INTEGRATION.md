@@ -276,10 +276,12 @@ liblog.a,log.c.obj,esp_log_write,
 
 ### Functions That MUST Stay in IRAM
 
-These functions are called during flash operations or from interrupt context where the
-flash cache may be disabled. **Never move these to flash:**
+These functions run while the flash cache is disabled. **Never move these to flash:**
 
-- Interrupt Service Routines (ISRs) and functions called from ISRs
+- ISRs and functions called from ISRs that run with the flash cache disabled
+  (verify whether your interrupt can fire during a flash operation before deciding;
+  some FreeRTOS ISR helpers like `xQueueGiveFromISR` are safe to place in flash
+  when the flash cache is guaranteed to be enabled)
 - SPI flash operation callbacks (`spi_flash_guard_*`, `spi_flash_os_*`)
 - Functions called before the flash cache is initialized (early boot code)
 - FreeRTOS scheduler-critical functions (context switch, tick handler)

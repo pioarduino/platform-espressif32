@@ -1437,7 +1437,7 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
             _relinker_script = str(Path(_relinker_dir) / "relinker.py")
             _relinker_objdump = args["objdump"]
             _relinker_missing = config.get(
-                "env:" + env["PIOENV"], "custom_relinker_missing_function_info", "yes"
+                "env:" + env["PIOENV"], "custom_relinker_missing_function_info", "no"
             ).strip().lower() in ("yes", "true", "1")
             _relinker_cmd = (
                 '"$ESPIDF_PYTHONEXE" "{script}" '
