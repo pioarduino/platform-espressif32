@@ -52,9 +52,10 @@ def lib_secs(lib, file, lib_path):
     sections_infos = EntityDB()
     sections_infos.add_sections_info(dump)
 
-    secs = sections_infos.get_sections(lib, file.split('.')[0] + '.c')
+    source_name = file[:-4] if file.endswith('.obj') else file
+    secs = sections_infos.get_sections(lib, source_name)
     if len(secs) == 0:
-        secs = sections_infos.get_sections(lib, file.split('.')[0])
+        secs = sections_infos.get_sections(lib, source_name.rsplit('.', 1)[0])
         if len(secs) == 0:
             raise ValueError('Failed to get sections from lib %s'%(lib_path))
     
