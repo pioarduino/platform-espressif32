@@ -92,17 +92,17 @@ def test_path_normalization():
         print('✓ Absolute path handling works')
         
         # Test missing IDF_PATH error
-        del os.environ['IDF_PATH']
         try:
+            del os.environ['IDF_PATH']
             paths.append('lib4.a', '*', '$IDF_PATH/test.a')
             raise AssertionError("Should raise error for missing IDF_PATH")
         except RuntimeError as e:
             assert 'IDF_PATH' in str(e), "Error should mention IDF_PATH"
             print('✓ Missing IDF_PATH error handling works')
-        
-        # Restore IDF_PATH
-        if original_idf:
-            os.environ['IDF_PATH'] = original_idf
+        finally:
+            # Restore IDF_PATH
+            if original_idf:
+                os.environ['IDF_PATH'] = original_idf
         
         print('✅ Path normalization: PASSED\n')
         return True

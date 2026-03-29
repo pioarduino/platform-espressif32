@@ -34,6 +34,7 @@ def run_all_tests():
         print(f"  ✓ Loaded {configuration_tests.countTestCases()} tests from test_configuration")
     except Exception as e:
         print(f"  ✗ Failed to load test_configuration: {e}")
+        sys.exit(1)
     
     try:
         import test_relinker
@@ -42,6 +43,7 @@ def run_all_tests():
         print(f"  ✓ Loaded {relinker_tests.countTestCases()} tests from test_relinker")
     except Exception as e:
         print(f"  ✗ Failed to load test_relinker: {e}")
+        sys.exit(1)
     
     # Add integration tests
     print("Loading integration tests...")
@@ -52,6 +54,7 @@ def run_all_tests():
         print(f"  ✓ Loaded {integration_tests.countTestCases()} tests from test_integration")
     except Exception as e:
         print(f"  ✗ Failed to load test_integration: {e}")
+        sys.exit(1)
     
     print()
     print(f"Total tests to run: {suite.countTestCases()}")

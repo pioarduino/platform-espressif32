@@ -58,7 +58,7 @@ python3 -m unittest test_configuration.TestSdkconfigC.test_check_simple_present
 
 ## Requirements
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - No external dependencies (uses only Python standard library)
 
 ## Documentation

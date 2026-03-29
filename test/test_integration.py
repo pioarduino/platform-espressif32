@@ -277,9 +277,7 @@ class TestIdempotency(unittest.TestCase):
     
     def test_multiple_runs_produce_same_result(self):
         """Test that running relinker multiple times produces same result."""
-        # This would require full relinker integration
-        # For now, we document the expected behavior
-        pass
+        self.skipTest("Requires full relinker integration - not yet implemented")
 
 
 class TestErrorHandling(unittest.TestCase):
@@ -314,13 +312,11 @@ class TestErrorHandling(unittest.TestCase):
     
     def test_missing_csv_file(self):
         """Test error when CSV file is missing."""
-        # This would test the generator function with missing files
-        pass
+        self.skipTest("Requires generator function testing - not yet implemented")
     
     def test_malformed_csv(self):
         """Test error handling with malformed CSV."""
-        # This would test CSV parsing error handling
-        pass
+        self.skipTest("Requires CSV parsing error handling - not yet implemented")
 
 
 class TestCompleteWorkflow(unittest.TestCase):

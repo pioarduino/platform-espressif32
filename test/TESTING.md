@@ -321,8 +321,10 @@ chmod +x test_*.py
 If tests leave temporary files, manually clean up:
 
 ```bash
-# Find and remove test temp directories
-find /tmp -name "tmp*" -type d -mtime +1 -exec rm -rf {} +
+# Manually clean up test temp directories if needed
+# Note: Tests should clean up automatically in tearDown()
+# Only use this if tests were interrupted
+rm -rf /tmp/tmp*relinker*
 ```
 
 ## Possible Future Improvements

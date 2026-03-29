@@ -172,6 +172,11 @@ class relink_c:
         self.__transform__()
 
     def __transform__(self):
+        # Check if there are no targets to process
+        if not self.targets:
+            self._no_relink = True
+            return
+        
         iram1_exclude = list()
         iram1_include = list()
         flash_include = list()
@@ -189,17 +194,27 @@ class relink_c:
             if len(secs) > 0:
                 flash_include.append('    %s(%s)'%(t.desc, ' '.join(secs)))
 
+        # Check if filtering left no surviving targets
+        if not iram1_exclude and not iram1_include and not flash_include:
+            self._no_relink = True
+            return
+
         self.iram1_exclude = '    *(EXCLUDE_FILE(%s %s) .iram1.*) *(EXCLUDE_FILE(%s %s) .iram1)' % \
                              (self.filter.add(), ' '.join(iram1_exclude), \
                               self.filter.add(), ' '.join(iram1_exclude))
         self.iram1_include = '\n'.join(iram1_include)
         self.flash_include = '\n'.join(flash_include)
+        self._no_relink = False
 
         logging.debug('IRAM1 Exclude: %s'%(self.iram1_exclude))
         logging.debug('IRAM1 Include: %s'%(self.iram1_include))
         logging.debug('Flash Include: %s'%(self.flash_include))
 
     def __replace__(self, lines):
+        # Skip rewriting if there are no targets
+        if getattr(self, '_no_relink', False):
+            return
+        
         def is_iram_desc(l):
             # Recognize both original ldgen patterns and relinker-generated patterns
             if '*(.iram1 .iram1.*)' in l:

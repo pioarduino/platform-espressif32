@@ -205,9 +205,7 @@ class TestObjectC(unittest.TestCase):
     
     def test_append_returns_false_on_missing_section(self):
         """Test that append returns False when section is not found."""
-        # This is a simplified test - full testing would require mock objdump
-        # We're testing the return value logic
-        pass  # Requires mocking get_func_section
+        self.skipTest("Requires mocking get_func_section - not yet implemented")
 
 
 class TestLibraryC(unittest.TestCase):
@@ -223,8 +221,7 @@ class TestLibraryC(unittest.TestCase):
     
     def test_append_creates_object(self):
         """Test that append creates object if it doesn't exist."""
-        # This requires mocking object_c creation
-        pass  # Requires mocking object_c
+        self.skipTest("Requires mocking object_c creation - not yet implemented")
 
 
 class TestLibrariesC(unittest.TestCase):
