@@ -21,10 +21,6 @@ from relinker import filter_c, func2sect
 class TestRelinkerFunctionality(unittest.TestCase):
     """Comprehensive functionality tests for the relinker implementation."""
 
-
-class TestRelinkerFunctionality(unittest.TestCase):
-    """Comprehensive functionality tests for the relinker implementation."""
-
     def test_sdkconfig_functionality(self):
         """Test sdkconfig parsing and checking."""
         temp_dir = tempfile.mkdtemp()
