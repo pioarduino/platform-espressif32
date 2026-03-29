@@ -213,7 +213,7 @@ class relink_c:
     def __replace__(self, lines):
         # Skip rewriting if there are no targets
         if getattr(self, '_no_relink', False):
-            return
+            return lines
         
         def is_iram_desc(l):
             # Recognize both original ldgen patterns and relinker-generated patterns
