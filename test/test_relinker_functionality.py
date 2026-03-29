@@ -95,7 +95,7 @@ def test_path_normalization():
         del os.environ['IDF_PATH']
         try:
             paths.append('lib4.a', '*', '$IDF_PATH/test.a')
-            assert False, "Should raise error for missing IDF_PATH"
+            raise AssertionError("Should raise error for missing IDF_PATH")
         except RuntimeError as e:
             assert 'IDF_PATH' in str(e), "Error should mention IDF_PATH"
             print('✓ Missing IDF_PATH error handling works')

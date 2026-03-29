@@ -45,7 +45,8 @@ class TestFunc2Sect(unittest.TestCase):
         result = func2sect('.iram1.my_function')
         
         self.assertIn('.iram1.my_function', result)
-        self.assertNotIn('.literal', result[0])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0], '.iram1.my_function')
 
 
 class TestFilterSecs(unittest.TestCase):

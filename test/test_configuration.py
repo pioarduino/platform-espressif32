@@ -151,7 +151,9 @@ class TestPathsC(unittest.TestCase):
     
     def test_append_idf_path(self):
         """Test appending paths with $IDF_PATH."""
+        original_idf = os.environ.get('IDF_PATH')
         os.environ['IDF_PATH'] = '/path/to/esp-idf'
+        self.addCleanup(lambda: os.environ.update({'IDF_PATH': original_idf}) if original_idf else os.environ.pop('IDF_PATH', None))
         
         paths = paths_c(self.build_dir)
         paths.append('libtest.a', '*', '$IDF_PATH/components/test/libtest.a')

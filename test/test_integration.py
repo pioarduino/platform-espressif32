@@ -333,6 +333,8 @@ class TestCompleteWorkflow(unittest.TestCase):
         os.makedirs(self.build_dir)
         
         # Set up environment
+        self.original_idf_path = os.environ.get('IDF_PATH')
+        self.original_build_dir = os.environ.get('BUILD_DIR')
         os.environ['IDF_PATH'] = '/path/to/esp-idf'
         os.environ['BUILD_DIR'] = self.build_dir
     
@@ -340,7 +342,16 @@ class TestCompleteWorkflow(unittest.TestCase):
         """Clean up."""
         shutil.rmtree(self.temp_dir)
         
-        if 'BUILD_DIR' in os.environ:
+        # Restore IDF_PATH
+        if self.original_idf_path:
+            os.environ['IDF_PATH'] = self.original_idf_path
+        elif 'IDF_PATH' in os.environ:
+            del os.environ['IDF_PATH']
+        
+        # Restore BUILD_DIR
+        if self.original_build_dir:
+            os.environ['BUILD_DIR'] = self.original_build_dir
+        elif 'BUILD_DIR' in os.environ:
             del os.environ['BUILD_DIR']
     
     def test_workflow_documentation(self):
