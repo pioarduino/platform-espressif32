@@ -376,6 +376,7 @@ def main():
     argparser.add_argument(
         '--objdump', '-g',
         help='GCC objdump command',
+        required=True,
         type=str)
     
     argparser.add_argument(
