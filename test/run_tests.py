@@ -10,7 +10,8 @@ import unittest
 import os
 
 # Add the relinker directory to the path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+relinker_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'builder', 'relinker')
+sys.path.insert(0, relinker_dir)
 
 
 def run_all_tests():

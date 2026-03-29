@@ -4,37 +4,57 @@ Comprehensive test suite for the ESP32 PlatformIO Relinker.
 
 ## Overview
 
-The test suite consists of three main components:
+The test suite consists of four main components:
 
 1. **Unit Tests** (`test_configuration.py`) - Tests for configuration.py
 2. **Unit Tests** (`test_relinker.py`) - Tests for relinker.py
 3. **Integration Tests** (`test_integration.py`) - End-to-end workflow tests
+4. **Functionality Tests** (`test_relinker_functionality.py`) - Comprehensive feature validation
+
+All tests are located in the `test/` directory in the repository root.
 
 ## Running Tests
 
 ### Run All Tests
 
 ```bash
-cd builder/relinker
+cd test
 python3 run_tests.py
+```
+
+Or from the repository root:
+
+```bash
+python3 test/run_tests.py
+```
+
+### Run Functionality Tests
+
+```bash
+cd test
+python3 test_relinker_functionality.py
 ```
 
 ### Run Specific Test Module
 
 ```bash
+cd test
+
 # Run only configuration tests
-python3 run_tests.py test_configuration
+python3 -m unittest test_configuration
 
 # Run only relinker tests
-python3 run_tests.py test_relinker
+python3 -m unittest test_relinker
 
 # Run only integration tests
-python3 run_tests.py test_integration
+python3 -m unittest test_integration
 ```
 
 ### Run Individual Test Class
 
 ```bash
+cd test
+
 # Run specific test class
 python3 -m unittest test_configuration.TestSdkconfigC
 
@@ -45,6 +65,7 @@ python3 -m unittest test_configuration.TestSdkconfigC.test_check_simple_present
 ### Run with Verbose Output
 
 ```bash
+cd test
 python3 -m unittest discover -v
 ```
 
@@ -271,7 +292,7 @@ jobs:
     
     - name: Run tests
       run: |
-        cd builder/relinker
+        cd test
         python3 run_tests.py
 ```
 
@@ -282,7 +303,7 @@ jobs:
 Ensure you're running tests from the correct directory:
 
 ```bash
-cd builder/relinker
+cd test
 python3 run_tests.py
 ```
 

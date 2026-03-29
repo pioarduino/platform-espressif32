@@ -9,7 +9,9 @@ import os
 import tempfile
 import shutil
 
-sys.path.insert(0, 'builder/relinker')
+# Add the relinker directory to the path
+relinker_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'builder', 'relinker')
+sys.path.insert(0, relinker_dir)
 
 from configuration import sdkconfig_c, paths_c, generator
 from relinker import filter_c, func2sect

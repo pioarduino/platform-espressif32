@@ -98,12 +98,14 @@ All tests passed successfully!
 
 ### Quick Start
 ```bash
-cd builder/relinker
+cd test
 python3 run_tests.py
 ```
 
 ### Run Specific Tests
 ```bash
+cd test
+
 # Configuration tests only
 python3 -m unittest test_configuration
 
@@ -112,6 +114,9 @@ python3 -m unittest test_relinker
 
 # Integration tests only
 python3 -m unittest test_integration
+
+# Functionality tests
+python3 test_relinker_functionality.py
 
 # Specific test class
 python3 -m unittest test_configuration.TestSdkconfigC
