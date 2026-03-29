@@ -36,6 +36,9 @@ class sdkconfig_c:
         options = options.replace(' ', '')
         if '&&' in options:
             for i in options.split('&&'):
+                i = i.strip()  # Remove any whitespace
+                if not i:  # Skip empty tokens
+                    continue
                 if i[0] == '!':
                     i = i[1:]
                     if i in self.config:
@@ -44,7 +47,9 @@ class sdkconfig_c:
                     if i not in self.config:
                         return False
         else:
-            i = options
+            i = options.strip()  # Remove any whitespace
+            if not i:  # Handle empty string
+                return True  # Empty option is considered valid
             if i[0] == '!':
                 i = i[1:]
                 if i in self.config:
