@@ -344,7 +344,7 @@ def main():
     relink.save(args.input, args.output)
 
 def run_relinker(input_file, output_file, library_file, object_file, function_file,
-                 sdkconfig_file, objdump, idf_path=None, missing_function_info=True,
+                 sdkconfig_file, objdump, idf_path=None, missing_function_info=False,
                  debug=False):
     """API entry point for PlatformIO integration.
 

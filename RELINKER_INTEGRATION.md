@@ -47,15 +47,28 @@ The relinker reads three CSV configuration files that define:
 Create a `relinker/` directory in your PlatformIO project root and add three CSV files.
 A ready-to-use ESP32-C2 example is included in the platform at:
 
+**POSIX (Linux/macOS):**
 ```text
 ~/.platformio/platforms/espressif32/builder/relinker/examples/esp32c2/
 ```
 
+**Windows:**
+```text
+%USERPROFILE%\.platformio\platforms\espressif32\builder\relinker\examples\esp32c2\
+```
+
 You can copy these files as a starting point:
 
+**POSIX (Linux/macOS):**
 ```bash
 mkdir -p relinker
 cp ~/.platformio/platforms/espressif32/builder/relinker/examples/esp32c2/*.csv relinker/
+```
+
+**Windows (PowerShell):**
+```powershell
+New-Item -ItemType Directory -Force -Path relinker
+Copy-Item -Path "$env:USERPROFILE\.platformio\platforms\espressif32\builder\relinker\examples\esp32c2\*.csv" -Destination relinker\
 ```
 
 ### 2. Configure `platformio.ini`
