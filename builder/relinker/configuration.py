@@ -94,8 +94,10 @@ class object_c:
     
     def append(self, func):
         section = self.get_func_section(self.dumps, func)
-        if section is not None:
-            self.funcs[func] = section
+        if section is None:
+            return False
+        self.funcs[func] = section
+        return True
     
     def functions(self):
         nlist = list()
@@ -116,9 +118,13 @@ class library_c:
         self.objs = dict()
 
     def append(self, obj, path, func):
-        if obj not in self.objs:
-            self.objs[obj] = object_c(obj, path, self.name)
-        self.objs[obj].append(func)
+        if obj in self.objs:
+            self.objs[obj].append(func)
+            return
+
+        candidate = object_c(obj, path, self.name)
+        if candidate.append(func):
+            self.objs[obj] = candidate
 
 class libraries_c:
     def __init__(self):

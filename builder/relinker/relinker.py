@@ -94,7 +94,7 @@ class filter_c:
         with open(file, 'r', encoding='utf-8') as f:
             lines = f.read().splitlines()
         self.libs_desc = ''
-        self.libs = set()
+        self.entries = set()
         for l in lines:
             if ') .iram1 EXCLUDE_FILE(*' in l and ') .iram1.*)' in l:
                 desc = r'\(EXCLUDE_FILE\((.*)\) .iram1 '
@@ -102,15 +102,15 @@ class filter_c:
                 if not match:
                     continue
                 self.libs_desc = match.group(1)
-                self.libs = {
-                    token.lstrip('*').split(':', 1)[0]
+                self.entries = {
+                    token.lstrip('*')
                     for token in self.libs_desc.split()
                 }
                 return
     
-    def match(self, lib):
-        if lib in self.libs:
-            print('Remove lib %s'%(lib))
+    def match(self, desc):
+        if desc.lstrip('*') in self.entries:
+            print('Remove %s' % desc)
             return True
         return False
     
@@ -159,11 +159,11 @@ class relink_c:
         for i in libraries.libs:
             lib = libraries.libs[i]
 
-            if self.filter.match(lib.name):
-                continue
-
             for j in lib.objs:
                 obj = lib.objs[j]
+                desc = '*%s:%s.*' % (lib.name, obj.name.split('.')[0])
+                if self.filter.match(desc):
+                    continue
                 self.targets.append(target_c(lib.name, lib.path, obj.name,
                                              ' '.join(obj.sections())))
         # for i in self.targets:
