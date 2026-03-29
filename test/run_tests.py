@@ -56,6 +56,17 @@ def run_all_tests():
         print(f"  ✗ Failed to load test_integration: {e}")
         sys.exit(1)
     
+    # Add standalone relinker functionality tests
+    print("Loading relinker functionality tests...")
+    try:
+        import test_relinker_functionality
+        functionality_tests = loader.loadTestsFromModule(test_relinker_functionality)
+        suite.addTests(functionality_tests)
+        print(f"  ✓ Loaded {functionality_tests.countTestCases()} tests from test_relinker_functionality")
+    except Exception as e:
+        print(f"  ✗ Failed to load test_relinker_functionality: {e}")
+        sys.exit(1)
+    
     print()
     print(f"Total tests to run: {suite.countTestCases()}")
     print("=" * 70)
@@ -71,7 +82,8 @@ def run_all_tests():
     print("TEST SUMMARY")
     print("=" * 70)
     print(f"Tests run: {result.testsRun}")
-    print(f"Successes: {result.testsRun - len(result.failures) - len(result.errors)}")
+    successes = result.testsRun - len(result.failures) - len(result.errors) - len(result.skipped)
+    print(f"Successes: {successes}")
     print(f"Failures: {len(result.failures)}")
     print(f"Errors: {len(result.errors)}")
     print(f"Skipped: {len(result.skipped)}")

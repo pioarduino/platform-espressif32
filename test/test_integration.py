@@ -138,7 +138,8 @@ class TestPathResolution(unittest.TestCase):
         
         result = paths.index('lib.a', '*')
         self.assertTrue(os.path.isabs(result[0]))
-        self.assertIn('esp-idf/lib.a', result[0])
+        expected_path = os.path.normpath(os.path.join('esp-idf', 'lib.a'))
+        self.assertIn(expected_path, result[0])
     
     def test_idf_path_resolution(self):
         """Test resolution of $IDF_PATH."""
@@ -146,7 +147,8 @@ class TestPathResolution(unittest.TestCase):
         paths.append('lib.a', '*', '$IDF_PATH/components/test/lib.a')
         
         result = paths.index('lib.a', '*')
-        self.assertIn('/path/to/esp-idf/components/test/lib.a', result[0])
+        expected_path = os.path.normpath(os.path.join('path', 'to', 'esp-idf', 'components', 'test', 'lib.a'))
+        self.assertIn(expected_path, result[0])
     
     def test_absolute_path_unchanged(self):
         """Test that absolute paths remain unchanged."""
