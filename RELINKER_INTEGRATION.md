@@ -73,7 +73,7 @@ Copy-Item -Path "$env:USERPROFILE\.platformio\platforms\espressif32\builder\reli
 
 ### 2. Configure `platformio.ini`
 
-Add the three `custom_relinker_*` options to your build environment:
+Add the three required `custom_relinker_*` options to your build environment:
 
 ```ini
 [env:esp32c2]
@@ -85,6 +85,45 @@ framework = espidf
 custom_relinker_library  = relinker/library.csv
 custom_relinker_object   = relinker/object.csv
 custom_relinker_function = relinker/function.csv
+
+; Optional: Enable warning-only mode for missing functions
+; custom_relinker_missing_function_info = yes
+```
+
+#### Configuration Options
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `custom_relinker_library` | Yes | Path to library CSV file mapping library names to archive paths |
+| `custom_relinker_object` | Yes | Path to object CSV file mapping object files to build artifact paths |
+| `custom_relinker_function` | Yes | Path to function CSV file listing functions to relocate from IRAM to flash |
+| `custom_relinker_missing_function_info` | No | Enable warning-only mode when functions listed in CSV files cannot be found in object files. Set to `yes`, `true`, or `1` to enable. Default: disabled (build fails on missing functions) |
+
+> **Note:** All three CSV options (`custom_relinker_library`, `custom_relinker_object`, 
+> `custom_relinker_function`) must be provided together. If only some are set, the build 
+> will fail with an error indicating which options are missing.
+
+#### When to Use `custom_relinker_missing_function_info`
+
+The `custom_relinker_missing_function_info` option is useful when:
+
+- Working with CSV files across different ESP-IDF versions where function names or locations may have changed
+- Using a shared relinker configuration that may not perfectly match your specific IDF revision
+- Developing or testing new relinker configurations where some functions may not exist yet
+
+When enabled, the relinker will print warnings for missing functions instead of failing the build, allowing you to identify and fix CSV entries incrementally.
+
+**Example with warning-only mode:**
+```ini
+[env:esp32c2]
+platform  = espressif32
+board     = esp32-c2-devkitm-1
+framework = espidf
+
+custom_relinker_library  = relinker/library.csv
+custom_relinker_object   = relinker/object.csv
+custom_relinker_function = relinker/function.csv
+custom_relinker_missing_function_info = yes
 ```
 
 ### 3. Build
