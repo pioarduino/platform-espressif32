@@ -65,7 +65,6 @@ python3 -m unittest test_configuration.TestSdkconfigC.test_check_simple_present
 
 For detailed test documentation, see:
 - `TESTING.md` - Complete testing guide
-- `TEST_SUMMARY.md` - Detailed test results
 - `VALIDATION_REPORT.md` - Final validation report
 - `README.md` (this file) - Quick start guide
 
