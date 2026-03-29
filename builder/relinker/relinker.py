@@ -201,35 +201,94 @@ class relink_c:
 
     def __replace__(self, lines):
         def is_iram_desc(l):
-            if '*(.iram1 .iram1.*)' in l or (') .iram1 EXCLUDE_FILE(*' in l and ') .iram1.*)' in l):
+            # Recognize both original ldgen patterns and relinker-generated patterns
+            if '*(.iram1 .iram1.*)' in l:
                 return True
+            if ') .iram1 EXCLUDE_FILE(*' in l and ') .iram1.*)' in l:
+                return True
+            # Recognize relinker-generated IRAM exclude patterns
+            if '*(EXCLUDE_FILE(' in l and ') .iram1.*)' in l and ') .iram1)' in l:
+                return True
+            return False
+        
+        def is_relinker_iram_include(l):
+            # Detect relinker-generated IRAM include lines (object-specific sections)
+            # These typically look like: *libname:objname.*(section names)
+            if not l.strip():
+                return False
+            stripped = l.strip()
+            # Check for pattern like: *libname:objname.*(.iram1.xxx)
+            if stripped.startswith('*') and ':' in stripped and '.*(' in stripped and '.iram1.' in stripped:
+                return True
+            return False
+        
+        def is_relinker_flash_include(l):
+            # Detect relinker-generated flash include lines
+            if not l.strip():
+                return False
+            stripped = l.strip()
+            # Check for pattern like: *libname:objname.*(.literal.xxx .text.xxx)
+            if stripped.startswith('*') and ':' in stripped and '.*(' in stripped:
+                if '.literal.' in stripped or '.text.' in stripped:
+                    return True
             return False
 
         iram_start = False
         flash_done = False
+        in_relinker_iram_block = False
+        in_relinker_flash_block = False
 
-        for i in range(len(lines)):
+        i = 0
+        while i < len(lines):
             l = lines[i]
+            
             if '.iram0.text :' in l:
                 logging.debug('start to process .iram0.text')
                 iram_start = True
+                in_relinker_iram_block = False
             elif '.dram0.data :' in l:
                 logging.debug('end to process .iram0.text')
                 iram_start = False
+                in_relinker_iram_block = False
             elif is_iram_desc(l):
                 if iram_start:
-                    lines[i] = '%s\n%s\n'%(self.iram1_exclude, self.iram1_include)
+                    # Replace the IRAM descriptor and skip any following relinker IRAM includes
+                    lines[i] = '%s\n%s\n' % (self.iram1_exclude, self.iram1_include)
+                    in_relinker_iram_block = True
+                    # Look ahead and remove old relinker IRAM include lines
+                    j = i + 1
+                    while j < len(lines) and is_relinker_iram_include(lines[j]):
+                        lines.pop(j)
+                    in_relinker_iram_block = False
             elif '(.stub .gnu.warning' in l:
                 if not flash_done:
-                    lines[i] = '%s\n\n%s'%(self.flash_include, l)
+                    # Remove any existing relinker flash block before this line
+                    j = i - 1
+                    while j >= 0 and (is_relinker_flash_include(lines[j]) or not lines[j].strip()):
+                        if is_relinker_flash_include(lines[j]):
+                            lines.pop(j)
+                            i -= 1
+                            j -= 1
+                        elif not lines[j].strip():
+                            # Remove empty lines that are part of the relinker block
+                            if j > 0 and is_relinker_flash_include(lines[j - 1]):
+                                lines.pop(j)
+                                i -= 1
+                            j -= 1
+                        else:
+                            break
+                    # Insert new flash block
+                    lines[i] = '%s\n\n%s' % (self.flash_include, l)
                     flash_done = True
             elif self.flash_include in l:
                 flash_done = True
             else:
-                if iram_start:
+                if iram_start and not in_relinker_iram_block:
                     new_l = self._replace_func(l)
                     if new_l:
                         lines[i] = new_l
+            
+            i += 1
 
         return lines
 
