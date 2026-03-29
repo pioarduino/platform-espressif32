@@ -132,12 +132,17 @@ class libraries_c:
                 print('%s, %s, %s, %s'%(libname, objname, obj.path, obj.funcs))
 
 class paths_c:
-    def __init__(self):
+    def __init__(self, build_dir=None):
         self.paths = dict()
+        self.build_dir = build_dir or os.environ.get('BUILD_DIR')
     
     def append(self, lib, obj, path):
         if '$IDF_PATH' in path:
             path = path.replace('$IDF_PATH', os.environ['IDF_PATH'])
+        
+        # Normalize relative paths to absolute paths based on build directory
+        if not os.path.isabs(path) and self.build_dir:
+            path = os.path.normpath(os.path.join(self.build_dir, path))
 
         if lib not in self.paths:
             self.paths[lib] = dict()
@@ -154,19 +159,26 @@ class paths_c:
             return None
         return self.paths[lib][obj]
 
-def generator(library_file, object_file, function_file, sdkconfig_file, missing_function_info, objdump='riscv32-esp-elf-objdump'):
+def generator(library_file, object_file, function_file, sdkconfig_file, missing_function_info, objdump='riscv32-esp-elf-objdump', build_dir=None):
     global espidf_objdump, espidf_missing_function_info
     espidf_objdump = objdump
     espidf_missing_function_info = missing_function_info
 
     sdkconfig = sdkconfig_c(sdkconfig_file)
+    
+    # Determine build directory: use provided build_dir, or infer from library_file location
+    if build_dir is None:
+        build_dir = os.environ.get('BUILD_DIR')
+        if build_dir is None:
+            # Infer from library_file path - CSV files are typically in the build directory
+            build_dir = os.path.dirname(os.path.abspath(library_file))
 
-    lib_paths = paths_c()
+    lib_paths = paths_c(build_dir)
     with open(library_file, 'r') as f:
         for p in csv.DictReader(f):
             lib_paths.append(p['library'], '*', p['path'])
 
-    obj_paths = paths_c()
+    obj_paths = paths_c(build_dir)
     with open(object_file, 'r') as f:
         for p in csv.DictReader(f):
             obj_paths.append(p['library'], p['object'], p['path'])
