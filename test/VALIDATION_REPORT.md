@@ -169,8 +169,8 @@ The ESP32 PlatformIO Relinker implementation has been comprehensively tested and
 ## Validation Against Real ESP-IDF
 
 The test suite has been validated against:
-- Real ESP-IDF framework at `/Users/claudia/.platformio/packages/framework-espidf`
-- Actual build data from `/Users/claudia/Git/Tasmota/.pio/build`
+- Real ESP-IDF framework at `<home dir>/.platformio/packages/framework-espidf`
+- Actual build data from `<home dir>/Git/Tasmota/.pio/build`
 - Realistic linker script patterns
 - Actual ldgen output formats
 - Real CSV data structures
