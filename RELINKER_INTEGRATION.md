@@ -15,7 +15,7 @@ remain in IRAM stay there.
 
 ### How It Works
 
-```
+```text
 ┌──────────────┐     ┌────────────┐     ┌──────────────┐     ┌──────────┐
 │ sections.ld  │────▶│   ldgen    │────▶│ sections.ld  │────▶│ relinker │
 │   template   │     │ (ESP-IDF)  │     │ (generated)  │     │          │
@@ -36,7 +36,7 @@ The relinker reads three CSV configuration files that define:
 
 1. **Which libraries** are involved and where to find them
 2. **Which object files** within those libraries are affected
-3. **Which functions** should be kept in IRAM (everything else gets moved to flash)
+3. **Which functions** should be relocated from IRAM to flash
 
 ---
 
@@ -47,7 +47,7 @@ The relinker reads three CSV configuration files that define:
 Create a `relinker/` directory in your PlatformIO project root and add three CSV files.
 A ready-to-use ESP32-C2 example is included in the platform at:
 
-```
+```text
 ~/.platformio/platforms/espressif32/builder/relinker/examples/esp32c2/
 ```
 
@@ -82,7 +82,7 @@ pio run -e esp32c2
 
 During the build you will see an additional step in the output:
 
-```
+```text
 Running relinker to optimize IRAM usage
 ```
 
@@ -153,16 +153,16 @@ libesp_system.a,cpu_start.c.obj,esp-idf/esp_system/CMakeFiles/__idf_esp_system.d
 
 ### `function.csv` — Function Relocation Rules
 
-This is the core configuration file. Each row specifies a function that should **remain
-in IRAM** (or be conditionally kept based on sdkconfig options). All other functions in
-the same object file that were originally placed in IRAM will be moved to flash.
+This is the core configuration file. Each row specifies a function that should be
+**moved from IRAM to flash** (or conditionally moved based on sdkconfig options).
+Functions not listed here remain in IRAM.
 
 | Column     | Description                                                          |
 |------------|----------------------------------------------------------------------|
 | `library`  | Archive name                                                         |
 | `object`   | Object file name within the library                                  |
-| `function` | Function symbol name to keep in IRAM                                 |
-| `option`   | *(optional)* sdkconfig condition(s) — function is kept only if true  |
+| `function` | Function symbol name to move to flash                                |
+| `option`   | *(optional)* sdkconfig condition(s) — function is moved only if true |
 
 **Example (`function.csv`):**
 
@@ -189,12 +189,12 @@ The `option` column controls conditional inclusion based on your project's `sdkc
 
 | Value | Meaning |
 |-------|---------|
-| *(empty)* | Function is always kept in IRAM |
-| `CONFIG_XYZ` | Kept in IRAM only if `CONFIG_XYZ` is defined in sdkconfig |
-| `!CONFIG_XYZ` | Kept in IRAM only if `CONFIG_XYZ` is **not** defined |
-| `CONFIG_A && CONFIG_B` | Kept only if both options are defined |
-| `CONFIG_A && !CONFIG_B` | Kept only if A is defined and B is not |
-| `FALSE` | Function is **never** kept in IRAM (always moved to flash) |
+| *(empty)* | Function is always moved to flash |
+| `CONFIG_XYZ` | Moved to flash only if `CONFIG_XYZ` is defined in sdkconfig |
+| `!CONFIG_XYZ` | Moved to flash only if `CONFIG_XYZ` is **not** defined |
+| `CONFIG_A && CONFIG_B` | Moved only if both options are defined |
+| `CONFIG_A && !CONFIG_B` | Moved only if A is defined and B is not |
+| `FALSE` | Function is **never** moved to flash (always stays in IRAM) |
 
 ---
 
@@ -205,7 +205,7 @@ relinker enabled.
 
 ### Project Structure
 
-```
+```text
 my_esp32c2_project/
 ├── platformio.ini
 ├── sdkconfig.esp32c2          # auto-generated or manually edited

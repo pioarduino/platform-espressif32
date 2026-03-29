@@ -1436,6 +1436,9 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
             _relinker_dir = str(Path(platform.get_dir()) / "builder" / "relinker")
             _relinker_script = str(Path(_relinker_dir) / "relinker.py")
             _relinker_objdump = args["objdump"]
+            _relinker_missing = config.get(
+                "env:" + env["PIOENV"], "custom_relinker_missing_function_info", "yes"
+            ).strip().lower() in ("yes", "true", "1")
             _relinker_cmd = (
                 '"$ESPIDF_PYTHONEXE" "{script}" '
                 '--input "$BUILD_DIR/sections.ld" '
@@ -1445,8 +1448,7 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
                 '--function "{function}" '
                 '--sdkconfig "{sdkconfig}" '
                 '--objdump "{objdump}" '
-                '--idf-path "{idf_path}" '
-                '--missing_function_info'
+                '--idf-path "{idf_path}"'
             ).format(
                 script=_relinker_script,
                 library=relinker_library,
@@ -1456,6 +1458,8 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
                 objdump=_relinker_objdump,
                 idf_path=FRAMEWORK_DIR,
             )
+            if _relinker_missing:
+                _relinker_cmd += ' --missing_function_info'
             def write_relinker_stamp(target, source, env):
                 with open(str(target[0]), 'w') as f:
                     f.write('done')

@@ -204,6 +204,7 @@ class relink_c:
             elif '(.stub .gnu.warning' in l:
                 if not flash_done:
                     lines[i] = '%s\n\n%s'%(self.flash_include, l)
+                    flash_done = True
             elif self.flash_include in l:
                 flash_done = True
             else:
