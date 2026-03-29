@@ -158,11 +158,11 @@ class paths_c:
     def index(self, lib, obj):
         if lib not in self.paths:
             return None
+        if obj in self.paths[lib]:
+            return self.paths[lib][obj]
         if '*' in self.paths[lib]:
-            obj = '*'
-        if obj not in self.paths[lib]:
-            return None
-        return self.paths[lib][obj]
+            return self.paths[lib]['*']
+        return None
 
 def generator(library_file, object_file, function_file, sdkconfig_file, missing_function_info, objdump='riscv32-esp-elf-objdump', build_dir=None):
     global espidf_objdump, espidf_missing_function_info
