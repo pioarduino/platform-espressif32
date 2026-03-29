@@ -41,6 +41,8 @@ class sdkconfig_c:
                     continue
                 if i[0] == '!':
                     i = i[1:]
+                    if not i:  # Malformed negation token (bare '!')
+                        return False
                     if i in self.config:
                         return False
                 else:
@@ -52,6 +54,8 @@ class sdkconfig_c:
                 return True  # Empty option is considered valid
             if i[0] == '!':
                 i = i[1:]
+                if not i:  # Malformed negation token (bare '!')
+                    return False
                 if i in self.config:
                     return False
             else:
