@@ -98,7 +98,10 @@ class filter_c:
         for l in lines:
             if ') .iram1 EXCLUDE_FILE(*' in l and ') .iram1.*)' in l:
                 desc = r'\(EXCLUDE_FILE\((.*)\) .iram1 '
-                self.libs_desc = re.search(desc, l)[1]
+                match = re.search(desc, l)
+                if not match:
+                    continue
+                self.libs_desc = match.group(1)
                 self.libs = self.libs_desc.replace('*', '')
                 return
     
@@ -201,7 +204,7 @@ class relink_c:
         iram_start = False
         flash_done = False
 
-        for i in range(0, len(lines) - 1):
+        for i in range(len(lines)):
             l = lines[i]
             if '.iram0.text :' in l:
                 logging.debug('start to process .iram0.text')

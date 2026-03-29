@@ -1429,60 +1429,82 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
 
     # Relinker post-processing: move selected functions from IRAM to Flash
     relinker_function = config.get("env:" + env["PIOENV"], "custom_relinker_function", "")
-    if relinker_function:
-        relinker_library = config.get("env:" + env["PIOENV"], "custom_relinker_library", "")
-        relinker_object = config.get("env:" + env["PIOENV"], "custom_relinker_object", "")
-        if relinker_library and relinker_object:
-            _relinker_dir = str(Path(platform.get_dir()) / "builder" / "relinker")
-            _relinker_script = str(Path(_relinker_dir) / "relinker.py")
-            _relinker_objdump = args["objdump"]
-            _relinker_missing = config.get(
-                "env:" + env["PIOENV"], "custom_relinker_missing_function_info", "no"
-            ).strip().lower() in ("yes", "true", "1")
-            _relinker_cmd = (
-                '"$ESPIDF_PYTHONEXE" "{script}" '
-                '--input "$BUILD_DIR/sections.ld" '
-                '--output "$BUILD_DIR/sections.ld" '
-                '--library "{library}" '
-                '--object "{object}" '
-                '--function "{function}" '
-                '--sdkconfig "{sdkconfig}" '
-                '--objdump "{objdump}" '
-                '--idf-path "{idf_path}"'
-            ).format(
-                script=_relinker_script,
-                library=relinker_library,
-                object=relinker_object,
-                function=relinker_function,
-                sdkconfig=SDKCONFIG_PATH,
-                objdump=_relinker_objdump,
-                idf_path=FRAMEWORK_DIR,
-            )
-            if _relinker_missing:
-                _relinker_cmd += ' --missing_function_info'
-            def write_relinker_stamp(target, source, env):
-                with open(str(target[0]), 'w') as f:
-                    f.write('done')
+    relinker_library = config.get("env:" + env["PIOENV"], "custom_relinker_library", "")
+    relinker_object = config.get("env:" + env["PIOENV"], "custom_relinker_object", "")
+    
+    # Validate that all three relinker settings are provided together
+    relinker_settings = {
+        "custom_relinker_function": relinker_function,
+        "custom_relinker_library": relinker_library,
+        "custom_relinker_object": relinker_object,
+    }
+    relinker_set = [key for key, value in relinker_settings.items() if value]
+    relinker_missing = [key for key, value in relinker_settings.items() if not value]
+    
+    if relinker_set and relinker_missing:
+        # Some but not all settings are provided - this is an error
+        sys.stderr.write(
+            "Error: Incomplete relinker configuration in [env:%s]\n"
+            "All three custom_relinker_* settings must be provided together:\n"
+            "  - Set: %s\n"
+            "  - Missing: %s\n"
+            "Either provide all three settings or remove all of them.\n"
+            % (env["PIOENV"], ", ".join(relinker_set), ", ".join(relinker_missing))
+        )
+        env.Exit(1)
+    
+    if relinker_function and relinker_library and relinker_object:
+        # All three settings are provided - proceed with relinker
+        _relinker_dir = str(Path(platform.get_dir()) / "builder" / "relinker")
+        _relinker_script = str(Path(_relinker_dir) / "relinker.py")
+        _relinker_objdump = args["objdump"]
+        _relinker_missing = config.get(
+            "env:" + env["PIOENV"], "custom_relinker_missing_function_info", "no"
+        ).strip().lower() in ("yes", "true", "1")
+        _relinker_cmd = (
+            '"$ESPIDF_PYTHONEXE" "{script}" '
+            '--input "$BUILD_DIR/sections.ld" '
+            '--output "$BUILD_DIR/sections.ld" '
+            '--library "{library}" '
+            '--object "{object}" '
+            '--function "{function}" '
+            '--sdkconfig "{sdkconfig}" '
+            '--objdump "{objdump}" '
+            '--idf-path "{idf_path}"'
+        ).format(
+            script=_relinker_script,
+            library=relinker_library,
+            object=relinker_object,
+            function=relinker_function,
+            sdkconfig=SDKCONFIG_PATH,
+            objdump=_relinker_objdump,
+            idf_path=FRAMEWORK_DIR,
+        )
+        if _relinker_missing:
+            _relinker_cmd += ' --missing_function_info'
+        def write_relinker_stamp(target, source, env):
+            with open(str(target[0]), 'w') as f:
+                f.write('done')
 
-            _relinker_config_module = str(Path(_relinker_dir) / "configuration.py")
-            _relinker_sources = [
-                str(Path("$BUILD_DIR") / "sections.ld"),
-                _relinker_script,
-                _relinker_config_module,
-                relinker_library,
-                relinker_object,
-                relinker_function,
-                SDKCONFIG_PATH,
-            ]
-            relinker_step = env.Command(
-                str(Path("$BUILD_DIR") / "sections.ld.relinked"),
-                _relinker_sources,
-                [
-                    env.VerboseAction(_relinker_cmd, "Running relinker to optimize IRAM usage"),
-                    env.VerboseAction(write_relinker_stamp, ""),
-                ],
-            )
-            env.Depends(relinker_step, ld_script)
+        _relinker_config_module = str(Path(_relinker_dir) / "configuration.py")
+        _relinker_sources = [
+            str(Path("$BUILD_DIR") / "sections.ld"),
+            _relinker_script,
+            _relinker_config_module,
+            relinker_library,
+            relinker_object,
+            relinker_function,
+            SDKCONFIG_PATH,
+        ]
+        relinker_step = env.Command(
+            str(Path("$BUILD_DIR") / "sections.ld.relinked"),
+            _relinker_sources,
+            [
+                env.VerboseAction(_relinker_cmd, "Running relinker to optimize IRAM usage"),
+                env.VerboseAction(write_relinker_stamp, ""),
+            ],
+        )
+        env.Depends(relinker_step, ld_script)
 
     return ld_script
 

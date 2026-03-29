@@ -196,6 +196,11 @@ def generator(library_file, object_file, function_file, sdkconfig_file, missing_
                 continue
             lib_path = lib_paths.index(d['library'], '*')
             obj_path = obj_paths.index(d['library'], d['object'])
+            if not lib_path:
+                raise RuntimeError(
+                    "Library '%s' not found in library CSV for function '%s'" 
+                    % (d['library'], d['function'])
+                )
             if not obj_path:
                 obj_path = lib_path
             libraries.append(d['library'], lib_path[0], d['object'], obj_path, d['function'])
