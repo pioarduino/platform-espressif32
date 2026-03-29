@@ -19,7 +19,8 @@ espidf_missing_function_info = True
 
 class sdkconfig_c:
     def __init__(self, path):
-        lines = open(path).read().splitlines()
+        with open(path, 'r', encoding='utf-8') as f:
+            lines = f.read().splitlines()
         config = dict()
         for l in lines:
             if len(l) > OPT_MIN_LEN and l[0] != '#':
@@ -54,17 +55,16 @@ class sdkconfig_c:
         return True
 
 class object_c:
-    def read_dump_info(self, pathes):
+    def read_dump_info(self, paths):
         new_env = os.environ.copy()
         new_env['LC_ALL'] = 'C'
         dumps = list()
-        print('pathes:', pathes)
-        for path in pathes:
+        for path in paths:
             try:
                 dump = StringIO(subprocess.check_output([espidf_objdump, '-t', path], env=new_env).decode())
                 dumps.append(dump.readlines())
             except subprocess.CalledProcessError as e:
-                raise RuntimeError('cmd:%s result:%s'%(e.cmd, e.returncode))
+                raise RuntimeError('cmd:%s result:%s'%(e.cmd, e.returncode)) from e
         return dumps
 
     def get_func_section(self, dumps, func):
@@ -72,7 +72,7 @@ class object_c:
             for l in dump:
                 if ' %s'%(func) in l and '*UND*' not in l:
                     m = re.match(r'(\S*)\s*([glw])\s*([F|O])\s*(\S*)\s*(\S*)\s*(\S*)\s*', l, re.M|re.I)
-                    if m and m[6] == func:
+                    if m is not None and m[6] == func:
                         return m[4].replace('.text.', '')
         if espidf_missing_function_info:
             print('%s failed to find section'%(func))
@@ -80,16 +80,16 @@ class object_c:
         else:
             raise RuntimeError('%s failed to find section'%(func))
 
-    def __init__(self, name, pathes, libray):
+    def __init__(self, name, paths, library):
         self.name = name
-        self.libray = libray
+        self.library = library
         self.funcs = dict()
-        self.pathes = pathes
-        self.dumps = self.read_dump_info(pathes)
+        self.paths = paths
+        self.dumps = self.read_dump_info(paths)
     
     def append(self, func):
         section = self.get_func_section(self.dumps, func)
-        if section != None:
+        if section is not None:
             self.funcs[func] = section
     
     def functions(self):
@@ -160,23 +160,26 @@ def generator(library_file, object_file, function_file, sdkconfig_file, missing_
     sdkconfig = sdkconfig_c(sdkconfig_file)
 
     lib_paths = paths_c()
-    for p in csv.DictReader(open(library_file, 'r')):
-        lib_paths.append(p['library'], '*', p['path'])
+    with open(library_file, 'r') as f:
+        for p in csv.DictReader(f):
+            lib_paths.append(p['library'], '*', p['path'])
 
     obj_paths = paths_c()
-    for p in csv.DictReader(open(object_file, 'r')):
-        obj_paths.append(p['library'], p['object'], p['path'])
+    with open(object_file, 'r') as f:
+        for p in csv.DictReader(f):
+            obj_paths.append(p['library'], p['object'], p['path'])
 
     libraries = libraries_c()
-    for d in csv.DictReader(open(function_file, 'r')):
-        if d['option'] and sdkconfig.check(d['option']) == False:
-            print('skip %s(%s)'%(d['function'], d['option']))
-            continue
-        lib_path = lib_paths.index(d['library'], '*')
-        obj_path = obj_paths.index(d['library'], d['object'])
-        if not obj_path:
-            obj_path = lib_path
-        libraries.append(d['library'], lib_path[0], d['object'], obj_path, d['function'])
+    with open(function_file, 'r') as f:
+        for d in csv.DictReader(f):
+            if d['option'] and not sdkconfig.check(d['option']):
+                print('skip %s(%s)'%(d['function'], d['option']))
+                continue
+            lib_path = lib_paths.index(d['library'], '*')
+            obj_path = obj_paths.index(d['library'], d['object'])
+            if not obj_path:
+                obj_path = lib_path
+            libraries.append(d['library'], lib_path[0], d['object'], obj_path, d['function'])
     return libraries
 
 def main():
@@ -202,9 +205,14 @@ def main():
         help='sdkconfig file',
         type=str)
 
+    argparser.add_argument(
+        '--missing_function_info',
+        help='Print missing function info instead of raising an error',
+        action='store_true')
+
     args = argparser.parse_args()
 
-    libraries = generator(args.library, args.object, args.function, args.sdkconfig)
+    libraries = generator(args.library, args.object, args.function, args.sdkconfig, args.missing_function_info)
     # libraries.dump()
 
 if __name__ == '__main__':

@@ -83,12 +83,13 @@ def func2sect(func):
 
 class filter_c:
     def __init__(self, file):
-        lines = open(file).read().splitlines()
+        with open(file, 'r', encoding='utf-8') as f:
+            lines = f.read().splitlines()
         self.libs_desc = ''
         self.libs = ''
         for l in lines:
             if ') .iram1 EXCLUDE_FILE(*' in l and ') .iram1.*)' in l:
-                desc = '\(EXCLUDE_FILE\((.*)\) .iram1 '
+                desc = r'\(EXCLUDE_FILE\((.*)\) .iram1 '
                 self.libs_desc = re.search(desc, l)[1]
                 self.libs = self.libs_desc.replace('*', '')
                 return
@@ -119,7 +120,7 @@ class target_c:
         self.isecs = strip_secs(self.secs, self.fsecs)
 
     def __str__(self):
-        s = 'lib=%s\nfile=%s\lib_path=%s\ndesc=%s\nsecs=%s\nfsecs=%s\nisecs=%s\n'%(\
+        s = 'lib=%s\nfile=%s\nlib_path=%s\ndesc=%s\nsecs=%s\nfsecs=%s\nisecs=%s\n'%(\
             self.lib, self.file, self.lib_path, self.desc, self.secs, self.fsecs,\
             self.isecs)
         return s
@@ -244,12 +245,14 @@ class relink_c:
                                 l += '\n    %s(%s)'%(m.desc, ' '.join(m.isecs))
                     return l
 
-        return False
+        return None
 
     def save(self, input, output):
-        lines = open(input).read().splitlines()
+        with open(input, 'r', encoding='utf-8') as f:
+            lines = f.read().splitlines()
         lines = self.__replace__(lines)
-        open(output, 'w+').write('\n'.join(lines))
+        with open(output, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines))
 
 def main():
     argparser = argparse.ArgumentParser(description='Relinker script generator')
@@ -298,8 +301,7 @@ def main():
     argparser.add_argument(
         '--missing_function_info',
         help='Print error information instead of throwing exception when missing function',
-        default=False,
-        type=bool)
+        action='store_true')
 
     argparser.add_argument(
         '--idf-path',

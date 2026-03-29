@@ -1446,7 +1446,7 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
                 '--sdkconfig "{sdkconfig}" '
                 '--objdump "{objdump}" '
                 '--idf-path "{idf_path}" '
-                '--missing_function_info True'
+                '--missing_function_info'
             ).format(
                 script=_relinker_script,
                 library=relinker_library,
@@ -1456,16 +1456,17 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
                 objdump=_relinker_objdump,
                 idf_path=FRAMEWORK_DIR,
             )
+            def write_relinker_stamp(target, source, env):
+                with open(str(target[0]), 'w') as f:
+                    f.write('done')
+
             relinker_step = env.Command(
                 str(Path("$BUILD_DIR") / "sections.ld.relinked"),
                 str(Path("$BUILD_DIR") / "sections.ld"),
                 [
                     env.VerboseAction(_relinker_cmd, "Running relinker to optimize IRAM usage"),
                     # Touch a stamp file so SCons tracks the dependency
-                    env.VerboseAction(
-                        lambda target, source, env: open(str(target[0]), 'w').write('done'),
-                        ""
-                    ),
+                    env.VerboseAction(write_relinker_stamp, ""),
                 ],
             )
             env.Depends(relinker_step, ld_script)
