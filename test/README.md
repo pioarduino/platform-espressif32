@@ -64,9 +64,10 @@ python3 -m unittest test_configuration.TestSdkconfigC.test_check_simple_present
 ## Documentation
 
 For detailed test documentation, see:
-- `builder/relinker/TESTING.md` - Complete testing guide
-- `builder/relinker/TEST_SUMMARY.md` - Detailed test results
-- `RELINKER_VALIDATION_REPORT.md` - Final validation report
+- `TESTING.md` - Complete testing guide
+- `TEST_SUMMARY.md` - Detailed test results
+- `VALIDATION_REPORT.md` - Final validation report
+- `README.md` (this file) - Quick start guide
 
 ## Test Coverage
 
