@@ -137,7 +137,18 @@ class relink_c:
     def __init__(self, input, library_file, object_file, function_file, sdkconfig_file, missing_function_info):
         self.filter = filter_c(input)
         
-        libraries = configuration.generator(library_file, object_file, function_file, sdkconfig_file, missing_function_info, espidf_objdump)
+        # Infer build directory from input file path (typically $BUILD_DIR/sections.ld)
+        build_dir = os.path.dirname(os.path.abspath(input))
+        
+        libraries = configuration.generator(
+            library_file,
+            object_file,
+            function_file,
+            sdkconfig_file,
+            missing_function_info,
+            espidf_objdump,
+            build_dir=build_dir,
+        )
         self.targets = list()
         for i in libraries.libs:
             lib = libraries.libs[i]
