@@ -150,6 +150,8 @@ class paths_c:
             return None
         if '*' in self.paths[lib]:
             obj = '*'
+        if obj not in self.paths[lib]:
+            return None
         return self.paths[lib][obj]
 
 def generator(library_file, object_file, function_file, sdkconfig_file, missing_function_info, objdump='riscv32-esp-elf-objdump'):

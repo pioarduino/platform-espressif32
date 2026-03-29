@@ -21,21 +21,29 @@ import configuration
 # Resolve IDF_PATH for ldgen imports: prefer explicit --idf-path argument,
 # then the IDF_PATH environment variable.
 _idf_path = os.environ.get('IDF_PATH', '')
+EntityDB = None
+
 def _setup_ldgen_imports(idf_path=None):
     global _idf_path
     if idf_path:
         _idf_path = idf_path
+        os.environ['IDF_PATH'] = idf_path
     if _idf_path:
         for p in [_idf_path + '/tools/ldgen', _idf_path + '/tools/ldgen/ldgen']:
             if p not in sys.path:
                 sys.path.append(p)
 
-_setup_ldgen_imports()
-from entity import EntityDB
+def _ensure_entity_db():
+    global EntityDB
+    if EntityDB is None:
+        _setup_ldgen_imports()
+        from entity import EntityDB as _EntityDB
+        EntityDB = _EntityDB
 
 espidf_objdump = None
 
 def lib_secs(lib, file, lib_path):
+    _ensure_entity_db()
     new_env = os.environ.copy()
     new_env['LC_ALL'] = 'C'
     dump = StringIO(subprocess.check_output([espidf_objdump, '-h', lib_path], env=new_env).decode())
@@ -313,6 +321,7 @@ def main():
 
     if args.idf_path:
         _setup_ldgen_imports(args.idf_path)
+    _ensure_entity_db()
 
     if args.debug == 'debug':
         logging.basicConfig(level=logging.DEBUG)
@@ -343,7 +352,7 @@ def run_relinker(input_file, output_file, library_file, object_file, function_fi
     """
     if idf_path:
         _setup_ldgen_imports(idf_path)
-        os.environ.setdefault('IDF_PATH', idf_path)
+    _ensure_entity_db()
 
     if debug:
         logging.basicConfig(level=logging.DEBUG)

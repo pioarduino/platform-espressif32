@@ -1460,12 +1460,21 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
                 with open(str(target[0]), 'w') as f:
                     f.write('done')
 
+            _relinker_config_module = str(Path(_relinker_dir) / "configuration.py")
+            _relinker_sources = [
+                str(Path("$BUILD_DIR") / "sections.ld"),
+                _relinker_script,
+                _relinker_config_module,
+                relinker_library,
+                relinker_object,
+                relinker_function,
+                SDKCONFIG_PATH,
+            ]
             relinker_step = env.Command(
                 str(Path("$BUILD_DIR") / "sections.ld.relinked"),
-                str(Path("$BUILD_DIR") / "sections.ld"),
+                _relinker_sources,
                 [
                     env.VerboseAction(_relinker_cmd, "Running relinker to optimize IRAM usage"),
-                    # Touch a stamp file so SCons tracks the dependency
                     env.VerboseAction(write_relinker_stamp, ""),
                 ],
             )
@@ -2531,8 +2540,11 @@ env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", project_ld_script)
 
 # If relinker is configured, ensure the ELF depends on the relinked stamp
 _relinker_stamp = str(Path(BUILD_DIR) / "sections.ld.relinked")
-if os.path.exists(_relinker_stamp) or config.get(
-    "env:" + env["PIOENV"], "custom_relinker_function", ""
+_rl_env_section = "env:" + env["PIOENV"]
+if os.path.exists(_relinker_stamp) or (
+    config.get(_rl_env_section, "custom_relinker_function", "") and
+    config.get(_rl_env_section, "custom_relinker_library", "") and
+    config.get(_rl_env_section, "custom_relinker_object", "")
 ):
     env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", _relinker_stamp)
 
