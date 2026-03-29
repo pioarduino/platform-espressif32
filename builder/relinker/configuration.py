@@ -22,9 +22,9 @@ class sdkconfig_c:
         with open(path, 'r', encoding='utf-8') as f:
             lines = f.read().splitlines()
         config = dict()
-        for l in lines:
-            if len(l) > OPT_MIN_LEN and l[0] != '#':
-                mo = re.match( r'(.*)=(.*)', l, re.M|re.I)
+        for line in lines:
+            if len(line) > OPT_MIN_LEN and line[0] != '#':
+                mo = re.match( r'(.*)=(.*)', line, re.M|re.I)
                 if mo:
                     config[mo.group(1)]=mo.group(2).replace('"', '')
         self.config = config

@@ -94,7 +94,7 @@ class filter_c:
         with open(file, 'r', encoding='utf-8') as f:
             lines = f.read().splitlines()
         self.libs_desc = ''
-        self.libs = ''
+        self.libs = set()
         for l in lines:
             if ') .iram1 EXCLUDE_FILE(*' in l and ') .iram1.*)' in l:
                 desc = r'\(EXCLUDE_FILE\((.*)\) .iram1 '
@@ -102,7 +102,10 @@ class filter_c:
                 if not match:
                     continue
                 self.libs_desc = match.group(1)
-                self.libs = self.libs_desc.replace('*', '')
+                self.libs = {
+                    token.lstrip('*').split(':', 1)[0]
+                    for token in self.libs_desc.split()
+                }
                 return
     
     def match(self, lib):
