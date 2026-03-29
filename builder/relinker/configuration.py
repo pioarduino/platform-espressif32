@@ -153,7 +153,12 @@ class paths_c:
     
     def append(self, lib, obj, path):
         if '$IDF_PATH' in path:
-            path = path.replace('$IDF_PATH', os.environ['IDF_PATH'])
+            idf_path = os.environ.get('IDF_PATH')
+            if not idf_path:
+                raise RuntimeError(
+                    "Path '%s' references $IDF_PATH but IDF_PATH environment variable is not set" % path
+                )
+            path = path.replace('$IDF_PATH', idf_path)
         
         # Normalize relative paths to absolute paths based on build directory
         if not os.path.isabs(path) and self.build_dir:
