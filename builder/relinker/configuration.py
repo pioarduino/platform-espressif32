@@ -233,21 +233,25 @@ def main():
     argparser.add_argument(
         '--library', '-l',
         help='Library description file',
+        required=True,
         type=str)
 
     argparser.add_argument(
         '--object', '-b',
         help='Object description file',
+        required=True,
         type=str)
 
     argparser.add_argument(
         '--function', '-f',
         help='Function description file',
+        required=True,
         type=str)
 
     argparser.add_argument(
         '--sdkconfig', '-s',
         help='sdkconfig file',
+        required=True,
         type=str)
 
     argparser.add_argument(
