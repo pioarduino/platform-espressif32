@@ -24,9 +24,9 @@ class sdkconfig_c:
         config = dict()
         for line in lines:
             if len(line) > OPT_MIN_LEN and line[0] != '#':
-                mo = re.match( r'(.*)=(.*)', line, re.M|re.I)
-                if mo:
-                    config[mo.group(1)]=mo.group(2).replace('"', '')
+                key, sep, value = line.partition('=')
+                if sep:
+                    config[key] = value.replace('"', '')
         self.config = config
     
     def index(self, i):
