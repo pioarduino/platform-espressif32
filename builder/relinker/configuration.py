@@ -36,9 +36,9 @@ class sdkconfig_c:
         options = options.replace(' ', '')
         if '&&' in options:
             for i in options.split('&&'):
-                i = i.strip()  # Remove any whitespace
-                if not i:  # Skip empty tokens
-                    continue
+                i = i.strip()
+                if not i:  # Malformed expression (e.g. "CONFIG_A&&" or "&&CONFIG_A")
+                    return False
                 if i[0] == '!':
                     i = i[1:]
                     if not i:  # Malformed negation token (bare '!')

@@ -199,7 +199,6 @@ The test suite has been validated against:
 
 Complete documentation is available in the `test/` directory:
 - `TESTING.md` - Test suite documentation
-- `TEST_SUMMARY.md` - Detailed test results
 - `VALIDATION_REPORT.md` - This file
 - `README.md` - Quick start guide
 

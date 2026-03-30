@@ -137,7 +137,7 @@ class TestPathsC(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(len(result), 1)
         self.assertTrue(os.path.isabs(result[0]))
-        self.assertIn('esp-idf/test/libtest.a', result[0])
+        self.assertIn(os.path.normpath('esp-idf/test/libtest.a'), os.path.normpath(result[0]))
     
     def test_append_absolute_path(self):
         """Test appending absolute paths."""
