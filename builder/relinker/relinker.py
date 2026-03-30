@@ -331,11 +331,6 @@ class relink_c:
             '    *(EXCLUDE_FILE(%s) .iram1)'
         ) % (exclude_tokens, exclude_tokens) if exclude_tokens else ''
         self.iram1_include = '\n'.join(iram1_include)
-        # Add catch-all patterns after specific includes to prevent orphan sections
-        if self.iram1_include:
-            self.iram1_include += '\n    *(.iram1.*)\n    *(.iram1)'
-        else:
-            self.iram1_include = '    *(.iram1.*)\n    *(.iram1)'
         self.flash_include = '\n'.join(flash_include)
         self._no_relink = False
 
