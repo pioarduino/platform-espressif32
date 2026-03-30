@@ -11,6 +11,7 @@ Tests the complete workflow:
 """
 
 import unittest
+from unittest import mock
 import tempfile
 import os
 import sys
@@ -106,6 +107,67 @@ class TestCSVProcessing(unittest.TestCase):
         self.assertEqual(len(rows), 3)
         self.assertEqual(rows[0]['function'], 'xTaskGetTickCount')
         self.assertEqual(rows[0]['option'], 'CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH')
+    
+    def test_generator_processing(self):
+        """Test the actual generator processing with CSV files."""
+        from configuration import object_c
+        
+        # Mock the object file reading to avoid needing actual .obj files
+        mock_dumps = [[
+            '00000000 g     F .text.xTaskGetTickCount 00000010 xTaskGetTickCount\n',
+            '00000000 g     F .text.xTaskGetSchedulerState 00000020 xTaskGetSchedulerState\n',
+        ]]
+        
+        mock_heap_dumps = [[
+            '00000000 g     F .text.heap_caps_malloc 00000030 heap_caps_malloc\n',
+        ]]
+        
+        def mock_read_dump_info(self, paths):
+            # Return appropriate mock dumps based on the object name
+            if 'tasks.c.obj' in str(paths):
+                return mock_dumps
+            elif 'heap_caps.c.obj' in str(paths):
+                return mock_heap_dumps
+            return [[]]
+        
+        with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info):
+            # Call the actual generator function
+            libraries = generator(
+                library_file=self.library_csv,
+                object_file=self.object_csv,
+                function_file=self.function_csv,
+                sdkconfig_file=self.sdkconfig,
+                missing_function_info=True,
+                build_dir=self.build_dir
+            )
+        
+        # Assert expected libraries are present
+        self.assertIn('libfreertos.a', libraries.libs)
+        self.assertIn('libheap.a', libraries.libs)
+        
+        # Assert libfreertos.a has the expected object
+        freertos_lib = libraries.libs['libfreertos.a']
+        self.assertIn('tasks.c.obj', freertos_lib.objs)
+        
+        # Assert libheap.a has the expected object
+        heap_lib = libraries.libs['libheap.a']
+        self.assertIn('heap_caps.c.obj', heap_lib.objs)
+        
+        # Assert option filtering: xTaskGetTickCount should be included
+        # because CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH is set
+        tasks_obj = freertos_lib.objs['tasks.c.obj']
+        self.assertIn('xTaskGetTickCount', tasks_obj.funcs)
+        
+        # Assert xTaskGetSchedulerState is also included (no option requirement)
+        self.assertIn('xTaskGetSchedulerState', tasks_obj.funcs)
+        
+        # Assert heap_caps_malloc is included
+        heap_obj = heap_lib.objs['heap_caps.c.obj']
+        self.assertIn('heap_caps_malloc', heap_obj.funcs)
+        
+        # Assert paths are resolved relative to build_dir
+        expected_lib_path = os.path.normpath(os.path.join(self.build_dir, 'esp-idf/freertos/libfreertos.a'))
+        self.assertEqual(os.path.normpath(freertos_lib.path), expected_lib_path)
 
 
 class TestPathResolution(unittest.TestCase):
