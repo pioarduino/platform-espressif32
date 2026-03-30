@@ -2141,7 +2141,12 @@ def install_python_deps(deps=None):
         if package not in installed_packages:
             packages_to_install.append(package)
         elif spec:
-            version_spec = semantic_version.Spec(spec)
+            # Remove the workaround when a release version for windows-curses is available.
+            # version_spec = semantic_version.Spec(spec)
+            # Special handling for windows-curses prerelease: convert PEP 440 to SemVer
+            # (2.4.2a2 -> 2.4.2-alpha.2) for semantic_version.Spec parsing
+            semver_spec = spec.replace("2.4.2a2", "2.4.2-alpha.2") if package == "windows-curses" else spec
+            version_spec = semantic_version.Spec(semver_spec)
             if not version_spec.match(installed_packages[package]):
                 packages_to_install.append(package)
 
