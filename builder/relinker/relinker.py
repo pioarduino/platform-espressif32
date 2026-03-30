@@ -275,7 +275,7 @@ class relink_c:
                     while j < len(lines) and is_relinker_iram_include(lines[j]):
                         lines.pop(j)
                     in_relinker_iram_block = False
-            elif '(.stub .gnu.warning' in l:
+            elif '(.stub .gnu.warning' in l or l.strip() == '*(.stub)':
                 if not flash_done:
                     # Remove any existing relinker flash block before this line
                     j = i - 1
