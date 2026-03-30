@@ -161,7 +161,8 @@ class TestPathsC(unittest.TestCase):
         
         result = paths.index('libtest.a', '*')
         self.assertIsNotNone(result)
-        self.assertIn('/path/to/esp-idf/components/test/libtest.a', result[0])
+        expected = os.path.normpath('/path/to/esp-idf/components/test/libtest.a')
+        self.assertEqual(os.path.normpath(result[0]), expected)
     
     def test_append_idf_path_not_set(self):
         """Test appending paths with $IDF_PATH when not set."""
