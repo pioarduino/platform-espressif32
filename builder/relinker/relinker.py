@@ -407,15 +407,14 @@ class relink_c:
 
     def _replace_func(self, l):
         # Use merged per-descriptor maps instead of iterating targets
-        for desc in self.desc_isecs.keys():
+        # Iterate over union of descriptors to handle cases where descriptors
+        # moved completely to flash (in desc_flash_fsecs but not in desc_isecs)
+        for desc in set(self.desc_isecs) | set(self.desc_flash_fsecs):
             if desc in l:
                 S = '.literal .literal.* .text .text.*'
                 if S in l:
                     isecs = self.desc_isecs.get(desc, set())
-                    if len(isecs) > 0:
-                        return l.replace(S, ' '.join(sorted(isecs)))
-                    else:
-                        return ' '
+                    return l.replace(S, ' '.join(sorted(isecs))) if isecs else ' '
                 
                 fsecs = self.desc_flash_fsecs.get(desc, set())
                 S = '%s(%s)'%(desc, ' '.join(sorted(fsecs)))
