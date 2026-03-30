@@ -270,6 +270,7 @@ class relink_c:
         # Merge iram1 isecs for targets sharing the same desc to avoid orphans
         # when multiple object files in a library share the same base name
         desc_iram1_isecs = dict()
+        desc_flash_fsecs = dict()
 
         for t in self.targets:
             secs = filter_secs(t.fsecs, ('.iram1.', ))
@@ -283,13 +284,19 @@ class relink_c:
                     desc_iram1_isecs[t.desc] = set()
                 desc_iram1_isecs[t.desc].update(isecs)
 
-            secs = t.fsecs
-            if len(secs) > 0:
-                flash_include.append('    %s(%s)'%(t.desc, ' '.join(secs)))
+            # Merge flash fsecs per descriptor to avoid duplicates
+            if len(t.fsecs) > 0:
+                if t.desc not in desc_flash_fsecs:
+                    desc_flash_fsecs[t.desc] = set()
+                desc_flash_fsecs[t.desc].update(t.fsecs)
 
         for desc, isecs in desc_iram1_isecs.items():
             sorted_isecs = sorted(isecs)
             iram1_include.append('    %s(%s)'%(desc, ' '.join(sorted_isecs)))
+
+        for desc, fsecs in desc_flash_fsecs.items():
+            sorted_fsecs = sorted(fsecs)
+            flash_include.append('    %s(%s)'%(desc, ' '.join(sorted_fsecs)))
 
         # Check if filtering left no surviving targets
         if not iram1_exclude and not iram1_include and not flash_include:
