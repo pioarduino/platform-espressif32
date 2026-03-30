@@ -6,7 +6,7 @@
 
 All tests are located in the `test/` directory:
 
-```
+```text
 test/
 ├── run_tests.py                    # Main test runner
 ├── test_configuration.py           # Unit tests for configuration.py (25 tests)
