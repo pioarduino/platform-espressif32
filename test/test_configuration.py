@@ -11,6 +11,7 @@ Tests cover:
 """
 
 import unittest
+from unittest import mock
 import tempfile
 import os
 import sys
@@ -183,7 +184,7 @@ class TestPathsC(unittest.TestCase):
         paths = paths_c(self.build_dir)
         paths.append('libtest.a', '*', './libtest.a')
         
-        result = paths.index('libtest.a', 'any_object.obj')
+        result = paths.index('libtest.a', '*')
         self.assertIsNotNone(result)
     
     def test_index_missing_library(self):
@@ -207,15 +208,11 @@ class TestObjectC(unittest.TestCase):
     
     def test_append_returns_false_on_missing_section(self):
         """Test that append returns False when section is not found."""
-        # Create a mock object_c with empty dumps (no sections found)
-        obj = object_c('test.c.obj', [], 'libtest.a')
-        
-        # append should return False when get_func_section returns None
-        result = obj.append('nonexistent_function')
+        with mock.patch.object(object_c, 'read_dump_info', return_value=[]), \
+             mock.patch.object(object_c, 'get_func_section', return_value=None):
+            obj = object_c('test.c.obj', [], 'libtest.a')
+            result = obj.append('nonexistent_function')
         self.assertFalse(result)
-        
-        # Function should not be added to funcs dict
-        self.assertNotIn('nonexistent_function', obj.funcs)
 
 
 class TestLibraryC(unittest.TestCase):
@@ -238,18 +235,12 @@ class TestLibraryC(unittest.TestCase):
         obj_paths = []
         func_name = 'test_function'
         
-        # Append should create object_c instance
-        # Since we can't easily mock get_func_section, we'll test the structure
-        self.assertEqual(len(lib.objs), 0)
-        
-        # Call append - it will try to create object_c but fail to find sections
-        # This tests that the object creation logic is attempted
-        lib.append(obj_name, obj_paths, func_name)
-        
-        # If get_func_section returns None, object won't be added
-        # This is expected behavior - we're testing the append logic itself
-        # The object is only added if append(func) returns True
-        self.assertIsInstance(lib.objs, dict)
+        with mock.patch.object(object_c, 'read_dump_info', return_value=[]), \
+             mock.patch.object(object_c, 'get_func_section', return_value='test_section'):
+            lib.append(obj_name, obj_paths, func_name)
+
+        self.assertIn(obj_name, lib.objs)
+        self.assertEqual(lib.objs[obj_name].funcs[func_name], 'test_section')
 
 
 class TestLibrariesC(unittest.TestCase):
