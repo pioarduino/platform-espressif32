@@ -173,6 +173,52 @@ class target_c:
             self.isecs)
         return s
 
+def _is_iram_desc(l):
+    """Check if a line contains an IRAM descriptor pattern.
+    
+    Recognizes both original ldgen patterns and relinker-generated patterns.
+    """
+    # Original ldgen pattern
+    if '*(.iram1 .iram1.*)' in l:
+        return True
+    # Old relinker pattern
+    if ') .iram1 EXCLUDE_FILE(*' in l and ') .iram1.*)' in l:
+        return True
+    # Relinker-generated IRAM exclude patterns
+    if '*(EXCLUDE_FILE(' in l and ') .iram1.*)' in l and ') .iram1)' in l:
+        return True
+    return False
+
+
+def _is_relinker_iram_include(l):
+    """Detect relinker-generated IRAM include lines (object-specific sections).
+    
+    These typically look like: *libname:objname.*(.iram1.xxx)
+    """
+    if not l.strip():
+        return False
+    stripped = l.strip()
+    # Check for pattern like: *libname:objname.*(.iram1.xxx)
+    if stripped.startswith('*') and ':' in stripped and '.*(' in stripped and '.iram1.' in stripped:
+        return True
+    return False
+
+
+def _is_relinker_flash_include(l):
+    """Detect relinker-generated flash include lines.
+    
+    These typically look like: *libname:objname.*(.literal.xxx .text.xxx)
+    """
+    if not l.strip():
+        return False
+    stripped = l.strip()
+    # Check for pattern like: *libname:objname.*(.literal.xxx .text.xxx)
+    if stripped.startswith('*') and ':' in stripped and '.*(' in stripped:
+        if '.literal.' in stripped or '.text.' in stripped:
+            return True
+    return False
+
+
 class relink_c:
     def __init__(self, input, library_file, object_file, function_file, sdkconfig_file, missing_function_info):
         self.filter = filter_c(input)
@@ -258,39 +304,6 @@ class relink_c:
         # Skip rewriting if there are no targets
         if getattr(self, '_no_relink', False):
             return lines
-        
-        def is_iram_desc(l):
-            # Recognize both original ldgen patterns and relinker-generated patterns
-            if '*(.iram1 .iram1.*)' in l:
-                return True
-            if ') .iram1 EXCLUDE_FILE(*' in l and ') .iram1.*)' in l:
-                return True
-            # Recognize relinker-generated IRAM exclude patterns
-            if '*(EXCLUDE_FILE(' in l and ') .iram1.*)' in l and ') .iram1)' in l:
-                return True
-            return False
-        
-        def is_relinker_iram_include(l):
-            # Detect relinker-generated IRAM include lines (object-specific sections)
-            # These typically look like: *libname:objname.*(section names)
-            if not l.strip():
-                return False
-            stripped = l.strip()
-            # Check for pattern like: *libname:objname.*(.iram1.xxx)
-            if stripped.startswith('*') and ':' in stripped and '.*(' in stripped and '.iram1.' in stripped:
-                return True
-            return False
-        
-        def is_relinker_flash_include(l):
-            # Detect relinker-generated flash include lines
-            if not l.strip():
-                return False
-            stripped = l.strip()
-            # Check for pattern like: *libname:objname.*(.literal.xxx .text.xxx)
-            if stripped.startswith('*') and ':' in stripped and '.*(' in stripped:
-                if '.literal.' in stripped or '.text.' in stripped:
-                    return True
-            return False
 
         iram_start = False
         flash_done = False
@@ -309,28 +322,28 @@ class relink_c:
                 logging.debug('end to process .iram0.text')
                 iram_start = False
                 in_relinker_iram_block = False
-            elif is_iram_desc(l):
+            elif _is_iram_desc(l):
                 if iram_start:
                     # Replace the IRAM descriptor and skip any following relinker IRAM includes
                     lines[i] = '%s\n%s\n' % (self.iram1_exclude, self.iram1_include)
                     in_relinker_iram_block = True
                     # Look ahead and remove old relinker IRAM include lines
                     j = i + 1
-                    while j < len(lines) and is_relinker_iram_include(lines[j]):
+                    while j < len(lines) and _is_relinker_iram_include(lines[j]):
                         lines.pop(j)
                     in_relinker_iram_block = False
             elif '(.stub .gnu.warning' in l or l.strip() == '*(.stub)':
                 if not flash_done:
                     # Remove any existing relinker flash block before this line
                     j = i - 1
-                    while j >= 0 and (is_relinker_flash_include(lines[j]) or not lines[j].strip()):
-                        if is_relinker_flash_include(lines[j]):
+                    while j >= 0 and (_is_relinker_flash_include(lines[j]) or not lines[j].strip()):
+                        if _is_relinker_flash_include(lines[j]):
                             lines.pop(j)
                             i -= 1
                             j -= 1
                         elif not lines[j].strip():
                             # Remove empty lines that are part of the relinker block
-                            if j > 0 and is_relinker_flash_include(lines[j - 1]):
+                            if j > 0 and _is_relinker_flash_include(lines[j - 1]):
                                 lines.pop(j)
                                 i -= 1
                             j -= 1

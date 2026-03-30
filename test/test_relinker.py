@@ -18,7 +18,7 @@ from pathlib import Path
 relinker_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'builder', 'relinker')
 sys.path.insert(0, relinker_dir)
 
-from relinker import filter_c, func2sect, filter_secs, strip_secs
+from relinker import filter_c, func2sect, filter_secs, strip_secs, _is_iram_desc, _is_relinker_iram_include, _is_relinker_flash_include
 
 
 class TestFunc2Sect(unittest.TestCase):
@@ -214,11 +214,31 @@ class TestRelinkIdempotency(unittest.TestCase):
     
     def test_is_iram_desc_original_pattern(self):
         """Test is_iram_desc recognizes original patterns."""
-        self.skipTest("Requires access to relink_c internal method - not yet implemented")
+        # Test original ldgen pattern
+        line1 = '    *(.iram1 .iram1.*)'
+        self.assertTrue(_is_iram_desc(line1))
+        
+        # Test with surrounding content
+        line2 = '    mapping[iram0_text] = .iram0.text *(.iram1 .iram1.*) ALIGN(4)'
+        self.assertTrue(_is_iram_desc(line2))
+        
+        # Test negative case
+        line3 = '    *(.text .text.*)'
+        self.assertFalse(_is_iram_desc(line3))
     
     def test_is_iram_desc_relinker_pattern(self):
         """Test is_iram_desc recognizes relinker-generated patterns."""
-        self.skipTest("Requires access to relink_c internal method - not yet implemented")
+        # Test old relinker pattern with EXCLUDE_FILE
+        line1 = '    *(EXCLUDE_FILE(*libfreertos.a:tasks.*) .iram1 EXCLUDE_FILE(*libfreertos.a:tasks.*) .iram1.*)'
+        self.assertTrue(_is_iram_desc(line1))
+        
+        # Test new relinker pattern
+        line2 = '    *(EXCLUDE_FILE(*libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1.*) *(EXCLUDE_FILE(*libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1)'
+        self.assertTrue(_is_iram_desc(line2))
+        
+        # Test negative case - flash pattern
+        line3 = '    *libfreertos.a:tasks.*(.literal.xTaskCreate .text.xTaskCreate)'
+        self.assertFalse(_is_iram_desc(line3))
 
 
 class TestSourceNameHandling(unittest.TestCase):
