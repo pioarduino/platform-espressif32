@@ -1403,14 +1403,11 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
         '--objdump "{objdump}"'
     ).format(**args)
 
-    # Select appropriate linker script based on chip and revision
-    # ESP32-P4 has different linker scripts for rev < 3 and rev >= 3
+    linker_script_name = "sections.ld.in"
+    # Check for P4 >= rev3
     if idf_variant == "esp32p4" and chip_variant == "esp32p4":
-        # Regular ESP32-P4 (rev >= 3): use sections.rev3.ld.in
+        # ESP32-P4 rev >= 3 has different linker script
         linker_script_name = "sections.rev3.ld.in"
-    else:
-        # ESP32-P4 ES variant (rev < 3) or other chips: use sections.ld.in
-        linker_script_name = "sections.ld.in"
     
     initial_ld_script = str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld" / idf_variant / linker_script_name)
 
@@ -1464,7 +1461,7 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
         build_env.SetOption("implicit_cache", 1)
         for cc in compile_commands:
             raw_fragment = cc.get("fragment", "")
-            # Handle GCC response files (@file) introduced in IDF 6.0
+            # Handle GCC response files (@file) introduced in IDF 5.5.3+
             # Read the file contents and add flags individually instead of
             # passing @file to GCC, which avoids shlex parsing issues
             if raw_fragment.strip().startswith("@"):
@@ -2099,13 +2096,18 @@ def _get_uv_exe():
 
 def _get_python_deps():
     """Get the required Python dependencies for ESP-IDF"""
-    return {
+    deps = {
         # https://github.com/platformio/platform-espressif32/issues/635
         "cryptography": "~=44.0.0",
         "pyparsing": ">=3.1.0,<4",
         "idf-component-manager": "~=2.4.8",
         "esp-idf-kconfig": "~=3.7.0"
     }
+
+    if IS_WINDOWS:
+        deps["windows-curses"] = ">=2.4.2a2"
+
+    return deps
 
 
 def install_python_deps(deps=None):
@@ -2151,15 +2153,6 @@ def install_python_deps(deps=None):
             env.VerboseAction(
                 f'"{UV_EXE}" pip install --python "{python_exe_path}" {packages_str}',
                 "Installing ESP-IDF's Python dependencies with uv",
-            )
-        )
-
-    if IS_WINDOWS and "windows-curses" not in installed_packages:
-        # Install windows-curses in the IDF Python environment
-        env.Execute(
-            env.VerboseAction(
-                f'"{UV_EXE}" pip install --python "{python_exe_path}" windows-curses',
-                "Installing windows-curses package with uv",
             )
         )
 
