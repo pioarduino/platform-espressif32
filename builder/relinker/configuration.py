@@ -69,6 +69,11 @@ class object_c:
         new_env['LC_ALL'] = 'C'
         dumps = list()
         for path in paths:
+            if not os.path.isfile(path):
+                if espidf_missing_function_info:
+                    print('Warning: object file not found, skipping: %s' % path)
+                    continue
+                raise RuntimeError('Object file not found: %s' % path)
             try:
                 dump = StringIO(subprocess.check_output([espidf_objdump, '-t', path], env=new_env).decode())
                 dumps.append(dump.readlines())
