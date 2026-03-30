@@ -72,8 +72,7 @@ class object_c:
             if not os.path.isfile(path):
                 if espidf_missing_function_info:
                     print('Warning: object file not found, skipping: %s' % path)
-                    continue
-                raise RuntimeError('Object file not found: %s' % path)
+                continue
             try:
                 dump = StringIO(subprocess.check_output([espidf_objdump, '-t', path], env=new_env).decode())
                 dumps.append(dump.readlines())
@@ -90,9 +89,7 @@ class object_c:
                         return m[4].replace('.text.', '')
         if espidf_missing_function_info:
             print('%s failed to find section'%(func))
-            return None
-        else:
-            raise RuntimeError('%s failed to find section'%(func))
+        return None
 
     def __init__(self, name, paths, library):
         self.name = name
@@ -102,6 +99,9 @@ class object_c:
         self.dumps = self.read_dump_info(paths)
     
     def append(self, func):
+        # If no dumps were loaded (all object files missing), return False
+        if not self.dumps:
+            return False
         section = self.get_func_section(self.dumps, func)
         if section is None:
             return False

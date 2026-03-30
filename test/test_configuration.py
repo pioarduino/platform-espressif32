@@ -231,12 +231,15 @@ class TestLibraryC(unittest.TestCase):
         """Test that append creates object if it doesn't exist."""
         lib = library_c('libtest.a', '/path/to/libtest.a')
         
-        # Create a mock object with empty dumps
+        # Create a mock object with non-empty dumps
         obj_name = 'test.c.obj'
         obj_paths = []
         func_name = 'test_function'
         
-        with mock.patch.object(object_c, 'read_dump_info', return_value=[]), \
+        # Mock read_dump_info to return non-empty list (simulating successful objdump)
+        mock_dumps = [['mock dump line']]
+        
+        with mock.patch.object(object_c, 'read_dump_info', return_value=mock_dumps), \
              mock.patch.object(object_c, 'get_func_section', return_value='test_section'):
             lib.append(obj_name, obj_paths, func_name)
 
