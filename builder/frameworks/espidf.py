@@ -2155,6 +2155,15 @@ def install_python_deps():
             )
         )
 
+    if IS_WINDOWS and "windows-curses" not in installed_packages:
+        # Install windows-curses in the IDF Python environment
+        env.Execute(
+            env.VerboseAction(
+                f'"{UV_EXE}" pip install --python "{python_exe_path}" windows-curses',
+                "Installing windows-curses package with uv",
+            )
+        )
+
 
 def get_idf_venv_dir():
     # The name of the IDF venv contains the IDF version to avoid possible conflicts and
