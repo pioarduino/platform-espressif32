@@ -2108,8 +2108,9 @@ def _get_python_deps():
     }
 
 
-def install_python_deps():
+def install_python_deps(deps=None):
     UV_EXE = _get_uv_exe()
+    deps = deps or _get_python_deps()
 
     def _get_installed_uv_packages(python_exe_path):
         result = {}
@@ -2130,8 +2131,6 @@ def install_python_deps():
     skip_python_packages = str(Path(FRAMEWORK_DIR) / ".pio_skip_pypackages")
     if os.path.isfile(skip_python_packages):
         return
-
-    deps = _get_python_deps()
 
     python_exe_path = get_python_exe()
     installed_packages = _get_installed_uv_packages(python_exe_path)
@@ -2257,7 +2256,7 @@ def ensure_python_venv_available():
     venv_data_file = str(Path(venv_dir) / "pio-idf-venv.json")
     if not os.path.isfile(venv_data_file) or _is_venv_outdated(venv_data_file, deps):
         _create_venv(venv_dir)
-        install_python_deps()
+        install_python_deps(deps)
         with open(venv_data_file, "w", encoding="utf8") as fp:
             venv_info = {
                 "version": IDF_ENV_VERSION,
