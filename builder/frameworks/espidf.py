@@ -1421,6 +1421,18 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
             str(Path(BUILD_DIR) / "esp-idf" / "esp_system" / "ld" / linker_script_name),
         )
 
+    # Clean up old relinker files before generating new sections.ld
+    # These files are not valid for subsequent builds
+    old_sections_ld = str(Path(BUILD_DIR) / "sections.ld")
+    old_relinked = str(Path(BUILD_DIR) / "sections.ld.relinked")
+    for old_file in [old_sections_ld, old_relinked]:
+        if os.path.exists(old_file):
+            try:
+                os.remove(old_file)
+                print(f"Cleaned up old relinker file: {os.path.basename(old_file)}")
+            except (FileNotFoundError, PermissionError, OSError):
+                pass  # Ignore errors, file might be in use
+
     ld_script = env.Command(
         str(Path("$BUILD_DIR") / "sections.ld"),
         initial_ld_script,
