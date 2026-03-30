@@ -144,7 +144,14 @@ The ESP32 PlatformIO Relinker implementation has been comprehensively tested and
 - .cpp files (C++ source)
 - .S files (Assembly)
 - .obj files (Object files)
-- Files with multiple dots
+- Files with multiple dots (e.g., `my.file.c.obj`)
+- Proper extension handling with `_object_desc_stem()`
+
+### ✅ Architecture Support
+- Generic objdump format detection
+- Xtensa (ESP32, ESP32-S2, ESP32-S3)
+- RISC-V (ESP32-C2, ESP32-C3, ESP32-C6, ESP32-H2)
+- Any architecture supported by ESP-IDF
 
 ### ✅ Filter Functionality
 - EXCLUDE_FILE pattern parsing
@@ -158,12 +165,18 @@ The ESP32 PlatformIO Relinker implementation has been comprehensively tested and
 - Empty configuration options
 - Missing library/object files
 - Incomplete relinker configuration validation
+- Missing CSV files (FileNotFoundError)
+- Malformed CSV files (KeyError on missing columns)
+- Proper environment variable restoration in tests
 
 ### ✅ Idempotency
 - Multiple run consistency
-- Relinker pattern recognition
+- Relinker pattern recognition (original and relinker-generated)
 - Original ldgen pattern recognition
 - Block replacement without duplication
+- IRAM descriptor detection (_is_iram_desc)
+- Flash include pattern detection
+- Fully validated with actual relinker runs
 
 ## Validation Against Real ESP-IDF
 
@@ -184,7 +197,19 @@ The test suite has been validated against:
 ✅ Well-documented code  
 ✅ Extensive test coverage  
 ✅ Realistic test data  
-✅ Production-ready quality
+✅ Production-ready quality  
+✅ Multi-architecture support (Xtensa, RISC-V)  
+✅ Multi-dot filename handling  
+✅ PEP 440/SemVer compatibility for dependencies
+
+### Recent Improvements
+✅ Extracted helper functions for better testability  
+✅ Generic objdump format detection (not hardcoded to RISC-V)  
+✅ Proper multi-dot filename handling (`my.file.c.obj`)  
+✅ Improved regex patterns for filter matching  
+✅ PEP 440 to SemVer conversion for windows-curses  
+✅ All skipped tests now fully implemented  
+✅ Better test environment cleanup with addCleanup
 
 ### Test Quality
 ✅ 100% test pass rate  

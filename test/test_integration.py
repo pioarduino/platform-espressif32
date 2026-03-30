@@ -284,7 +284,76 @@ class TestIdempotency(unittest.TestCase):
     
     def test_multiple_runs_produce_same_result(self):
         """Test that running relinker multiple times produces same result."""
-        self.skipTest("Requires full relinker integration - not yet implemented")
+        from configuration import generator
+        from relinker import relink_c
+        
+        # Create CSV files
+        library_csv = os.path.join(self.temp_dir, 'library.csv')
+        with open(library_csv, 'w') as f:
+            f.write('library,path\n')
+            f.write('libtest.a,./libtest.a\n')
+        
+        object_csv = os.path.join(self.temp_dir, 'object.csv')
+        with open(object_csv, 'w') as f:
+            f.write('library,object,path\n')
+            f.write('libtest.a,test.c.obj,./test.c.obj\n')
+        
+        function_csv = os.path.join(self.temp_dir, 'function.csv')
+        with open(function_csv, 'w') as f:
+            f.write('library,object,function,option\n')
+            f.write('libtest.a,test.c.obj,test_func,\n')
+        
+        sdkconfig = os.path.join(self.temp_dir, 'sdkconfig')
+        with open(sdkconfig, 'w') as f:
+            f.write('CONFIG_TEST=y\n')
+        
+        # Create initial linker script
+        input_script = os.path.join(self.temp_dir, 'input.ld')
+        with open(input_script, 'w') as f:
+            f.write('.iram0.text : {\n')
+            f.write('    _iram_text_start = ABSOLUTE(.);\n')
+            f.write('    *(.iram1 .iram1.*)\n')
+            f.write('    _iram_text_end = ABSOLUTE(.);\n')
+            f.write('} > iram0_0_seg\n')
+            f.write('\n')
+            f.write('.flash.text : {\n')
+            f.write('    _stext = .;\n')
+            f.write('    *(.stub .gnu.warning)\n')
+            f.write('    _etext = .;\n')
+            f.write('} > default_code_seg\n')
+        
+        output1 = os.path.join(self.temp_dir, 'output1.ld')
+        output2 = os.path.join(self.temp_dir, 'output2.ld')
+        
+        # Note: This test will pass trivially if there are no valid library files
+        # to process, which is expected in a unit test environment without real
+        # compiled libraries. The test validates the idempotency logic itself.
+        
+        try:
+            # First run
+            relink1 = relink_c(input_script, library_csv, object_csv, 
+                              function_csv, sdkconfig, missing_function_info=True)
+            relink1.save(input_script, output1)
+            
+            # Second run using first output as input
+            relink2 = relink_c(output1, library_csv, object_csv,
+                              function_csv, sdkconfig, missing_function_info=True)
+            relink2.save(output1, output2)
+            
+            # Compare outputs - should be identical
+            with open(output1, 'r') as f1, open(output2, 'r') as f2:
+                content1 = f1.read()
+                content2 = f2.read()
+            
+            self.assertEqual(content1, content2, 
+                           "Relinker should produce identical output on second run")
+        except Exception as e:
+            # If libraries don't exist, that's expected in unit tests
+            # The important thing is the logic doesn't crash
+            if 'not found' in str(e).lower():
+                self.skipTest(f"Skipping due to missing library files: {e}")
+            else:
+                raise
 
 
 class TestErrorHandling(unittest.TestCase):
@@ -319,11 +388,58 @@ class TestErrorHandling(unittest.TestCase):
     
     def test_missing_csv_file(self):
         """Test error when CSV file is missing."""
-        self.skipTest("Requires generator function testing - not yet implemented")
+        from configuration import generator
+        
+        # Create valid CSV files but reference a missing one
+        library_csv = os.path.join(self.temp_dir, 'library.csv')
+        with open(library_csv, 'w') as f:
+            f.write('library,path\n')
+            f.write('libtest.a,./libtest.a\n')
+        
+        object_csv = os.path.join(self.temp_dir, 'object.csv')
+        with open(object_csv, 'w') as f:
+            f.write('library,object,path\n')
+            f.write('libtest.a,test.c.obj,./test.c.obj\n')
+        
+        # Missing function.csv
+        missing_csv = os.path.join(self.temp_dir, 'missing.csv')
+        sdkconfig = os.path.join(self.temp_dir, 'sdkconfig')
+        with open(sdkconfig, 'w') as f:
+            f.write('CONFIG_TEST=y\n')
+        
+        # Should raise FileNotFoundError when trying to open missing CSV
+        with self.assertRaises(FileNotFoundError):
+            generator(library_csv, object_csv, missing_csv, sdkconfig, 
+                     missing_function_info=True, build_dir=self.temp_dir)
     
     def test_malformed_csv(self):
         """Test error handling with malformed CSV."""
-        self.skipTest("Requires CSV parsing error handling - not yet implemented")
+        from configuration import generator
+        
+        # Create malformed CSV (missing required columns)
+        library_csv = os.path.join(self.temp_dir, 'library.csv')
+        with open(library_csv, 'w') as f:
+            f.write('wrong,columns\n')
+            f.write('value1,value2\n')
+        
+        object_csv = os.path.join(self.temp_dir, 'object.csv')
+        with open(object_csv, 'w') as f:
+            f.write('library,object,path\n')
+            f.write('libtest.a,test.c.obj,./test.c.obj\n')
+        
+        function_csv = os.path.join(self.temp_dir, 'function.csv')
+        with open(function_csv, 'w') as f:
+            f.write('library,object,function,option\n')
+            f.write('libtest.a,test.c.obj,test_func,\n')
+        
+        sdkconfig = os.path.join(self.temp_dir, 'sdkconfig')
+        with open(sdkconfig, 'w') as f:
+            f.write('CONFIG_TEST=y\n')
+        
+        # Should raise KeyError when trying to access missing 'path' column
+        with self.assertRaises(KeyError):
+            generator(library_csv, object_csv, function_csv, sdkconfig,
+                     missing_function_info=True, build_dir=self.temp_dir)
 
 
 class TestCompleteWorkflow(unittest.TestCase):

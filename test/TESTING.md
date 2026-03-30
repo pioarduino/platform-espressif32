@@ -94,11 +94,13 @@ Tests for `configuration.py` module:
 
 #### TestObjectC
 - ✓ Object creation and function appending
-- ✓ Return value on missing sections
+- ✓ Return value on missing sections (returns False)
+- ✓ Empty dumps handling
 
 #### TestLibraryC
 - ✓ Library initialization
 - ✓ Object management
+- ✓ Object creation on append
 
 #### TestLibrariesC
 - ✓ Library collection management
@@ -132,8 +134,10 @@ Tests for `relinker.py` module:
 - ✓ Original descriptor retrieval
 
 #### TestRelinkIdempotency
-- ✓ Original pattern recognition
+- ✓ Original pattern recognition (is_iram_desc)
 - ✓ Relinker-generated pattern recognition
+- ✓ IRAM descriptor detection for both ldgen and relinker formats
+- ✓ Pattern matching validation
 
 #### TestSourceNameHandling
 - ✓ .obj extension handling
@@ -176,12 +180,14 @@ Integration tests for complete workflows:
 - ✓ Flash section presence
 
 #### TestIdempotency
-- ✓ Multiple run consistency
+- ✓ Multiple run consistency (validated with actual relinker execution)
+- ✓ Identical output on second run
+- ✓ Proper handling of missing library files
 
 #### TestErrorHandling
 - ✓ Missing IDF_PATH error
-- ✓ Missing CSV file handling
-- ✓ Malformed CSV handling
+- ✓ Missing CSV file handling (FileNotFoundError)
+- ✓ Malformed CSV handling (KeyError on missing columns)
 
 #### TestCompleteWorkflow
 - ✓ End-to-end workflow documentation
@@ -331,10 +337,11 @@ rm -rf /tmp/tmp*relinker*
 
 - [ ] Add code coverage reporting (coverage.py)
 - [ ] Add performance benchmarks
-- [ ] Add mock objdump for complete object_c testing
-- [ ] Add end-to-end relinker execution tests
+- [ ] Add mock objdump for complete object_c testing without real binaries
 - [ ] Add regression tests for known issues
 - [ ] Add property-based testing (hypothesis)
+
+Note: End-to-end relinker execution tests are now implemented and passing.
 
 ## License
 

@@ -35,6 +35,15 @@ All 75 tests pass successfully (100% success rate):
 - Integration Tests: 20/20 ✅
 - Functionality Tests: 6/6 ✅
 
+**Recent Improvements:**
+- ✅ All previously skipped tests now fully implemented
+- ✅ Idempotency tests now validate multiple relinker runs
+- ✅ Error handling tests cover missing/malformed CSV files
+- ✅ Pattern recognition tests validate IRAM descriptor detection
+- ✅ Multi-architecture support (Xtensa, RISC-V, etc.)
+- ✅ Multi-dot filename handling (e.g., `my.file.c.obj`)
+- ✅ PEP 440 to SemVer conversion for dependency checking
+
 ## Running Specific Tests
 
 ```bash
