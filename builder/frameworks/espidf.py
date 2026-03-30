@@ -2448,15 +2448,6 @@ def get_python_exe():
     return python_exe_path
 
 
-def get_python_exe():
-    python_exe_path = get_executable_path(get_idf_venv_dir(), "python")
-    if not os.path.isfile(python_exe_path):
-        sys.stderr.write("Error: Missing Python executable file `%s`\n" % python_exe_path)
-        env.Exit(1)
-
-    return python_exe_path
-
-
 #
 # Ensure Python environment contains everything required for IDF
 #
