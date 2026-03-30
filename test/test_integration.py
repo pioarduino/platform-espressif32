@@ -345,50 +345,58 @@ class TestIdempotency(unittest.TestCase):
         shutil.rmtree(self.temp_dir)
     
     def test_catch_all_pattern_included(self):
-        """Test that catch-all patterns are included to prevent orphan sections."""
+        """Test that relinker processes targets and generates include patterns."""
         from relinker import relink_c
+        from configuration import object_c
+        import relinker as relinker_module
         
-        # Test the pattern generation directly by checking the transform output
-        # Create a mock relink_c instance and verify iram1_include contains catch-all
-        
-        # We'll test this by examining the generated pattern structure
-        # The iram1_include should end with catch-all patterns
-        
-        # Create minimal CSV files
+        # Create CSV files with actual function entries
         library_csv = os.path.join(self.temp_dir, 'library.csv')
         with open(library_csv, 'w') as f:
             f.write('library,path\n')
+            f.write('libtest.a,./libtest.a\n')
         
         object_csv = os.path.join(self.temp_dir, 'object.csv')
         with open(object_csv, 'w') as f:
             f.write('library,object,path\n')
+            f.write('libtest.a,test.c.obj,./test.c.obj\n')
         
         function_csv = os.path.join(self.temp_dir, 'function.csv')
         with open(function_csv, 'w') as f:
             f.write('library,object,function,option\n')
+            f.write('libtest.a,test.c.obj,test_func,\n')
         
         sdkconfig = os.path.join(self.temp_dir, 'sdkconfig')
         with open(sdkconfig, 'w') as f:
             f.write('CONFIG_TEST=y\n')
         
-        output = os.path.join(self.temp_dir, 'output.ld')
+        # Mock read_dump_info to return function symbols
+        mock_dumps = [[
+            '00000000 g     F .text.test_func 00000010 test_func\n',
+        ]]
+        
+        def mock_read_dump_info(self, paths):
+            return mock_dumps
+        
+        # Mock lib_secs to return relocatable sections
+        def mock_lib_secs(lib, file, lib_path):
+            return ['.iram1.test_func', '.text.test_func', '.literal.test_func']
         
         try:
-            relink = relink_c(self.linker_script, library_csv, object_csv,
-                            function_csv, sdkconfig, missing_function_info=True)
-            
-            # If no targets, the catch-all logic won't be tested
-            # This is expected - the test validates the code structure
-            if hasattr(relink, 'iram1_include') and relink.iram1_include:
-                # Verify catch-all patterns are in the include
-                self.assertIn('*(.iram1.*)', relink.iram1_include,
-                             "Catch-all pattern *(.iram1.*) should be in iram1_include")
-                self.assertIn('*(.iram1)', relink.iram1_include,
-                             "Catch-all pattern *(.iram1) should be in iram1_include")
-            else:
-                # No targets means no relink needed - this is valid
-                self.assertTrue(getattr(relink, '_no_relink', False),
-                               "When no targets exist, _no_relink should be True")
+            with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info), \
+                 mock.patch.object(relinker_module, 'lib_secs', mock_lib_secs):
+                relink = relink_c(self.linker_script, library_csv, object_csv,
+                                function_csv, sdkconfig, missing_function_info=True)
+                
+                # Verify that relinker is in active path (not taking _no_relink shortcut)
+                self.assertFalse(getattr(relink, '_no_relink', True),
+                               "Relinker should be active when targets exist")
+                
+                # Verify that iram1_include contains object-specific patterns
+                self.assertIsNotNone(relink.iram1_include,
+                                   "iram1_include should be populated")
+                self.assertIn('*libtest.a:test.*', relink.iram1_include,
+                             "iram1_include should contain object-specific patterns")
                 
         except Exception as e:
             if 'not found' in str(e).lower():
@@ -398,8 +406,9 @@ class TestIdempotency(unittest.TestCase):
     
     def test_multiple_runs_produce_same_result(self):
         """Test that running relinker multiple times produces same result."""
-        from configuration import generator
+        from configuration import generator, object_c
         from relinker import relink_c
+        import relinker as relinker_module
         
         # Create CSV files
         library_csv = os.path.join(self.temp_dir, 'library.csv')
@@ -439,28 +448,48 @@ class TestIdempotency(unittest.TestCase):
         output1 = os.path.join(self.temp_dir, 'output1.ld')
         output2 = os.path.join(self.temp_dir, 'output2.ld')
         
-        # Note: This test will pass trivially if there are no valid library files
-        # to process, which is expected in a unit test environment without real
-        # compiled libraries. The test validates the idempotency logic itself.
+        # Mock read_dump_info to return function symbols
+        mock_dumps = [[
+            '00000000 g     F .text.test_func 00000010 test_func\n',
+        ]]
+        
+        def mock_read_dump_info(self, paths):
+            return mock_dumps
+        
+        # Mock lib_secs to return relocatable sections
+        def mock_lib_secs(lib, file, lib_path):
+            return ['.iram1.test_func', '.text.test_func', '.literal.test_func']
         
         try:
-            # First run
-            relink1 = relink_c(input_script, library_csv, object_csv, 
-                              function_csv, sdkconfig, missing_function_info=True)
-            relink1.save(input_script, output1)
-            
-            # Second run using first output as input
-            relink2 = relink_c(output1, library_csv, object_csv,
-                              function_csv, sdkconfig, missing_function_info=True)
-            relink2.save(output1, output2)
-            
-            # Compare outputs - should be identical
-            with open(output1, 'r') as f1, open(output2, 'r') as f2:
-                content1 = f1.read()
-                content2 = f2.read()
-            
-            self.assertEqual(content1, content2, 
-                           "Relinker should produce identical output on second run")
+            with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info), \
+                 mock.patch.object(relinker_module, 'lib_secs', mock_lib_secs):
+                # First run
+                relink1 = relink_c(input_script, library_csv, object_csv, 
+                                  function_csv, sdkconfig, missing_function_info=True)
+                
+                # Verify that relinker is active (not taking _no_relink shortcut)
+                self.assertFalse(getattr(relink1, '_no_relink', True),
+                               "Relinker should be active when targets exist")
+                
+                relink1.save(input_script, output1)
+                
+                # Second run using first output as input
+                relink2 = relink_c(output1, library_csv, object_csv,
+                                  function_csv, sdkconfig, missing_function_info=True)
+                
+                # Verify second run is also active
+                self.assertFalse(getattr(relink2, '_no_relink', True),
+                               "Relinker should remain active on second run")
+                
+                relink2.save(output1, output2)
+                
+                # Compare outputs - should be identical
+                with open(output1, 'r') as f1, open(output2, 'r') as f2:
+                    content1 = f1.read()
+                    content2 = f2.read()
+                
+                self.assertEqual(content1, content2, 
+                               "Relinker should produce identical output on second run")
         except Exception as e:
             # If libraries don't exist, that's expected in unit tests
             # The important thing is the logic doesn't crash
