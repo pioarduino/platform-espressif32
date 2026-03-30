@@ -267,29 +267,40 @@ class relink_c:
         iram1_include = list()
         flash_include = list()
 
-        # Merge iram1 isecs for targets sharing the same desc to avoid orphans
-        # when multiple object files in a library share the same base name
+        # Merge sections per descriptor to handle duplicate object names
+        # (e.g., arch-specific + generic efuse_hal.c.o)
         desc_iram1_isecs = dict()
+        desc_flash_fsecs = dict()
 
         for t in self.targets:
+            # Collect IRAM sections for exclusion
             secs = filter_secs(t.fsecs, ('.iram1.', ))
             if len(secs) > 0:
                 if t.desc not in iram1_exclude:
                     iram1_exclude.append(t.desc)
 
+            # Merge IRAM isecs per descriptor
             isecs = filter_secs(t.isecs, ('.iram1.', ))
             if len(isecs) > 0:
                 if t.desc not in desc_iram1_isecs:
                     desc_iram1_isecs[t.desc] = set()
                 desc_iram1_isecs[t.desc].update(isecs)
 
-            secs = t.fsecs
-            if len(secs) > 0:
-                flash_include.append('    %s(%s)'%(t.desc, ' '.join(secs)))
+            # Merge flash fsecs per descriptor
+            if len(t.fsecs) > 0:
+                if t.desc not in desc_flash_fsecs:
+                    desc_flash_fsecs[t.desc] = set()
+                desc_flash_fsecs[t.desc].update(t.fsecs)
 
+        # Generate IRAM include lines from merged descriptors
         for desc, isecs in desc_iram1_isecs.items():
             sorted_isecs = sorted(isecs)
             iram1_include.append('    %s(%s)'%(desc, ' '.join(sorted_isecs)))
+
+        # Generate flash include lines from merged descriptors
+        for desc, fsecs in desc_flash_fsecs.items():
+            sorted_fsecs = sorted(fsecs)
+            flash_include.append('    %s(%s)'%(desc, ' '.join(sorted_fsecs)))
 
         # Check if filtering left no surviving targets
         if not iram1_exclude and not iram1_include and not flash_include:
@@ -307,6 +318,10 @@ class relink_c:
             self.iram1_include = '    *(.iram1.*)\n    *(.iram1)'
         self.flash_include = '\n'.join(flash_include)
         self._no_relink = False
+
+        # Store merged descriptors for use in _replace_func
+        self.desc_flash_fsecs = desc_flash_fsecs
+        self.desc_iram1_isecs = desc_iram1_isecs
 
         logging.debug('IRAM1 Exclude: %s'%(self.iram1_exclude))
         logging.debug('IRAM1 Include: %s'%(self.iram1_include))
@@ -381,21 +396,28 @@ class relink_c:
         return lines
 
     def _replace_func(self, l):
-        for t in self.targets:
-            if t.desc in l:
+        # Use merged per-descriptor maps instead of iterating targets
+        # This handles duplicate object names correctly
+        
+        # Build a descriptor lookup for quick access
+        for desc in self.desc_flash_fsecs.keys():
+            if desc in l:
+                fsecs = sorted(self.desc_flash_fsecs[desc])
+                isecs = sorted(self.desc_iram1_isecs.get(desc, set()))
+                
                 S = '.literal .literal.* .text .text.*'
                 if S in l:
-                    if len(t.isecs) > 0:
-                        return l.replace(S, ' '.join(t.isecs))
+                    if len(isecs) > 0:
+                        return l.replace(S, ' '.join(isecs))
                     else:
                         return ' '
                 
-                S = '%s(%s)'%(t.desc, ' '.join(t.fsecs))
+                S = '%s(%s)'%(desc, ' '.join(fsecs))
                 if S in l:
                     return ' '
 
                 replaced = False
-                for s in t.fsecs:
+                for s in fsecs:
                     s2 = s + ' '
                     if s2 in l:
                         l = l.replace(s2, '')
@@ -408,16 +430,22 @@ class relink_c:
                     return ' ' 
                 if replaced:
                     return l
-            else:
-                index = '*%s:(EXCLUDE_FILE'%(t.lib)
-                if index in l and _object_desc_stem(t.file) not in l:
-                    for m in self.targets:
+        
+        # Handle EXCLUDE_FILE pattern additions
+        # Check if any descriptor's library matches
+        for t in self.targets:
+            index = '*%s:(EXCLUDE_FILE'%(t.lib)
+            if index in l and _object_desc_stem(t.file) not in l:
+                # Add all descriptors from this library
+                for m in self.targets:
+                    if m.lib == t.lib:
                         index = '*%s:(EXCLUDE_FILE'%(m.lib)
                         if index in l and _object_desc_stem(m.file) not in l:
                             l = l.replace('EXCLUDE_FILE(', 'EXCLUDE_FILE(%s '%(m.desc))
-                            if len(m.isecs) > 0:
-                                l += '\n    %s(%s)'%(m.desc, ' '.join(m.isecs))
-                    return l
+                            isecs = sorted(self.desc_iram1_isecs.get(m.desc, set()))
+                            if len(isecs) > 0:
+                                l += '\n    %s(%s)'%(m.desc, ' '.join(isecs))
+                return l
 
         return None
 
