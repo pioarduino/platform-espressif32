@@ -181,11 +181,18 @@ def _is_iram_desc(l):
     # Original ldgen pattern
     if '*(.iram1 .iram1.*)' in l:
         return True
-    # Old relinker pattern
+    # Old relinker pattern (single line with both patterns)
     if ') .iram1 EXCLUDE_FILE(*' in l and ') .iram1.*)' in l:
         return True
-    # Relinker-generated IRAM exclude patterns
+    # Relinker-generated IRAM exclude patterns (single line - old format)
     if '*(EXCLUDE_FILE(' in l and ') .iram1.*)' in l and ') .iram1)' in l:
+        return True
+    # Relinker-generated IRAM exclude patterns (multi-line - new format)
+    # First line: *(EXCLUDE_FILE(...) .iram1.*)
+    if '*(EXCLUDE_FILE(' in l and ') .iram1.*)' in l:
+        return True
+    # Second line: *(EXCLUDE_FILE(...) .iram1)
+    if '*(EXCLUDE_FILE(' in l and ') .iram1)' in l and '.iram1.*)' not in l:
         return True
     return False
 
@@ -289,10 +296,15 @@ class relink_c:
             self._no_relink = True
             return
 
-        self.iram1_exclude = '    *(EXCLUDE_FILE(%s %s) .iram1.*) *(EXCLUDE_FILE(%s %s) .iram1)' % \
+        self.iram1_exclude = '    *(EXCLUDE_FILE(%s %s) .iram1.*)\n    *(EXCLUDE_FILE(%s %s) .iram1)' % \
                              (self.filter.add(), ' '.join(iram1_exclude), \
                               self.filter.add(), ' '.join(iram1_exclude))
         self.iram1_include = '\n'.join(iram1_include)
+        # Add catch-all patterns after specific includes to prevent orphan sections
+        if self.iram1_include:
+            self.iram1_include += '\n    *(.iram1.*)\n    *(.iram1)'
+        else:
+            self.iram1_include = '    *(.iram1.*)\n    *(.iram1)'
         self.flash_include = '\n'.join(flash_include)
         self._no_relink = False
 
@@ -329,6 +341,10 @@ class relink_c:
                     in_relinker_iram_block = True
                     # Look ahead and remove old relinker IRAM include lines
                     j = i + 1
+                    # Also remove the second line of the EXCLUDE_FILE pattern if it exists
+                    if j < len(lines) and _is_iram_desc(lines[j]):
+                        lines.pop(j)
+                    # Remove relinker IRAM include lines
                     while j < len(lines) and _is_relinker_iram_include(lines[j]):
                         lines.pop(j)
                     in_relinker_iram_block = False

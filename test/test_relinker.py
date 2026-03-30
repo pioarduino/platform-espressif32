@@ -228,17 +228,25 @@ class TestRelinkIdempotency(unittest.TestCase):
     
     def test_is_iram_desc_relinker_pattern(self):
         """Test is_iram_desc recognizes relinker-generated patterns."""
-        # Test old relinker pattern with EXCLUDE_FILE
+        # Test old relinker pattern with EXCLUDE_FILE (single line)
         line1 = '    *(EXCLUDE_FILE(*libfreertos.a:tasks.*) .iram1 EXCLUDE_FILE(*libfreertos.a:tasks.*) .iram1.*)'
         self.assertTrue(_is_iram_desc(line1))
         
-        # Test new relinker pattern
+        # Test new relinker pattern (single line - old format)
         line2 = '    *(EXCLUDE_FILE(*libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1.*) *(EXCLUDE_FILE(*libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1)'
         self.assertTrue(_is_iram_desc(line2))
         
+        # Test new relinker pattern (multi-line format - first line)
+        line3 = '    *(EXCLUDE_FILE(*libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1.*)'
+        self.assertTrue(_is_iram_desc(line3))
+        
+        # Test new relinker pattern (multi-line format - second line)
+        line4 = '    *(EXCLUDE_FILE(*libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1)'
+        self.assertTrue(_is_iram_desc(line4))
+        
         # Test negative case - flash pattern
-        line3 = '    *libfreertos.a:tasks.*(.literal.xTaskCreate .text.xTaskCreate)'
-        self.assertFalse(_is_iram_desc(line3))
+        line5 = '    *libfreertos.a:tasks.*(.literal.xTaskCreate .text.xTaskCreate)'
+        self.assertFalse(_is_iram_desc(line5))
 
 
 class TestSourceNameHandling(unittest.TestCase):
