@@ -99,12 +99,20 @@ class object_c:
         self.dumps = self.read_dump_info(paths)
     
     def append(self, func):
-        # If no dumps were loaded (all object files missing), return False
         if not self.dumps:
-            return False
+            if espidf_missing_function_info:
+                return False
+            raise RuntimeError(
+                "Failed to load symbol data for %s:%s" % (self.library, self.name)
+            )
         section = self.get_func_section(self.dumps, func)
         if section is None:
-            return False
+            if espidf_missing_function_info:
+                return False
+            raise RuntimeError(
+                "Failed to find section for function '%s' in %s:%s"
+                % (func, self.library, self.name)
+            )
         self.funcs[func] = section
         return True
     
