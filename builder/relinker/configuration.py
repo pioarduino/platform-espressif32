@@ -97,8 +97,20 @@ class object_c:
         self.funcs = dict()
         self.paths = paths
         self.dumps = self.read_dump_info(paths)
+        self.section_all = False
     
+    _WILDCARD_SECTIONS = {
+        '.text.*': '.literal .literal.* .text .text.*',
+        '.iram1.*': '.iram1 .iram1.*',
+        '.wifi0iram.*': '.wifi0iram .wifi0iram.*',
+        '.wifirxiram.*': '.wifirxiram .wifirxiram.*',
+    }
+
     def append(self, func):
+        if func in self._WILDCARD_SECTIONS:
+            self.funcs[func] = self._WILDCARD_SECTIONS[func]
+            self.section_all = True
+            return True
         if not self.dumps:
             if espidf_missing_function_info:
                 return False
