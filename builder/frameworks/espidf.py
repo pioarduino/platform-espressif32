@@ -1463,9 +1463,22 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
         _relinker_dir = str(Path(platform.get_dir()) / "builder" / "relinker")
         _relinker_script = str(Path(_relinker_dir) / "relinker.py")
         _relinker_objdump = args["objdump"]
-        _relinker_missing = config.get(
+        _relinker_missing_raw = config.get(
             "env:" + env["PIOENV"], "custom_relinker_missing_function_info", "no"
-        ).strip().lower() in ("yes", "true", "1")
+        ).strip().lower()
+        
+        # Validate the value
+        valid_true_values = ("yes", "true", "1")
+        valid_false_values = ("no", "false", "0")
+        if _relinker_missing_raw not in valid_true_values and _relinker_missing_raw not in valid_false_values:
+            sys.stderr.write(
+                f"Warning: Invalid value '{_relinker_missing_raw}' for custom_relinker_missing_function_info. "
+                f"Valid values are: {', '.join(valid_true_values + valid_false_values)}. "
+                f"Defaulting to 'no'.\n"
+            )
+            _relinker_missing_raw = "no"
+        
+        _relinker_missing = _relinker_missing_raw in valid_true_values
         _relinker_cmd = (
             '"$ESPIDF_PYTHONEXE" "{script}" '
             '--input "$BUILD_DIR/sections.ld" '
