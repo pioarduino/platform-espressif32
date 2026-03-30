@@ -396,14 +396,11 @@ class relink_c:
         return lines
 
     def _replace_func(self, l):
-        # Use merged per-descriptor maps instead of iterating targets
-        # This handles duplicate object names correctly
-        
-        # Build a descriptor lookup for quick access
-        for desc in self.desc_flash_fsecs.keys():
-            if desc in l:
-                fsecs = sorted(self.desc_flash_fsecs[desc])
-                isecs = sorted(self.desc_iram1_isecs.get(desc, set()))
+        for t in self.targets:
+            if t.desc in l:
+                # Use merged descriptor maps for sections
+                fsecs = sorted(self.desc_flash_fsecs.get(t.desc, set()))
+                isecs = sorted(self.desc_iram1_isecs.get(t.desc, set()))
                 
                 S = '.literal .literal.* .text .text.*'
                 if S in l:
@@ -412,7 +409,7 @@ class relink_c:
                     else:
                         return ' '
                 
-                S = '%s(%s)'%(desc, ' '.join(fsecs))
+                S = '%s(%s)'%(t.desc, ' '.join(fsecs))
                 if S in l:
                     return ' '
 
@@ -430,22 +427,17 @@ class relink_c:
                     return ' ' 
                 if replaced:
                     return l
-        
-        # Handle EXCLUDE_FILE pattern additions
-        # Check if any descriptor's library matches
-        for t in self.targets:
-            index = '*%s:(EXCLUDE_FILE'%(t.lib)
-            if index in l and _object_desc_stem(t.file) not in l:
-                # Add all descriptors from this library
-                for m in self.targets:
-                    if m.lib == t.lib:
+            else:
+                index = '*%s:(EXCLUDE_FILE'%(t.lib)
+                if index in l and _object_desc_stem(t.file) not in l:
+                    for m in self.targets:
                         index = '*%s:(EXCLUDE_FILE'%(m.lib)
                         if index in l and _object_desc_stem(m.file) not in l:
                             l = l.replace('EXCLUDE_FILE(', 'EXCLUDE_FILE(%s '%(m.desc))
                             isecs = sorted(self.desc_iram1_isecs.get(m.desc, set()))
                             if len(isecs) > 0:
                                 l += '\n    %s(%s)'%(m.desc, ' '.join(isecs))
-                return l
+                    return l
 
         return None
 
