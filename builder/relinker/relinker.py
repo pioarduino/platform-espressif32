@@ -321,9 +321,15 @@ class relink_c:
             if t.desc not in self.desc_to_lib:
                 self.desc_to_lib[t.desc] = t.lib
 
-        self.iram1_exclude = '    *(EXCLUDE_FILE(%s %s) .iram1.*)\n    *(EXCLUDE_FILE(%s %s) .iram1)' % \
-                             (self.filter.add(), ' '.join(iram1_exclude), \
-                              self.filter.add(), ' '.join(iram1_exclude))
+        exclude_tokens = ' '.join(
+            token
+            for token in (self.filter.add().strip(), ' '.join(iram1_exclude).strip())
+            if token
+        )
+        self.iram1_exclude = (
+            '    *(EXCLUDE_FILE(%s) .iram1.*)\n'
+            '    *(EXCLUDE_FILE(%s) .iram1)'
+        ) % (exclude_tokens, exclude_tokens) if exclude_tokens else ''
         self.iram1_include = '\n'.join(iram1_include)
         # Add catch-all patterns after specific includes to prevent orphan sections
         if self.iram1_include:
@@ -362,7 +368,10 @@ class relink_c:
             elif _is_iram_desc(l):
                 if iram_start:
                     # Replace the IRAM descriptor and skip any following relinker IRAM includes
-                    lines[i] = '%s\n%s\n' % (self.iram1_exclude, self.iram1_include)
+                    block = '\n'.join(
+                        part for part in (self.iram1_exclude, self.iram1_include) if part
+                    )
+                    lines[i] = '%s\n' % block
                     in_relinker_iram_block = True
                     # Look ahead and remove old relinker IRAM include lines
                     j = i + 1
@@ -439,11 +448,11 @@ class relink_c:
         # Handle EXCLUDE_FILE logic using desc_to_lib mapping
         for desc, lib in self.desc_to_lib.items():
             index = '*%s:(EXCLUDE_FILE'%(lib)
-            if index in l and _object_desc_stem(desc.split(':')[1].rstrip('.*')) not in l:
+            if index in l and desc not in l:
                 # Collect all descriptors for this library
                 for m_desc, m_lib in self.desc_to_lib.items():
                     m_index = '*%s:(EXCLUDE_FILE'%(m_lib)
-                    if m_index in l and _object_desc_stem(m_desc.split(':')[1].rstrip('.*')) not in l:
+                    if m_index in l and m_desc not in l:
                         l = l.replace('EXCLUDE_FILE(', 'EXCLUDE_FILE(%s '%(m_desc))
                         m_isecs = self.desc_isecs.get(m_desc, set())
                         if len(m_isecs) > 0:
