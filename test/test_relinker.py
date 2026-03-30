@@ -303,40 +303,29 @@ class TestLinkerScriptPatterns(unittest.TestCase):
         """Test recognition of original IRAM pattern."""
         line = '    *(.iram1 .iram1.*)'
         
-        # Pattern should be recognized
-        self.assertIn('*(.iram1 .iram1.*)', line)
+        # Call the actual predicate
+        self.assertTrue(_is_iram_desc(line))
     
     def test_exclude_file_pattern(self):
         """Test recognition of EXCLUDE_FILE pattern."""
         line = '    *(EXCLUDE_FILE(*lib.a:obj.*) .iram1.*) *(EXCLUDE_FILE(*lib.a:obj.*) .iram1)'
         
-        # Pattern should be recognized - check for key components
-        has_exclude = ') .iram1 EXCLUDE_FILE(*' in line or 'EXCLUDE_FILE(' in line
-        has_iram = ') .iram1.*)' in line or '.iram1' in line
-        
-        self.assertTrue(has_exclude or has_iram)
+        # Call the actual predicate
+        self.assertTrue(_is_iram_desc(line))
     
     def test_relinker_iram_include_pattern(self):
         """Test recognition of relinker IRAM include pattern."""
         line = '    *libfreertos.a:tasks.*(.iram1.xTaskGetTickCount)'
         
-        # Should match relinker pattern
-        stripped = line.strip()
-        is_relinker = (stripped.startswith('*') and ':' in stripped and 
-                      '.*(' in stripped and '.iram1.' in stripped)
-        
-        self.assertTrue(is_relinker)
+        # Call the actual predicate
+        self.assertTrue(_is_relinker_iram_include(line))
     
     def test_relinker_flash_include_pattern(self):
         """Test recognition of relinker flash include pattern."""
         line = '    *libfreertos.a:tasks.*(.literal.xTaskGetTickCount .text.xTaskGetTickCount)'
         
-        # Should match relinker pattern
-        stripped = line.strip()
-        is_relinker = (stripped.startswith('*') and ':' in stripped and 
-                      '.*(' in stripped and ('.literal.' in stripped or '.text.' in stripped))
-        
-        self.assertTrue(is_relinker)
+        # Call the actual predicate
+        self.assertTrue(_is_relinker_flash_include(line))
 
 
 if __name__ == '__main__':
