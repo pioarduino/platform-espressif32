@@ -128,18 +128,19 @@ class filter_c:
             lines = f.read().splitlines()
         self.libs_desc = ''
         self.entries = set()
-        for l in lines:
-            if ') .iram1 EXCLUDE_FILE(*' in l and ') .iram1.*)' in l:
-                desc = r'\(EXCLUDE_FILE\((.*)\) .iram1 '
-                match = re.search(desc, l)
-                if not match:
-                    continue
-                self.libs_desc = match.group(1)
-                self.entries = {
-                    token.lstrip('*')
-                    for token in self.libs_desc.split()
-                }
-                return
+        for line in lines:
+            match = re.search(
+                r'EXCLUDE_FILE\(([^)]*)\)\s+\.iram1(?:\.\*)?\)',
+                line,
+            )
+            if not match:
+                continue
+            self.libs_desc = match.group(1)
+            self.entries = {
+                token.lstrip('*')
+                for token in self.libs_desc.split()
+            }
+            return
     
     def match(self, desc):
         if desc.lstrip('*') in self.entries:
