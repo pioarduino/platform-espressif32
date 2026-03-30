@@ -596,7 +596,7 @@ class TestCompleteWorkflow(unittest.TestCase):
         # 5. Generate library/object/function mappings
         # 6. Modify linker script (IRAM and flash sections)
         # 7. Ensure idempotency (can run multiple times)
-        pass
+        self.skipTest("Workflow documentation - no assertions")
 
 
 if __name__ == '__main__':
