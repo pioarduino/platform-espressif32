@@ -213,7 +213,7 @@ Functions not listed here remain in IRAM.
 |------------|----------------------------------------------------------------------|
 | `library`  | Archive name                                                         |
 | `object`   | Object file name within the library                                  |
-| `function` | Function symbol name to move to flash                                |
+| `function` | Function symbol name or wildcard pattern to move to flash            |
 | `option`   | *(optional)* sdkconfig condition(s) — function is moved only if true |
 
 **Example (`function.csv`):**
@@ -247,6 +247,36 @@ The `option` column controls conditional inclusion based on your project's `sdkc
 | `CONFIG_A && CONFIG_B` | Moved only if both options are defined |
 | `CONFIG_A && !CONFIG_B` | Moved only if A is defined and B is not |
 | `FALSE` | Function is **never** moved to flash (always stays in IRAM) |
+
+#### Wildcard Patterns in the Function Column
+
+Instead of listing every function individually, you can use **wildcard patterns** to
+move all sections of a given type from an object file at once. This is especially useful
+for **closed-source blob libraries** (e.g. `libpp.a`, `libble_app.a`) where enumerating
+individual symbols is impractical.
+
+| Wildcard Pattern  | Sections Moved                             |
+|-------------------|--------------------------------------------|
+| `.text.*`         | `.literal .literal.* .text .text.*`        |
+| `.iram1.*`        | `.iram1 .iram1.*`                          |
+| `.wifi0iram.*`    | `.wifi0iram .wifi0iram.*`                  |
+| `.wifirxiram.*`   | `.wifirxiram .wifirxiram.*`                |
+
+Wildcard entries do **not** require a corresponding `.obj` file in `object.csv` — they
+bypass the `objdump` symbol lookup entirely, so they work even when only the `.a` archive
+is available.
+
+**Example — move all text sections of an entire object to flash:**
+
+```csv
+library,object,function,option
+libpp.a,pp.o,.text.*,
+libpp.a,trc.o,.wifi0iram.*,
+```
+
+> **Caution:** Wildcard patterns move *all* matching sections. Make sure no ISR-critical
+> or flash-cache-critical functions reside in the affected object file, or use individual
+> function entries instead.
 
 ---
 
