@@ -271,6 +271,7 @@ class relink_c:
         # when multiple object files in a library share the same base name
         desc_iram1_isecs = dict()
         desc_flash_fsecs = dict()
+        desc_isecs = dict()
 
         for t in self.targets:
             secs = filter_secs(t.fsecs, ('.iram1.', ))
@@ -290,6 +291,12 @@ class relink_c:
                     desc_flash_fsecs[t.desc] = set()
                 desc_flash_fsecs[t.desc].update(t.fsecs)
 
+            # Merge all isecs per descriptor for replacement logic
+            if len(t.isecs) > 0:
+                if t.desc not in desc_isecs:
+                    desc_isecs[t.desc] = set()
+                desc_isecs[t.desc].update(t.isecs)
+
         for desc, isecs in desc_iram1_isecs.items():
             sorted_isecs = sorted(isecs)
             iram1_include.append('    %s(%s)'%(desc, ' '.join(sorted_isecs)))
@@ -302,6 +309,17 @@ class relink_c:
         if not iram1_exclude and not iram1_include and not flash_include:
             self._no_relink = True
             return
+
+        # Store merged per-descriptor maps as instance variables for _replace_func
+        self.desc_iram1_isecs = desc_iram1_isecs
+        self.desc_flash_fsecs = desc_flash_fsecs
+        self.desc_isecs = desc_isecs
+        
+        # Build descriptor-to-library mapping for EXCLUDE_FILE logic
+        self.desc_to_lib = {}
+        for t in self.targets:
+            if t.desc not in self.desc_to_lib:
+                self.desc_to_lib[t.desc] = t.lib
 
         self.iram1_exclude = '    *(EXCLUDE_FILE(%s %s) .iram1.*)\n    *(EXCLUDE_FILE(%s %s) .iram1)' % \
                              (self.filter.add(), ' '.join(iram1_exclude), \
@@ -388,21 +406,24 @@ class relink_c:
         return lines
 
     def _replace_func(self, l):
-        for t in self.targets:
-            if t.desc in l:
+        # Use merged per-descriptor maps instead of iterating targets
+        for desc in self.desc_isecs.keys():
+            if desc in l:
                 S = '.literal .literal.* .text .text.*'
                 if S in l:
-                    if len(t.isecs) > 0:
-                        return l.replace(S, ' '.join(t.isecs))
+                    isecs = self.desc_isecs.get(desc, set())
+                    if len(isecs) > 0:
+                        return l.replace(S, ' '.join(sorted(isecs)))
                     else:
                         return ' '
                 
-                S = '%s(%s)'%(t.desc, ' '.join(t.fsecs))
+                fsecs = self.desc_flash_fsecs.get(desc, set())
+                S = '%s(%s)'%(desc, ' '.join(sorted(fsecs)))
                 if S in l:
                     return ' '
 
                 replaced = False
-                for s in t.fsecs:
+                for s in fsecs:
                     s2 = s + ' '
                     if s2 in l:
                         l = l.replace(s2, '')
@@ -415,16 +436,20 @@ class relink_c:
                     return ' ' 
                 if replaced:
                     return l
-            else:
-                index = '*%s:(EXCLUDE_FILE'%(t.lib)
-                if index in l and _object_desc_stem(t.file) not in l:
-                    for m in self.targets:
-                        index = '*%s:(EXCLUDE_FILE'%(m.lib)
-                        if index in l and _object_desc_stem(m.file) not in l:
-                            l = l.replace('EXCLUDE_FILE(', 'EXCLUDE_FILE(%s '%(m.desc))
-                            if len(m.isecs) > 0:
-                                l += '\n    %s(%s)'%(m.desc, ' '.join(m.isecs))
-                    return l
+        
+        # Handle EXCLUDE_FILE logic using desc_to_lib mapping
+        for desc, lib in self.desc_to_lib.items():
+            index = '*%s:(EXCLUDE_FILE'%(lib)
+            if index in l and _object_desc_stem(desc.split(':')[1].rstrip('.*')) not in l:
+                # Collect all descriptors for this library
+                for m_desc, m_lib in self.desc_to_lib.items():
+                    m_index = '*%s:(EXCLUDE_FILE'%(m_lib)
+                    if m_index in l and _object_desc_stem(m_desc.split(':')[1].rstrip('.*')) not in l:
+                        l = l.replace('EXCLUDE_FILE(', 'EXCLUDE_FILE(%s '%(m_desc))
+                        m_isecs = self.desc_isecs.get(m_desc, set())
+                        if len(m_isecs) > 0:
+                            l += '\n    %s(%s)'%(m_desc, ' '.join(sorted(m_isecs)))
+                return l
 
         return None
 
