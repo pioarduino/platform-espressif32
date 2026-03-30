@@ -2096,13 +2096,18 @@ def _get_uv_exe():
 
 def _get_python_deps():
     """Get the required Python dependencies for ESP-IDF"""
-    return {
+    deps = {
         # https://github.com/platformio/platform-espressif32/issues/635
         "cryptography": "~=44.0.0",
         "pyparsing": ">=3.1.0,<4",
         "idf-component-manager": "~=2.4.8",
         "esp-idf-kconfig": "~=3.7.0"
     }
+
+    if IS_WINDOWS:
+        deps["windows-curses"] = ">=2.4.2a2"
+
+    return deps
 
 
 def install_python_deps(deps=None):
@@ -2148,15 +2153,6 @@ def install_python_deps(deps=None):
             env.VerboseAction(
                 f'"{UV_EXE}" pip install --python "{python_exe_path}" {packages_str}',
                 "Installing ESP-IDF's Python dependencies with uv",
-            )
-        )
-
-    if IS_WINDOWS and "windows-curses" not in installed_packages:
-        # Install windows-curses in the IDF Python environment
-        env.Execute(
-            env.VerboseAction(
-                f'"{UV_EXE}" pip install --python "{python_exe_path}" windows-curses',
-                "Installing windows-curses package with uv",
             )
         )
 
