@@ -2097,6 +2097,17 @@ def _get_uv_exe():
     return get_executable_path(str(Path(PLATFORMIO_DIR) / "penv"), "uv")
 
 
+def _get_python_deps():
+    """Get the required Python dependencies for ESP-IDF"""
+    return {
+        # https://github.com/platformio/platform-espressif32/issues/635
+        "cryptography": "~=44.0.0",
+        "pyparsing": ">=3.1.0,<4",
+        "idf-component-manager": "~=2.4.8",
+        "esp-idf-kconfig": "~=3.7.0"
+    }
+
+
 def install_python_deps():
     UV_EXE = _get_uv_exe()
 
@@ -2120,13 +2131,7 @@ def install_python_deps():
     if os.path.isfile(skip_python_packages):
         return
 
-    deps = {
-        # https://github.com/platformio/platform-espressif32/issues/635
-        "cryptography": "~=44.0.0",
-        "pyparsing": ">=3.1.0,<4",
-        "idf-component-manager": "~=2.4.6",
-        "esp-idf-kconfig": "~=2.5.0"
-    }
+    deps = _get_python_deps()
 
     python_exe_path = get_python_exe()
     installed_packages = _get_installed_uv_packages(python_exe_path)
@@ -2185,7 +2190,12 @@ def ensure_python_venv_available():
             print("Failed to extract Python version from IDF virtual env!")
             return None
 
-    def _is_venv_outdated(venv_data_file):
+    def _get_deps_hash(deps_dict):
+        import hashlib
+        deps_str = json.dumps(deps_dict, sort_keys=True)
+        return hashlib.sha256(deps_str.encode()).hexdigest()
+
+    def _is_venv_outdated(venv_data_file, current_deps):
         try:
             with open(venv_data_file, "r", encoding="utf8") as fp:
                 venv_data = json.load(fp)
@@ -2201,6 +2211,11 @@ def ensure_python_venv_available():
                     print(
                         "Warning! Python version in the IDF virtual environment"
                         " differs from the current Python!"
+                    )
+                    return True
+                if venv_data.get("deps_hash", "") != _get_deps_hash(current_deps):
+                    print(
+                        "Warning! Python dependencies have changed!"
                     )
                     return True
                 return False
@@ -2235,15 +2250,19 @@ def ensure_python_venv_available():
             sys.stderr.write("Error: Failed to create a proper virtual environment. Missing the Python executable!\n")
             env.Exit(1)
 
+    # Define deps here so we can track changes
+    deps = _get_python_deps()
+
     venv_dir = get_idf_venv_dir()
     venv_data_file = str(Path(venv_dir) / "pio-idf-venv.json")
-    if not os.path.isfile(venv_data_file) or _is_venv_outdated(venv_data_file):
+    if not os.path.isfile(venv_data_file) or _is_venv_outdated(venv_data_file, deps):
         _create_venv(venv_dir)
         install_python_deps()
         with open(venv_data_file, "w", encoding="utf8") as fp:
             venv_info = {
                 "version": IDF_ENV_VERSION,
-                "python_version": _get_idf_venv_python_version()
+                "python_version": _get_idf_venv_python_version(),
+                "deps_hash": _get_deps_hash(deps)
             }
             json.dump(venv_info, fp, indent=2)
 
