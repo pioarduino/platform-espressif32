@@ -328,10 +328,6 @@ class TestLinkerScriptPatterns(unittest.TestCase):
         self.assertTrue(_is_relinker_flash_include(line))
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class TestDescriptorMerging(unittest.TestCase):
     """Test that sections are properly merged per descriptor for duplicate object names."""
     
