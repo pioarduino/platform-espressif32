@@ -333,18 +333,7 @@ class TestDescriptorMerging(unittest.TestCase):
     
     def test_per_descriptor_merging(self):
         """Test that duplicate descriptors have their sections merged."""
-        # This tests the fix for duplicate object names (e.g., arch-specific + generic)
-        # The __transform__ method should merge sections per descriptor
-        
-        # We can't easily test this without real library files, but we can verify
-        # the data structures are created correctly
-        
-        # The key improvement is that desc_flash_fsecs and desc_iram1_isecs
-        # are now used in _replace_func instead of iterating through targets
-        # This ensures all sections from duplicate descriptors are included
-        
-        # This is validated indirectly by the idempotency tests
-        pass
+        self.skipTest("TODO: add a fixture that exercises duplicate-descriptor merging")
 
 
 if __name__ == '__main__':
