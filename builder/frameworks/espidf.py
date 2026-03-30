@@ -2410,12 +2410,11 @@ def ensure_python_venv_available():
             sys.stderr.write("Error: Failed to create a proper virtual environment. Missing the Python executable!\n")
             env.Exit(1)
 
-    # Define deps here so we can track changes
-    deps = _get_python_deps()
+    def _is_venv_interpreter_valid(venv_dir):
+        python_path = get_executable_path(venv_dir, "python")
+        return os.path.isfile(python_path)
 
-    venv_dir = get_idf_venv_dir()
-    venv_data_file = str(Path(venv_dir) / "pio-idf-venv.json")
-    if not os.path.isfile(venv_data_file) or _is_venv_outdated(venv_data_file, deps):
+    def _recreate_and_save(venv_dir, deps, venv_data_file):
         _create_venv(venv_dir)
         install_python_deps(deps)
         with open(venv_data_file, "w", encoding="utf8") as fp:
@@ -2425,6 +2424,19 @@ def ensure_python_venv_available():
                 "deps_hash": _get_deps_hash(deps)
             }
             json.dump(venv_info, fp, indent=2)
+
+    # Define deps here so we can track changes
+    deps = _get_python_deps()
+
+    venv_dir = get_idf_venv_dir()
+    venv_data_file = str(Path(venv_dir) / "pio-idf-venv.json")
+    if not os.path.isfile(venv_data_file):
+        _recreate_and_save(venv_dir, deps, venv_data_file)
+    elif not _is_venv_interpreter_valid(venv_dir):
+        print("Warning! Python interpreter in the IDF virtual environment is missing. Recreating...")
+        _recreate_and_save(venv_dir, deps, venv_data_file)
+    elif _is_venv_outdated(venv_data_file, deps):
+        _recreate_and_save(venv_dir, deps, venv_data_file)
 
 
 def get_python_exe():
