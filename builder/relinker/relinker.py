@@ -48,8 +48,8 @@ def _parse_all_obj_sections(objdump_output, obj_basename):
     sections = set()
     current_obj_matches = False
     for line in objdump_output.splitlines():
-        if line.endswith('file format elf32-littleriscv') or line.endswith('file format elf64-littleriscv'):
-            obj_name = line.split(':')[0].strip()
+        if ': ' in line and 'file format ' in line:
+            obj_name = line.split(':', 1)[0].strip()
             base = obj_name[:-2] if obj_name.endswith('.o') else obj_name
             base = base[:-4] if base.endswith('.obj') else base
             current_obj_matches = (base == obj_basename or
@@ -61,6 +61,10 @@ def _parse_all_obj_sections(objdump_output, obj_basename):
                 if sec_name.startswith(('.iram1.', '.text.', '.literal.')):
                     sections.add(sec_name)
     return sorted(sections)
+
+def _object_desc_stem(name):
+    stem = name[:-4] if name.endswith('.obj') else name
+    return stem.rsplit('.', 1)[0]
 
 def lib_secs(lib, file, lib_path):
     _ensure_entity_db()
@@ -153,7 +157,7 @@ class target_c:
 
         self.lib_path  = lib_path
         self.fsecs = func2sect(fsecs)
-        self.desc  = '*%s:%s.*'%(lib, file.split('.')[0])
+        self.desc  = '*%s:%s.*' % (lib, _object_desc_stem(file))
 
         secs = lib_secs(lib, file, lib_path)
         if '.iram1.' in self.fsecs[0]:
@@ -190,7 +194,7 @@ class relink_c:
 
             for j in lib.objs:
                 obj = lib.objs[j]
-                desc = '*%s:%s.*' % (lib.name, obj.name.split('.')[0])
+                desc = '*%s:%s.*' % (lib.name, _object_desc_stem(obj.name))
                 if self.filter.match(desc):
                     continue
                 self.targets.append(target_c(lib.name, lib.path, obj.name,
@@ -376,10 +380,10 @@ class relink_c:
                     return l
             else:
                 index = '*%s:(EXCLUDE_FILE'%(t.lib)
-                if index in l and t.file.split('.')[0] not in l:
+                if index in l and _object_desc_stem(t.file) not in l:
                     for m in self.targets:
                         index = '*%s:(EXCLUDE_FILE'%(m.lib)
-                        if index in l and m.file.split('.')[0] not in l:
+                        if index in l and _object_desc_stem(m.file) not in l:
                             l = l.replace('EXCLUDE_FILE(', 'EXCLUDE_FILE(%s '%(m.desc))
                             if len(m.isecs) > 0:
                                 l += '\n    %s(%s)'%(m.desc, ' '.join(m.isecs))

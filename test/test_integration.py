@@ -119,7 +119,8 @@ class TestPathResolution(unittest.TestCase):
         
         # Set IDF_PATH for testing
         self.original_idf_path = os.environ.get('IDF_PATH')
-        os.environ['IDF_PATH'] = '/path/to/esp-idf'
+        self.idf_path = os.path.join(self.temp_dir, 'esp-idf')
+        os.environ['IDF_PATH'] = self.idf_path
     
     def tearDown(self):
         """Clean up."""
@@ -147,13 +148,17 @@ class TestPathResolution(unittest.TestCase):
         paths.append('lib.a', '*', '$IDF_PATH/components/test/lib.a')
         
         result = paths.index('lib.a', '*')
-        expected_path = os.path.normpath(os.path.join('path', 'to', 'esp-idf', 'components', 'test', 'lib.a'))
-        self.assertIn(expected_path, result[0])
+        expected_path = os.path.normpath(
+            os.path.join(self.idf_path, 'components', 'test', 'lib.a')
+        )
+        self.assertEqual(os.path.normpath(result[0]), expected_path)
     
     def test_absolute_path_unchanged(self):
         """Test that absolute paths remain unchanged."""
         paths = paths_c(self.build_dir)
-        abs_path = '/absolute/path/lib.a'
+        abs_path = os.path.abspath(
+            os.path.join(self.temp_dir, 'absolute', 'path', 'lib.a')
+        )
         paths.append('lib.a', '*', abs_path)
         
         result = paths.index('lib.a', '*')

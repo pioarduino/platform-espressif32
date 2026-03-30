@@ -164,9 +164,11 @@ class TestPathsC(unittest.TestCase):
     
     def test_append_idf_path_not_set(self):
         """Test appending paths with $IDF_PATH when not set."""
-        # Remove IDF_PATH if set
-        if 'IDF_PATH' in os.environ:
+        # Save and remove IDF_PATH if set
+        original_idf = os.environ.get('IDF_PATH')
+        if original_idf is not None:
             del os.environ['IDF_PATH']
+        self.addCleanup(lambda: os.environ.update({'IDF_PATH': original_idf}) if original_idf else None)
         
         paths = paths_c(self.build_dir)
         
