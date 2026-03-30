@@ -42,11 +42,32 @@ def _ensure_entity_db():
 
 espidf_objdump = None
 
+def _parse_all_obj_sections(objdump_output, obj_basename):
+    """Parse objdump -h output to collect all sections from all objects
+    matching obj_basename in the archive. Handles duplicate object names."""
+    sections = set()
+    current_obj_matches = False
+    for line in objdump_output.splitlines():
+        if line.endswith('file format elf32-littleriscv') or line.endswith('file format elf64-littleriscv'):
+            obj_name = line.split(':')[0].strip()
+            base = obj_name[:-2] if obj_name.endswith('.o') else obj_name
+            base = base[:-4] if base.endswith('.obj') else base
+            current_obj_matches = (base == obj_basename or
+                                   base.rsplit('.', 1)[0] == obj_basename)
+        elif current_obj_matches:
+            parts = line.split()
+            if len(parts) >= 2:
+                sec_name = parts[1]
+                if sec_name.startswith(('.iram1.', '.text.', '.literal.')):
+                    sections.add(sec_name)
+    return sorted(sections)
+
 def lib_secs(lib, file, lib_path):
     _ensure_entity_db()
     new_env = os.environ.copy()
     new_env['LC_ALL'] = 'C'
-    dump = StringIO(subprocess.check_output([espidf_objdump, '-h', lib_path], env=new_env).decode())
+    raw_output = subprocess.check_output([espidf_objdump, '-h', lib_path], env=new_env).decode()
+    dump = StringIO(raw_output)
     dump.name = lib
 
     sections_infos = EntityDB()
@@ -58,7 +79,14 @@ def lib_secs(lib, file, lib_path):
         secs = sections_infos.get_sections(lib, source_name.rsplit('.', 1)[0])
         if len(secs) == 0:
             raise ValueError('Failed to get sections from lib %s'%(lib_path))
-    
+
+    # Supplement with sections from all matching objects in the archive
+    # to handle duplicate object names (e.g. arch-specific + generic efuse_hal.c.o)
+    all_secs = _parse_all_obj_sections(raw_output, source_name)
+    if all_secs:
+        merged = set(secs) | set(all_secs)
+        secs = sorted(merged)
+
     return secs
 
 def filter_secs(secs_a, secs_b):
@@ -181,18 +209,29 @@ class relink_c:
         iram1_include = list()
         flash_include = list()
 
+        # Merge iram1 isecs for targets sharing the same desc to avoid orphans
+        # when multiple object files in a library share the same base name
+        desc_iram1_isecs = dict()
+
         for t in self.targets:
             secs = filter_secs(t.fsecs, ('.iram1.', ))
             if len(secs) > 0:
-                iram1_exclude.append(t.desc)
+                if t.desc not in iram1_exclude:
+                    iram1_exclude.append(t.desc)
 
-            secs = filter_secs(t.isecs, ('.iram1.', ))
-            if len(secs) > 0:
-                iram1_include.append('    %s(%s)'%(t.desc, ' '.join(secs)))
+            isecs = filter_secs(t.isecs, ('.iram1.', ))
+            if len(isecs) > 0:
+                if t.desc not in desc_iram1_isecs:
+                    desc_iram1_isecs[t.desc] = set()
+                desc_iram1_isecs[t.desc].update(isecs)
 
             secs = t.fsecs
             if len(secs) > 0:
                 flash_include.append('    %s(%s)'%(t.desc, ' '.join(secs)))
+
+        for desc, isecs in desc_iram1_isecs.items():
+            sorted_isecs = sorted(isecs)
+            iram1_include.append('    %s(%s)'%(desc, ' '.join(sorted_isecs)))
 
         # Check if filtering left no surviving targets
         if not iram1_exclude and not iram1_include and not flash_include:
