@@ -470,9 +470,11 @@ class relink_c:
             index = '*%s:(EXCLUDE_FILE'%(lib)
             if index in l and desc not in l:
                 # Collect all descriptors for this library
+                processed = set()
                 for m_desc, m_lib in self.desc_to_lib.items():
                     m_index = '*%s:(EXCLUDE_FILE'%(m_lib)
-                    if m_index in l and m_desc not in l:
+                    if m_index in l and m_desc not in l and m_desc not in processed:
+                        processed.add(m_desc)
                         l = l.replace('EXCLUDE_FILE(', 'EXCLUDE_FILE(%s '%(m_desc))
                         m_isecs = self.desc_isecs.get(m_desc, set())
                         if len(m_isecs) > 0:
