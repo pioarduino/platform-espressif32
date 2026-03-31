@@ -11,6 +11,7 @@ Tests cover:
 import unittest
 import tempfile
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -153,7 +154,6 @@ class TestFilterC(unittest.TestCase):
     
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
         shutil.rmtree(self.temp_dir)
     
     def test_parse_exclude_patterns(self):
@@ -269,7 +269,6 @@ class TestRelinkIdempotency(unittest.TestCase):
     
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
         shutil.rmtree(self.temp_dir)
     
     def test_is_iram_desc_original_pattern(self):
