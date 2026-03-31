@@ -1403,14 +1403,11 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
         '--objdump "{objdump}"'
     ).format(**args)
 
-    # Select appropriate linker script based on chip and revision
-    # ESP32-P4 has different linker scripts for rev < 3 and rev >= 3
+    linker_script_name = "sections.ld.in"
+    # Check for P4 >= rev3
     if idf_variant == "esp32p4" and chip_variant == "esp32p4":
-        # Regular ESP32-P4 (rev >= 3): use sections.rev3.ld.in
+        # ESP32-P4 rev >= 3 has different linker script
         linker_script_name = "sections.rev3.ld.in"
-    else:
-        # ESP32-P4 ES variant (rev < 3) or other chips: use sections.ld.in
-        linker_script_name = "sections.ld.in"
     
     initial_ld_script = str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld" / idf_variant / linker_script_name)
 
@@ -1563,7 +1560,7 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
         build_env.SetOption("implicit_cache", 1)
         for cc in compile_commands:
             raw_fragment = cc.get("fragment", "")
-            # Handle GCC response files (@file) introduced in IDF 6.0
+            # Handle GCC response files (@file) introduced in IDF 5.5.3+
             # Read the file contents and add flags individually instead of
             # passing @file to GCC, which avoids shlex parsing issues
             if raw_fragment.strip().startswith("@"):
