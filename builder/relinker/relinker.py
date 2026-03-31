@@ -164,8 +164,7 @@ class filter_c:
             return
     
     def match(self, desc):
-        library = desc.lstrip('*').split(':', 1)[0]
-        if library in self.entries:
+        if desc.lstrip('*') in self.entries:
             print('Remove %s' % desc)
             return True
         return False
@@ -186,7 +185,14 @@ class target_c:
         # Get all relevant sections (IRAM and text/literal)
         # Don't filter based on fsecs - we need ALL sections to avoid orphans
         self.secs = filter_secs(secs, ('.iram1.', '.text.', '.literal.'))
-        self.isecs = strip_secs(self.secs, self.fsecs)
+        # Handle wildcard-token
+        self.isecs = [
+            sec for sec in self.secs
+            if not any(
+                sec == wanted or (wanted.endswith('*') and sec.startswith(wanted[:-1]))
+                for wanted in self.fsecs
+            )
+        ]
 
     def __str__(self):
         s = 'lib=%s\nfile=%s\nlib_path=%s\ndesc=%s\nsecs=%s\nfsecs=%s\nisecs=%s\n'%(\
