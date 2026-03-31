@@ -252,11 +252,11 @@ def _is_relinker_flash_include(l):
 
 
 class relink_c:
-    def __init__(self, input, library_file, object_file, function_file, sdkconfig_file, missing_function_info):
-        self.filter = filter_c(input)
+    def __init__(self, input_file, library_file, object_file, function_file, sdkconfig_file, missing_function_info):
+        self.filter = filter_c(input_file)
         
         # Infer build directory from input file path (typically $BUILD_DIR/sections.ld)
-        build_dir = os.path.dirname(os.path.abspath(input))
+        build_dir = os.path.dirname(os.path.abspath(input_file))
         
         libraries = configuration.generator(
             library_file,
@@ -481,8 +481,8 @@ class relink_c:
 
         return None
 
-    def save(self, input, output):
-        with open(input, 'r', encoding='utf-8') as f:
+    def save(self, input_file, output):
+        with open(input_file, 'r', encoding='utf-8') as f:
             lines = f.read().splitlines()
         lines = self.__replace__(lines)
         with open(output, 'w', encoding='utf-8') as f:
