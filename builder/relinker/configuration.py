@@ -169,7 +169,7 @@ class libraries_c:
             lib = self.libs[libname]
             for objname in lib.objs:
                 obj = lib.objs[objname]
-                print('%s, %s, %s, %s'%(libname, objname, obj.path, obj.funcs))
+                print('%s, %s, %s, %s' % (libname, objname, obj.paths, obj.funcs))
 
 class paths_c:
     def __init__(self, build_dir=None):
