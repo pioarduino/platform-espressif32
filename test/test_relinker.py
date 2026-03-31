@@ -47,6 +47,36 @@ class TestFunc2Sect(unittest.TestCase):
         self.assertIn('.iram1.my_function', result)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0], '.iram1.my_function')
+    
+    def test_wildcard_sections_preserved(self):
+        """Test that pre-expanded wildcard sections are preserved as-is."""
+        # Simulate what happens when object_c stores wildcard sections
+        # e.g., '.text.*' becomes '.literal .literal.* .text .text.*'
+        wildcard_expanded = '.literal .literal.* .text .text.*'
+        result = func2sect(wildcard_expanded)
+        
+        # All wildcard tokens should be preserved as-is
+        self.assertIn('.literal', result)
+        self.assertIn('.literal.*', result)
+        self.assertIn('.text', result)
+        self.assertIn('.text.*', result)
+        self.assertEqual(len(result), 4, "Should have exactly 4 sections")
+    
+    def test_mixed_wildcard_and_function(self):
+        """Test that wildcards and regular functions can be mixed."""
+        # Mix of pre-expanded wildcards and a regular function
+        mixed = '.literal .literal.* .text .text.* my_function'
+        result = func2sect(mixed)
+        
+        # Wildcards should be preserved
+        self.assertIn('.literal', result)
+        self.assertIn('.literal.*', result)
+        self.assertIn('.text', result)
+        self.assertIn('.text.*', result)
+        # Regular function should be expanded
+        self.assertIn('.literal.my_function', result)
+        self.assertIn('.text.my_function', result)
+        self.assertEqual(len(result), 6, "Should have 4 wildcard + 2 function sections")
 
 
 class TestFilterSecs(unittest.TestCase):
