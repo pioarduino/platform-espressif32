@@ -8,7 +8,6 @@ import argparse
 import csv
 import os
 import subprocess
-import sys
 import re
 from io import StringIO
 
@@ -82,9 +81,9 @@ class object_c:
 
     def get_func_section(self, dumps, func):
         for dump in dumps:
-            for l in dump:
-                if ' %s'%(func) in l and '*UND*' not in l:
-                    m = re.match(r'(\S*)\s*([glw])\s*([F|O])\s*(\S*)\s*(\S*)\s*(\S*)\s*', l, re.M|re.I)
+            for line in dump:
+                if ' %s'%(func) in line and '*UND*' not in line:
+                    m = re.match(r'(\S*)\s*([glw])\s*([FO])\s*(\S*)\s*(\S*)\s*(\S*)\s*', line, re.M|re.I)
                     if m is not None and m[6] == func:
                         return m[4].replace('.text.', '')
         if espidf_missing_function_info:
@@ -129,16 +128,10 @@ class object_c:
         return True
     
     def functions(self):
-        nlist = list()
-        for i in self.funcs:
-            nlist.append(i)
-        return nlist
+        return list(self.funcs)
     
     def sections(self):
-        nlist = list()
-        for i in self.funcs:
-            nlist.append(self.funcs[i])
-        return nlist
+        return list(self.funcs.values())
 
 class library_c:
     def __init__(self, name, path):
@@ -221,17 +214,17 @@ def generator(library_file, object_file, function_file, sdkconfig_file, missing_
             build_dir = os.path.dirname(os.path.abspath(library_file))
 
     lib_paths = paths_c(build_dir)
-    with open(library_file, 'r') as f:
+    with open(library_file, 'r', encoding='utf-8') as f:
         for p in csv.DictReader(f):
             lib_paths.append(p['library'], '*', p['path'])
 
     obj_paths = paths_c(build_dir)
-    with open(object_file, 'r') as f:
+    with open(object_file, 'r', encoding='utf-8') as f:
         for p in csv.DictReader(f):
             obj_paths.append(p['library'], p['object'], p['path'])
 
     libraries = libraries_c()
-    with open(function_file, 'r') as f:
+    with open(function_file, 'r', encoding='utf-8') as f:
         for d in csv.DictReader(f):
             option = (d.get('option') or '').strip()
             if option and not sdkconfig.check(option):
