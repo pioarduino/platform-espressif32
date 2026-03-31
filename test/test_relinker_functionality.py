@@ -6,6 +6,7 @@ Tests all major features to ensure they work as planned.
 
 import sys
 import os
+import csv
 import tempfile
 import shutil
 import unittest
@@ -180,7 +181,6 @@ class TestRelinkerFunctionality(unittest.TestCase):
                 f.write('CONFIG_TEST=y\n')
             
             # Test that CSV files can be read
-            import csv
             with open(library_csv, 'r') as f:
                 reader = csv.DictReader(f)
                 rows = list(reader)
