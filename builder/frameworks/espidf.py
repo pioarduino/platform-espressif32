@@ -2262,13 +2262,19 @@ def ensure_python_venv_available():
 
     venv_dir = get_idf_venv_dir()
     venv_data_file = str(Path(venv_dir) / "pio-idf-venv.json")
+    recreate = False
     if not os.path.isfile(venv_data_file):
-        _recreate_and_save(venv_dir, deps, venv_data_file)
+        recreate = True
     elif not _is_venv_interpreter_valid(venv_dir):
         print("Warning! Python interpreter in the IDF virtual environment is missing. Recreating...")
-        _recreate_and_save(venv_dir, deps, venv_data_file)
+        recreate = True
     elif _is_venv_outdated(venv_data_file, deps):
+        recreate = True
+
+    if recreate:
         _recreate_and_save(venv_dir, deps, venv_data_file)
+    else:
+        install_python_deps(deps)
 
 
 def get_python_exe():
