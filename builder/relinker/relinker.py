@@ -45,12 +45,16 @@ _lib_cache = {}
 
 def _parse_all_obj_sections(objdump_output, obj_basename):
     """Parse objdump -h output to collect all sections from all objects
-    matching obj_basename in the archive. Handles duplicate object names."""
+    matching obj_basename in the archive. Handles duplicate object names
+    and archive members stored with subdirectory paths."""
     sections = set()
     current_obj_matches = False
     for line in objdump_output.splitlines():
         if ': ' in line and 'file format ' in line:
             obj_name = line.split(':', 1)[0].strip()
+            # Strip directory prefix — archive members can be stored as
+            # e.g. "port/esp32c2/rtc_clk.c.o"
+            obj_name = obj_name.rsplit('/', 1)[-1]
             base = obj_name[:-2] if obj_name.endswith('.o') else obj_name
             base = base[:-4] if base.endswith('.obj') else base
             current_obj_matches = (base == obj_basename or
@@ -123,11 +127,14 @@ def func2sect(func):
     
     secs = list()
     for l in func_l:
-        if '.iram1.' not in l:
+        if '.iram1.' in l:
+            secs.append(l)
+        elif l.startswith('.'):
+            # Pre-expanded section token from wildcard, pass through as-is
+            secs.append(l)
+        else:
             secs.append('.literal.%s'%(l,))
             secs.append('.text.%s'%(l, ))
-        else:
-            secs.append(l)
     return secs
 
 class filter_c:
@@ -175,7 +182,7 @@ class target_c:
         self.desc  = '*%s:%s.*' % (lib, _object_desc_stem(file))
 
         secs = lib_secs(lib, file, lib_path)
-        if '.iram1.' in self.fsecs[0]:
+        if any('.iram1.' in s or s == '.iram1' for s in self.fsecs):
             self.secs = filter_secs(secs, ('.iram1.', ))
         else:
             self.secs = filter_secs(secs, ('.iram1.', '.text.', '.literal.'))

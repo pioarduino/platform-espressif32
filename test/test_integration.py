@@ -464,8 +464,8 @@ class TestIdempotency(unittest.TestCase):
             with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info), \
                  mock.patch.object(relinker_module, 'lib_secs', mock_lib_secs):
                 # First run
-                relink1 = relink_c(input_script, library_csv, object_csv, 
-                                  function_csv, sdkconfig, missing_function_info=True)
+                relink1 = relink_c(library_csv, object_csv, function_csv,
+                                  input_script, sdkconfig, missing_function_info=True)
                 
                 # Verify that relinker is active (not taking _no_relink shortcut)
                 self.assertFalse(getattr(relink1, '_no_relink', True),
@@ -474,8 +474,8 @@ class TestIdempotency(unittest.TestCase):
                 relink1.save(input_script, output1)
                 
                 # Second run using first output as input
-                relink2 = relink_c(output1, library_csv, object_csv,
-                                  function_csv, sdkconfig, missing_function_info=True)
+                relink2 = relink_c(library_csv, object_csv, function_csv,
+                                  output1, sdkconfig, missing_function_info=True)
                 
                 # Verify second run is also active
                 self.assertFalse(getattr(relink2, '_no_relink', True),
