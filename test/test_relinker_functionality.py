@@ -9,6 +9,7 @@ import os
 import tempfile
 import shutil
 import unittest
+from unittest.mock import patch, MagicMock
 
 # Add the relinker directory to the path
 relinker_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'builder', 'relinker')
@@ -194,6 +195,37 @@ class TestRelinkerFunctionality(unittest.TestCase):
                 reader = csv.DictReader(f)
                 rows = list(reader)
                 self.assertEqual(len(rows), 1, "Should read 1 function")
+            
+            # Now test the actual generator() function with mocked dependencies
+            mock_objdump = 'mock-objdump'
+            
+            # Mock subprocess calls and file operations that generator might trigger
+            with patch('configuration.subprocess.check_output') as mock_subprocess:
+                # Mock objdump output for symbol table
+                mock_subprocess.return_value = b'00000000 g F .text.test_func 00000010 test_func\n'
+                
+                # Call generator with the CSV files
+                libraries = generator(
+                    library_csv,
+                    object_csv,
+                    function_csv,
+                    sdkconfig,
+                    missing_function_info=True,  # Use True to avoid errors on missing files
+                    objdump=mock_objdump,
+                    build_dir=temp_dir
+                )
+                
+                # Assert that generator returned a libraries_c object
+                self.assertIsNotNone(libraries, "generator() should return libraries object")
+                self.assertTrue(hasattr(libraries, 'libs'), "Should have libs attribute")
+                
+                # Verify the library was processed
+                self.assertIn('libtest.a', libraries.libs, "Should contain libtest.a")
+                
+                # Verify the object was processed (may or may not be present depending on file existence)
+                lib = libraries.libs['libtest.a']
+                self.assertEqual(lib.name, 'libtest.a', "Library name should match")
+                self.assertTrue(hasattr(lib, 'objs'), "Library should have objs attribute")
         finally:
             shutil.rmtree(temp_dir)
 
