@@ -164,7 +164,8 @@ class filter_c:
             return
     
     def match(self, desc):
-        if desc.lstrip('*') in self.entries:
+        library = desc.lstrip('*').split(':', 1)[0]
+        if library in self.entries:
             print('Remove %s' % desc)
             return True
         return False
