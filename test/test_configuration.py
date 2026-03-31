@@ -209,7 +209,9 @@ class TestObjectC(unittest.TestCase):
     
     def test_append_returns_false_on_missing_section(self):
         """Test that append returns False when section is not found."""
-        with mock.patch.object(object_c, 'read_dump_info', return_value=[]), \
+        # Mock read_dump_info to return non-empty list so self.dumps is truthy
+        # This forces the code to reach the "missing section" branch
+        with mock.patch.object(object_c, 'read_dump_info', return_value=[['mock dump data']]), \
              mock.patch.object(object_c, 'get_func_section', return_value=None):
             obj = object_c('test.c.obj', [], 'libtest.a')
             result = obj.append('nonexistent_function')
