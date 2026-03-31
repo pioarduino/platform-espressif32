@@ -15,6 +15,7 @@ from unittest import mock
 import tempfile
 import os
 import sys
+import shutil
 
 # Add the relinker directory to the path
 relinker_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'builder', 'relinker')
@@ -40,7 +41,6 @@ class TestSdkconfigC(unittest.TestCase):
     
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
         shutil.rmtree(self.temp_dir)
     
     def test_parse_sdkconfig(self):
@@ -125,7 +125,6 @@ class TestPathsC(unittest.TestCase):
     
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
         shutil.rmtree(self.temp_dir)
     
     def test_append_relative_path(self):
@@ -270,7 +269,6 @@ class TestPathNormalization(unittest.TestCase):
     
     def tearDown(self):
         """Clean up temporary files."""
-        import shutil
         shutil.rmtree(self.temp_dir)
     
     def test_normalize_dot_slash_prefix(self):

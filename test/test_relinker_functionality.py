@@ -133,6 +133,27 @@ class TestRelinkerFunctionality(unittest.TestCase):
         finally:
             shutil.rmtree(temp_dir)
 
+    def test_filter_with_exclude_file(self):
+        """Test filter_c with actual EXCLUDE_FILE pattern."""
+        temp_dir = tempfile.mkdtemp()
+        try:
+            linker_script = os.path.join(temp_dir, 'sections.ld')
+            with open(linker_script, 'w') as f:
+                f.write('.iram0.text : {\n')
+                f.write('    *(EXCLUDE_FILE(*libfreertos.a) .iram1.*)\n')
+                f.write('}\n')
+        
+            filt = filter_c(linker_script)
+        
+            # Should have parsed the library token
+            self.assertIn('libfreertos.a', filt.entries)
+        
+            # match() should return True for parsed library descriptors
+            self.assertTrue(filt.match('libfreertos.a'))
+            self.assertFalse(filt.match('libother.a'))
+        finally:
+            shutil.rmtree(temp_dir)
+
     def test_csv_processing(self):
         """Test CSV file processing."""
         temp_dir = tempfile.mkdtemp()
@@ -204,33 +225,5 @@ class TestRelinkerFunctionality(unittest.TestCase):
             shutil.rmtree(temp_dir)
 
 
-def main():
-    """Run all functionality tests."""
-    print('\n' + '=' * 70)
-    print('RELINKER FUNCTIONALITY TEST SUITE')
-    print('=' * 70)
-    print()
-    
-    # Run tests using unittest
-    loader = unittest.TestLoader()
-    suite = loader.loadTestsFromTestCase(TestRelinkerFunctionality)
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
-    
-    print('=' * 70)
-    print('FINAL RESULTS')
-    print('=' * 70)
-    print(f'Tests run: {result.testsRun}')
-    print(f'Tests passed: {result.testsRun - len(result.failures) - len(result.errors)}')
-    print(f'Tests failed: {len(result.failures) + len(result.errors)}')
-    
-    if result.wasSuccessful():
-        print('\n🎉 ALL FUNCTIONALITY TESTS PASSED!')
-        print('✅ The relinker implementation works as planned!')
-        return 0
-    else:
-        print(f'\n⚠️  {len(result.failures) + len(result.errors)} test(s) failed')
-        return 1
-
 if __name__ == '__main__':
-    sys.exit(main())
+    unittest.main(verbosity=2)
