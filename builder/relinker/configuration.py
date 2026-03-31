@@ -112,19 +112,19 @@ class object_c:
             self.section_all = True
             return True
         if not self.dumps:
+            # Return False silently regardless of espidf_missing_function_info setting
+            # Only print warning if espidf_missing_function_info is True
             if espidf_missing_function_info:
-                return False
-            raise RuntimeError(
-                "Failed to load symbol data for %s:%s" % (self.library, self.name)
-            )
+                print("Warning: Failed to load symbol data for %s:%s" % (self.library, self.name))
+            return False
         section = self.get_func_section(self.dumps, func)
         if section is None:
+            # Return False silently regardless of espidf_missing_function_info setting
+            # Only print warning if espidf_missing_function_info is True
             if espidf_missing_function_info:
-                return False
-            raise RuntimeError(
-                "Failed to find section for function '%s' in %s:%s"
-                % (func, self.library, self.name)
-            )
+                print("Warning: Failed to find section for function '%s' in %s:%s"
+                      % (func, self.library, self.name))
+            return False
         self.funcs[func] = section
         return True
     
