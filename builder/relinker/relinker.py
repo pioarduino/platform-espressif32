@@ -182,10 +182,9 @@ class target_c:
         self.desc  = '*%s:%s.*' % (lib, _object_desc_stem(file))
 
         secs = lib_secs(lib, file, lib_path)
-        if any('.iram1.' in s or s == '.iram1' for s in self.fsecs):
-            self.secs = filter_secs(secs, ('.iram1.', ))
-        else:
-            self.secs = filter_secs(secs, ('.iram1.', '.text.', '.literal.'))
+        # Get all relevant sections (IRAM and text/literal)
+        # Don't filter based on fsecs - we need ALL sections to avoid orphans
+        self.secs = filter_secs(secs, ('.iram1.', '.text.', '.literal.'))
         self.isecs = strip_secs(self.secs, self.fsecs)
 
     def __str__(self):
