@@ -107,6 +107,7 @@ class TestFilterC(unittest.TestCase):
         
         # Create a realistic linker script with EXCLUDE_FILE patterns
         # Based on actual ESP-IDF linker scripts
+        # Include both whole-library tokens (e.g., *libfreertos.a) and object-specific tokens
         with open(self.linker_script, 'w') as f:
             f.write('.iram0.text : {\n')
             f.write('    _iram_text_start = ABSOLUTE(.);\n')
@@ -115,8 +116,8 @@ class TestFilterC(unittest.TestCase):
             f.write('    /* Code marked as running out of IRAM */\n')
             f.write('    *(.iram1 .iram1.*)\n')
             f.write('    /* IRAM functions from libraries */\n')
-            f.write('    *(EXCLUDE_FILE(*libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1.*)\n')
-            f.write('    *(EXCLUDE_FILE(*libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1)\n')
+            f.write('    *(EXCLUDE_FILE(*libfreertos.a *libheap.a *libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1.*)\n')
+            f.write('    *(EXCLUDE_FILE(*libfreertos.a *libheap.a *libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1)\n')
             f.write('    _iram_text_end = ABSOLUTE(.);\n')
             f.write('} > iram0_0_seg\n')
     
@@ -129,49 +130,70 @@ class TestFilterC(unittest.TestCase):
         """Test parsing of EXCLUDE_FILE patterns."""
         filt = filter_c(self.linker_script)
         
-        # The filter looks for a specific pattern in the linker script
-        # It searches for lines with ') .iram1 EXCLUDE_FILE(*' and ') .iram1.*)'
-        # If no such line is found, libs_desc will be empty
-        # This is expected behavior - the filter only activates when it finds the pattern
-        
         # Test that the filter object is created successfully
         self.assertIsNotNone(filt)
         self.assertIsNotNone(filt.libs_desc)
         self.assertIsNotNone(filt.entries)
         
-        # The entries set should be initialized (may be empty if no patterns found)
+        # Verify that whole-library tokens are parsed and retained
         self.assertIsInstance(filt.entries, set)
+        self.assertGreater(len(filt.entries), 0, "Should have parsed whole-library tokens")
+        
+        # Verify specific whole-library entries are present
+        self.assertIn('libfreertos.a', filt.entries, "Should contain libfreertos.a")
+        self.assertIn('libheap.a', filt.entries, "Should contain libheap.a")
+        
+        # Verify libs_desc contains the whole-library tokens
+        self.assertIn('libfreertos.a', filt.libs_desc, "libs_desc should contain libfreertos.a")
+        self.assertIn('libheap.a', filt.libs_desc, "libs_desc should contain libheap.a")
+        
+        # Verify object-specific tokens are NOT in entries (they should be filtered out)
+        self.assertNotIn('libfreertos.a:tasks.*', filt.libs_desc, "Object-specific tokens should be filtered out")
     
     def test_parse_exclude_patterns_with_correct_format(self):
         """Test parsing with the exact format filter_c expects."""
         # Create a linker script with the EXACT format that filter_c looks for
+        # Include both whole-library and object-specific tokens
         temp_script = os.path.join(self.temp_dir, 'sections_correct.ld')
         with open(temp_script, 'w') as f:
             f.write('.iram0.text : {\n')
-            # This is the EXACT format filter_c searches for:
-            # ') .iram1 EXCLUDE_FILE(*' and ') .iram1.*)'
-            f.write('    *(.iram1 .iram1.*) .iram1 EXCLUDE_FILE(*libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1.*)\n')
+            f.write('    *(EXCLUDE_FILE(*libfreertos.a *libhal.a *libfreertos.a:tasks.* *libheap.a:heap_caps.*) .iram1.*)\n')
             f.write('}\n')
         
         filt = filter_c(temp_script)
         
-        # Verify the parser initialized correctly (may not find pattern if format doesn't match exactly)
+        # Verify the parser initialized correctly
         self.assertIsInstance(filt.libs_desc, str, "Parser should initialize libs_desc")
         self.assertIsInstance(filt.entries, set, "Parser should initialize entries set")
-        # If pattern is found, verify it's parsed correctly
-        if len(filt.libs_desc) > 0:
-            self.assertIn('libfreertos.a', filt.libs_desc)
+        
+        # Verify whole-library tokens are parsed
+        self.assertGreater(len(filt.libs_desc), 0, "Should have parsed whole-library tokens")
+        self.assertGreater(len(filt.entries), 0, "Should have entries for whole-library tokens")
+        
+        # Verify specific libraries are present
+        self.assertIn('libfreertos.a', filt.libs_desc, "libs_desc should contain libfreertos.a")
+        self.assertIn('libhal.a', filt.libs_desc, "libs_desc should contain libhal.a")
+        self.assertIn('libfreertos.a', filt.entries, "entries should contain libfreertos.a")
+        self.assertIn('libhal.a', filt.entries, "entries should contain libhal.a")
+        
+        # Verify object-specific tokens are filtered out
+        self.assertNotIn('libfreertos.a:tasks.*', filt.libs_desc, "Object-specific tokens should be filtered out")
+        self.assertNotIn('libheap.a:heap_caps.*', filt.libs_desc, "Object-specific tokens should be filtered out")
     
     def test_match_library_object(self):
-        """Test matching library:object patterns."""
+        """Test matching library patterns."""
         filt = filter_c(self.linker_script)
         
-        # Verify the filter has entries before testing match
+        # Verify the filter has entries
         self.assertIsInstance(filt.entries, set, "Filter should have entries set")
+        self.assertGreater(len(filt.entries), 0, "Filter should have parsed entries")
         
-        # Test the match method works
-        result = filt.match('*libfreertos.a:tasks.*')
-        self.assertIsInstance(result, bool, "Match should return boolean")
+        # Test matching whole-library tokens (should match)
+        self.assertTrue(filt.match('*libfreertos.a'), "Should match whole-library token")
+        self.assertTrue(filt.match('*libheap.a'), "Should match whole-library token")
+        
+        # Test that object-specific patterns don't match (they're not in entries)
+        self.assertFalse(filt.match('*libfreertos.a:tasks.*'), "Object-specific tokens should not match")
     
     def test_no_match_different_pattern(self):
         """Test non-matching patterns."""
@@ -181,12 +203,20 @@ class TestFilterC(unittest.TestCase):
         self.assertFalse(filt.match('*libother.a:other.*'))
     
     def test_add_returns_original_desc(self):
-        """Test that add() returns original descriptor."""
+        """Test that add() returns original descriptor with whole-library tokens."""
         filt = filter_c(self.linker_script)
         
         result = filt.add()
-        # The descriptor should be a string (may be empty if no patterns found)
+        # The descriptor should be a string containing whole-library tokens
         self.assertIsInstance(result, str)
+        self.assertGreater(len(result), 0, "Should return non-empty descriptor")
+        
+        # Verify it contains the expected whole-library tokens
+        self.assertIn('libfreertos.a', result, "Should contain libfreertos.a")
+        self.assertIn('libheap.a', result, "Should contain libheap.a")
+        
+        # Verify it does NOT contain object-specific tokens
+        self.assertNotIn(':', result, "Should not contain object-specific tokens with colons")
 
 
 class TestRelinkIdempotency(unittest.TestCase):
