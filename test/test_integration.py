@@ -272,8 +272,8 @@ class TestSdkconfigConditionals(unittest.TestCase):
         self.assertFalse(sdk.check('CONFIG_ENABLED&&CONFIG_DISABLED'))
 
 
-class TestLinkerScriptModification(unittest.TestCase):
-    """Test linker script modification."""
+class TestLinkerScriptFixture(unittest.TestCase):
+    """Test linker script fixture setup."""
     
     def setUp(self):
         """Create test linker script."""
