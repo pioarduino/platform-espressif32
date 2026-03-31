@@ -16,6 +16,7 @@ import tempfile
 import os
 import sys
 import shutil
+import csv
 
 # Add the relinker directory to the path
 relinker_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'builder', 'relinker')
@@ -74,7 +75,6 @@ class TestCSVProcessing(unittest.TestCase):
     
     def test_read_library_csv(self):
         """Test reading library CSV file."""
-        import csv
         
         with open(self.library_csv, 'r') as f:
             reader = csv.DictReader(f)
@@ -86,7 +86,6 @@ class TestCSVProcessing(unittest.TestCase):
     
     def test_read_object_csv(self):
         """Test reading object CSV file."""
-        import csv
         
         with open(self.object_csv, 'r') as f:
             reader = csv.DictReader(f)
@@ -97,7 +96,6 @@ class TestCSVProcessing(unittest.TestCase):
     
     def test_read_function_csv(self):
         """Test reading function CSV file."""
-        import csv
         
         with open(self.function_csv, 'r') as f:
             reader = csv.DictReader(f)
