@@ -135,6 +135,7 @@ class TestCSVProcessing(unittest.TestCase):
                 function_file=self.function_csv,
                 sdkconfig_file=self.sdkconfig,
                 missing_function_info=True,
+                objdump='mock-objdump',
                 build_dir=self.build_dir
             )
         
@@ -379,27 +380,18 @@ class TestIdempotency(unittest.TestCase):
         def mock_lib_secs(lib, file, lib_path):
             return ['.iram1.test_func', '.text.test_func', '.literal.test_func']
         
-        try:
-            with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info), \
-                 mock.patch.object(relinker_module, 'lib_secs', mock_lib_secs):
-                relink = relink_c(self.linker_script, library_csv, object_csv,
-                                function_csv, sdkconfig, missing_function_info=True)
-                
-                # Verify that relinker is in active path (not taking _no_relink shortcut)
-                self.assertFalse(getattr(relink, '_no_relink', True),
-                               "Relinker should be active when targets exist")
-                
-                # Verify that iram1_include contains object-specific patterns
-                self.assertIsNotNone(relink.iram1_include,
-                                   "iram1_include should be populated")
-                self.assertIn('*libtest.a:test.*', relink.iram1_include,
-                             "iram1_include should contain object-specific patterns")
-                
-        except Exception as e:
-            if 'not found' in str(e).lower():
-                self.skipTest(f"Skipping due to missing library files: {e}")
-            else:
-                raise
+        with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info), \
+             mock.patch.object(relinker_module, 'lib_secs', mock_lib_secs), \
+             mock.patch.object(relinker_module, 'espidf_objdump', 'mock-objdump'):
+            relink = relink_c(self.linker_script, library_csv, object_csv,
+                              function_csv, sdkconfig, missing_function_info=True)
+
+            self.assertFalse(getattr(relink, '_no_relink', True),
+                             "Relinker should be active when targets exist")
+            self.assertIsNotNone(relink.iram1_include,
+                                 "iram1_include should be populated")
+            self.assertIn('*libtest.a:test.*', relink.iram1_include,
+                          "iram1_include should contain object-specific patterns")
     
     def test_multiple_runs_produce_same_result(self):
         """Test that running relinker multiple times produces same result."""
@@ -457,43 +449,36 @@ class TestIdempotency(unittest.TestCase):
         def mock_lib_secs(lib, file, lib_path):
             return ['.iram1.test_func', '.text.test_func', '.literal.test_func']
         
-        try:
-            with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info), \
-                 mock.patch.object(relinker_module, 'lib_secs', mock_lib_secs):
-                # First run
-                relink1 = relink_c(input_script, library_csv, object_csv,
-                                  function_csv, sdkconfig, missing_function_info=True)
-                
-                # Verify that relinker is active (not taking _no_relink shortcut)
-                self.assertFalse(getattr(relink1, '_no_relink', True),
-                               "Relinker should be active when targets exist")
-                
-                relink1.save(input_script, output1)
-                
-                # Second run using first output as input
-                relink2 = relink_c(output1, library_csv, object_csv,
-                                  function_csv, sdkconfig, missing_function_info=True)
-                
-                # Verify second run is also active
-                self.assertFalse(getattr(relink2, '_no_relink', True),
-                               "Relinker should remain active on second run")
-                
-                relink2.save(output1, output2)
-                
-                # Compare outputs - should be identical
-                with open(output1, 'r') as f1, open(output2, 'r') as f2:
-                    content1 = f1.read()
-                    content2 = f2.read()
-                
-                self.assertEqual(content1, content2, 
-                               "Relinker should produce identical output on second run")
-        except Exception as e:
-            # If libraries don't exist, that's expected in unit tests
-            # The important thing is the logic doesn't crash
-            if 'not found' in str(e).lower():
-                self.skipTest(f"Skipping due to missing library files: {e}")
-            else:
-                raise
+        with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info), \
+             mock.patch.object(relinker_module, 'lib_secs', mock_lib_secs), \
+             mock.patch.object(relinker_module, 'espidf_objdump', 'mock-objdump'):
+            # First run
+            relink1 = relink_c(input_script, library_csv, object_csv,
+                              function_csv, sdkconfig, missing_function_info=True)
+            
+            # Verify that relinker is active (not taking _no_relink shortcut)
+            self.assertFalse(getattr(relink1, '_no_relink', True),
+                           "Relinker should be active when targets exist")
+            
+            relink1.save(input_script, output1)
+            
+            # Second run using first output as input
+            relink2 = relink_c(output1, library_csv, object_csv,
+                              function_csv, sdkconfig, missing_function_info=True)
+            
+            # Verify second run is also active
+            self.assertFalse(getattr(relink2, '_no_relink', True),
+                           "Relinker should remain active on second run")
+            
+            relink2.save(output1, output2)
+            
+            # Compare outputs - should be identical
+            with open(output1, 'r') as f1, open(output2, 'r') as f2:
+                content1 = f1.read()
+                content2 = f2.read()
+            
+            self.assertEqual(content1, content2, 
+                           "Relinker should produce identical output on second run")
 
 
 class TestErrorHandling(unittest.TestCase):
@@ -550,7 +535,8 @@ class TestErrorHandling(unittest.TestCase):
         # Should raise FileNotFoundError when trying to open missing CSV
         with self.assertRaises(FileNotFoundError):
             generator(library_csv, object_csv, missing_csv, sdkconfig, 
-                     missing_function_info=True, build_dir=self.temp_dir)
+                     missing_function_info=True, objdump='mock-objdump', 
+                     build_dir=self.temp_dir)
     
     def test_malformed_csv(self):
         """Test error handling with malformed CSV."""
@@ -579,7 +565,8 @@ class TestErrorHandling(unittest.TestCase):
         # Should raise KeyError when trying to access missing 'path' column
         with self.assertRaises(KeyError):
             generator(library_csv, object_csv, function_csv, sdkconfig,
-                     missing_function_info=True, build_dir=self.temp_dir)
+                     missing_function_info=True, objdump='mock-objdump', 
+                     build_dir=self.temp_dir)
 
 
 class TestCompleteWorkflow(unittest.TestCase):
