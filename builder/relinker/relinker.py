@@ -143,10 +143,16 @@ class filter_c:
             )
             if not match:
                 continue
-            self.libs_desc = match.group(1)
+            all_tokens = match.group(1).split()
+            # Only keep whole-library tokens (no ':') — these are from the
+            # original ldgen output.  Object-level tokens like
+            # *lib:obj.* are relinker-generated and must not be used to
+            # filter targets on subsequent runs.
+            orig_tokens = [t for t in all_tokens if ':' not in t]
+            self.libs_desc = ' '.join(orig_tokens)
             self.entries = {
                 token.lstrip('*')
-                for token in self.libs_desc.split()
+                for token in orig_tokens
             }
             return
     
@@ -209,12 +215,16 @@ def _is_relinker_iram_include(l):
     """Detect relinker-generated IRAM include lines (object-specific sections).
     
     These typically look like: *libname:objname.*(.iram1.xxx)
+    Also detects leftover catch-all patterns like *(.iram1.*) / *(.iram1).
     """
     if not l.strip():
         return False
     stripped = l.strip()
-    # Check for pattern like: *libname:objname.*(.iram1.xxx)
+    # Object-specific pattern: *libname:objname.*(.iram1.xxx)
     if stripped.startswith('*') and ':' in stripped and '.*(' in stripped and '.iram1.' in stripped:
+        return True
+    # Catch-all patterns from previous runs: *(.iram1.*) or *(.iram1)
+    if stripped == '*(.iram1.*)' or stripped == '*(.iram1)':
         return True
     return False
 
