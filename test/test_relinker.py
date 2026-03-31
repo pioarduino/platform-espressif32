@@ -220,8 +220,9 @@ class TestFilterC(unittest.TestCase):
         self.assertTrue(filt.match('*libfreertos.a'), "Should match whole-library token")
         self.assertTrue(filt.match('*libheap.a'), "Should match whole-library token")
         
-        # Test that object-specific patterns don't match (they're not in entries)
-        self.assertFalse(filt.match('*libfreertos.a:tasks.*'), "Object-specific tokens should not match")
+        # Test that object-specific patterns ALSO match if their library is excluded
+        # This is correct behavior: if a library is excluded, all its objects are excluded too
+        self.assertTrue(filt.match('*libfreertos.a:tasks.*'), "Object-specific patterns should match if library is excluded")
     
     def test_no_match_different_pattern(self):
         """Test non-matching patterns."""

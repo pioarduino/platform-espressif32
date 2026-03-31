@@ -166,6 +166,51 @@ class TestCSVProcessing(unittest.TestCase):
         # Assert paths are resolved relative to build_dir
         expected_lib_path = os.path.normpath(os.path.join(self.build_dir, 'esp-idf/freertos/libfreertos.a'))
         self.assertEqual(os.path.normpath(freertos_lib.path), expected_lib_path)
+    
+    def test_generator_processing_strict_missing_symbol(self):
+        """Test generator with missing_function_info=False rejects missing symbols."""
+        from configuration import object_c
+        
+        # Mock dumps that are MISSING the xTaskGetTickCount symbol
+        # (it's in the CSV but not in the objdump output)
+        mock_dumps_missing_symbol = [[
+            '00000000 g     F .text.xTaskGetSchedulerState 00000020 xTaskGetSchedulerState\n',
+            # xTaskGetTickCount is intentionally missing
+        ]]
+        
+        mock_heap_dumps = [[
+            '00000000 g     F .text.heap_caps_malloc 00000030 heap_caps_malloc\n',
+        ]]
+        
+        def mock_read_dump_info(self, paths):
+            if 'tasks.c.obj' in str(paths):
+                return mock_dumps_missing_symbol
+            elif 'heap_caps.c.obj' in str(paths):
+                return mock_heap_dumps
+            return [[]]
+        
+        with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info):
+            # Call generator with missing_function_info=False (strict mode)
+            libraries = generator(
+                library_file=self.library_csv,
+                object_file=self.object_csv,
+                function_file=self.function_csv,
+                sdkconfig_file=self.sdkconfig,
+                missing_function_info=False,  # Strict mode
+                objdump='mock-objdump',
+                build_dir=self.build_dir
+            )
+            
+            # In strict mode, when a symbol is missing, the object should not be added
+            # or should have incomplete function list
+            freertos_lib = libraries.libs.get('libfreertos.a')
+            if freertos_lib and 'tasks.c.obj' in freertos_lib.objs:
+                tasks_obj = freertos_lib.objs['tasks.c.obj']
+                # The missing function should NOT be in the funcs dict
+                self.assertNotIn('xTaskGetTickCount', tasks_obj.funcs,
+                                "Missing symbol should not be added in strict mode")
+                # But the found function should still be there
+                self.assertIn('xTaskGetSchedulerState', tasks_obj.funcs)
 
 
 class TestPathResolution(unittest.TestCase):
@@ -393,6 +438,59 @@ class TestIdempotency(unittest.TestCase):
             self.assertIn('*libtest.a:test.*', relink.iram1_include,
                           "iram1_include should contain object-specific patterns")
     
+    def test_relink_strict_missing_symbol(self):
+        """Test that relink_c with missing_function_info=False handles missing symbols strictly."""
+        from relinker import relink_c
+        from configuration import object_c
+        import relinker as relinker_module
+        
+        # Create CSV files with a function that won't be found in objdump
+        library_csv = os.path.join(self.temp_dir, 'library.csv')
+        with open(library_csv, 'w') as f:
+            f.write('library,path\n')
+            f.write('libtest.a,./libtest.a\n')
+        
+        object_csv = os.path.join(self.temp_dir, 'object.csv')
+        with open(object_csv, 'w') as f:
+            f.write('library,object,path\n')
+            f.write('libtest.a,test.c.obj,./test.c.obj\n')
+        
+        function_csv = os.path.join(self.temp_dir, 'function.csv')
+        with open(function_csv, 'w') as f:
+            f.write('library,object,function,option\n')
+            f.write('libtest.a,test.c.obj,missing_func,\n')  # Function not in objdump
+        
+        sdkconfig = os.path.join(self.temp_dir, 'sdkconfig')
+        with open(sdkconfig, 'w') as f:
+            f.write('CONFIG_TEST=y\n')
+        
+        # Mock read_dump_info to return empty dumps (missing symbol)
+        mock_dumps = [[
+            '00000000 g     F .text.other_func 00000010 other_func\n',
+            # missing_func is NOT here
+        ]]
+        
+        def mock_read_dump_info(self, paths):
+            return mock_dumps
+        
+        # Mock lib_secs to return relocatable sections
+        def mock_lib_secs(lib, file, lib_path):
+            return ['.iram1.test_func', '.text.test_func', '.literal.test_func']
+        
+        with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info), \
+             mock.patch.object(relinker_module, 'lib_secs', mock_lib_secs), \
+             mock.patch.object(relinker_module, 'espidf_objdump', 'mock-objdump'):
+            # In strict mode (missing_function_info=False), missing symbols should result
+            # in no targets being created, so relinker should take the _no_relink path
+            relink = relink_c(self.linker_script, library_csv, object_csv,
+                              function_csv, sdkconfig, missing_function_info=False)
+            
+            # When symbol is missing in strict mode, the object won't be added to targets
+            self.assertEqual(len(relink.targets), 0,
+                           "Strict mode should not create targets for missing symbols")
+            self.assertTrue(getattr(relink, '_no_relink', False),
+                          "Relinker should take _no_relink path when no valid targets exist")
+    
     def test_multiple_runs_produce_same_result(self):
         """Test that running relinker multiple times produces same result."""
         from configuration import generator, object_c
@@ -479,6 +577,75 @@ class TestIdempotency(unittest.TestCase):
             
             self.assertEqual(content1, content2, 
                            "Relinker should produce identical output on second run")
+    
+    def test_multiple_runs_strict_missing_symbol(self):
+        """Test that relink_c with missing_function_info=False handles missing symbols in idempotency test."""
+        from configuration import object_c
+        from relinker import relink_c
+        import relinker as relinker_module
+        
+        # Create CSV files with a missing function
+        library_csv = os.path.join(self.temp_dir, 'library.csv')
+        with open(library_csv, 'w') as f:
+            f.write('library,path\n')
+            f.write('libtest.a,./libtest.a\n')
+        
+        object_csv = os.path.join(self.temp_dir, 'object.csv')
+        with open(object_csv, 'w') as f:
+            f.write('library,object,path\n')
+            f.write('libtest.a,test.c.obj,./test.c.obj\n')
+        
+        function_csv = os.path.join(self.temp_dir, 'function.csv')
+        with open(function_csv, 'w') as f:
+            f.write('library,object,function,option\n')
+            f.write('libtest.a,test.c.obj,missing_func,\n')
+        
+        sdkconfig = os.path.join(self.temp_dir, 'sdkconfig')
+        with open(sdkconfig, 'w') as f:
+            f.write('CONFIG_TEST=y\n')
+        
+        # Create initial linker script
+        input_script = os.path.join(self.temp_dir, 'input.ld')
+        with open(input_script, 'w') as f:
+            f.write('.iram0.text : {\n')
+            f.write('    _iram_text_start = ABSOLUTE(.);\n')
+            f.write('    *(.iram1 .iram1.*)\n')
+            f.write('    _iram_text_end = ABSOLUTE(.);\n')
+            f.write('} > iram0_0_seg\n')
+            f.write('\n')
+            f.write('.flash.text : {\n')
+            f.write('    _stext = .;\n')
+            f.write('    *(.stub .gnu.warning)\n')
+            f.write('    _etext = .;\n')
+            f.write('} > default_code_seg\n')
+        
+        output1 = os.path.join(self.temp_dir, 'output1.ld')
+        
+        # Mock read_dump_info to return dumps without the missing function
+        mock_dumps = [[
+            '00000000 g     F .text.other_func 00000010 other_func\n',
+            # missing_func is NOT here
+        ]]
+        
+        def mock_read_dump_info(self, paths):
+            return mock_dumps
+        
+        # Mock lib_secs to return relocatable sections
+        def mock_lib_secs(lib, file, lib_path):
+            return ['.iram1.test_func', '.text.test_func', '.literal.test_func']
+        
+        with mock.patch.object(object_c, 'read_dump_info', mock_read_dump_info), \
+             mock.patch.object(relinker_module, 'lib_secs', mock_lib_secs), \
+             mock.patch.object(relinker_module, 'espidf_objdump', 'mock-objdump'):
+            # In strict mode, missing symbols should result in no targets
+            relink1 = relink_c(input_script, library_csv, object_csv,
+                              function_csv, sdkconfig, missing_function_info=False)
+            
+            # Verify that relinker takes _no_relink path when no valid targets exist
+            self.assertTrue(getattr(relink1, '_no_relink', False),
+                          "Relinker should take _no_relink path in strict mode with missing symbols")
+            self.assertEqual(len(relink1.targets), 0,
+                           "No targets should be created for missing symbols in strict mode")
 
 
 class TestErrorHandling(unittest.TestCase):
