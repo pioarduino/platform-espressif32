@@ -204,7 +204,9 @@ class paths_c:
             return self.paths[lib]['*']
         return None
 
-def generator(library_file, object_file, function_file, sdkconfig_file, missing_function_info, objdump='riscv32-esp-elf-objdump', build_dir=None):
+def generator(library_file, object_file, function_file, sdkconfig_file, missing_function_info, objdump=None, build_dir=None):
+    if not objdump:
+        raise RuntimeError("objdump must be provided explicitly")
     global espidf_objdump, espidf_missing_function_info
     espidf_objdump = objdump
     espidf_missing_function_info = missing_function_info
@@ -277,7 +279,7 @@ def main():
     argparser.add_argument(
         '--objdump',
         help='GCC objdump command',
-        default='riscv32-esp-elf-objdump',
+        required=True,
         type=str)
 
     argparser.add_argument(
