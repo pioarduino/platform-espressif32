@@ -16,7 +16,6 @@ import tempfile
 import os
 import sys
 import shutil
-from pathlib import Path
 
 # Add the relinker directory to the path
 relinker_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'builder', 'relinker')
