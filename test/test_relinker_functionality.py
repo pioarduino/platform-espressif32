@@ -199,6 +199,12 @@ class TestRelinkerFunctionality(unittest.TestCase):
             # Now test the actual generator() function with mocked dependencies
             mock_objdump = 'mock-objdump'
             
+            # Create the dummy object file so read_dump_info() will actually call objdump
+            obj_file_path = os.path.join(temp_dir, 'esp-idf', 'test.c.obj')
+            os.makedirs(os.path.dirname(obj_file_path), exist_ok=True)
+            with open(obj_file_path, 'wb') as f:
+                f.write(b'\x7fELF')  # Minimal ELF header to make it look like an object file
+            
             # Mock subprocess calls and file operations that generator might trigger
             with patch('configuration.subprocess.check_output') as mock_subprocess:
                 # Mock objdump output for symbol table
@@ -222,10 +228,14 @@ class TestRelinkerFunctionality(unittest.TestCase):
                 # Verify the library was processed
                 self.assertIn('libtest.a', libraries.libs, "Should contain libtest.a")
                 
-                # Verify the object was processed (may or may not be present depending on file existence)
+                # Verify the object was processed and symbol resolution was exercised
                 lib = libraries.libs['libtest.a']
                 self.assertEqual(lib.name, 'libtest.a', "Library name should match")
                 self.assertTrue(hasattr(lib, 'objs'), "Library should have objs attribute")
+                
+                # Verify that subprocess.check_output was actually called (symbol resolution path exercised)
+                mock_subprocess.assert_called()
+                self.assertGreater(mock_subprocess.call_count, 0, "objdump should have been called")
         finally:
             shutil.rmtree(temp_dir)
 
