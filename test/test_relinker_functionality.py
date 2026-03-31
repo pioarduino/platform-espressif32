@@ -54,9 +54,8 @@ class TestRelinkerFunctionality(unittest.TestCase):
     def test_path_normalization(self):
         """Test path normalization and resolution."""
         temp_dir = tempfile.mkdtemp()
+        original_idf = os.environ.get('IDF_PATH')
         try:
-            # Set IDF_PATH
-            original_idf = os.environ.get('IDF_PATH')
             os.environ['IDF_PATH'] = '/test/esp-idf'
             
             paths = paths_c(temp_dir)
@@ -84,11 +83,11 @@ class TestRelinkerFunctionality(unittest.TestCase):
                 self.fail("Should raise error for missing IDF_PATH")
             except RuntimeError as e:
                 self.assertIn('IDF_PATH', str(e), "Error should mention IDF_PATH")
-            finally:
-                # Restore IDF_PATH
-                if original_idf:
-                    os.environ['IDF_PATH'] = original_idf
         finally:
+            if original_idf is not None:
+                os.environ['IDF_PATH'] = original_idf
+            else:
+                os.environ.pop('IDF_PATH', None)
             shutil.rmtree(temp_dir)
 
     def test_function_to_section(self):

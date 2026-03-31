@@ -223,7 +223,7 @@ class TestNewFeature(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures."""
-        self.temp_dir = tempfile.mkdtemp()
+        self.temp_dir = tempfile.mkdtemp(prefix="relinker_test_")
     
     def tearDown(self):
         """Clean up after tests."""
@@ -330,7 +330,7 @@ If tests leave temporary files, manually clean up:
 # Manually clean up test temp directories if needed
 # Note: Tests should clean up automatically in tearDown()
 # Only use this if tests were interrupted
-rm -rf /tmp/tmp*relinker*
+rm -rf /tmp/relinker_test_*
 ```
 
 ## Possible Future Improvements
