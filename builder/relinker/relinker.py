@@ -107,9 +107,11 @@ def lib_secs(lib, file, lib_path):
 
 def filter_secs(secs_a, secs_b):
     new_secs = list()
+    seen = set()
     for s_a in secs_a:
         for s_b in secs_b:
-            if s_b in s_a:
+            if s_b in s_a and s_a not in seen:
+                seen.add(s_a)
                 new_secs.append(s_a)
     return new_secs
 
@@ -126,15 +128,15 @@ def func2sect(func):
         func_l.append(func)
     
     secs = list()
-    for l in func_l:
-        if '.iram1.' in l:
-            secs.append(l)
-        elif l.startswith('.'):
+    for token in func_l:
+        if '.iram1.' in token:
+            secs.append(token)
+        elif token.startswith('.'):
             # Pre-expanded section token from wildcard, pass through as-is
-            secs.append(l)
+            secs.append(token)
         else:
-            secs.append('.literal.%s'%(l,))
-            secs.append('.text.%s'%(l, ))
+            secs.append('.literal.%s'%(token,))
+            secs.append('.text.%s'%(token, ))
     return secs
 
 class filter_c:
