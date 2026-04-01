@@ -60,11 +60,14 @@ class _FallbackEntityDB:
             archive_path = first_line.strip().split(None, 2)[-1].rstrip(':')
             archive = os.path.basename(archive_path)
 
-        # Fallback: use the .name attribute the caller sets on the StringIO
+        # Fallback: use the .name attribute the caller sets on the StringIO.
+        # In this case first_line was not a banner but real content — prepend
+        # it back so _parse_content sees the full output.
+        remaining = sections_info_dump.read()
         if not archive:
             archive = os.path.basename(getattr(sections_info_dump, 'name', ''))
+            remaining = first_line + remaining
 
-        remaining = sections_info_dump.read()
         self.sections[archive] = self._parse_content(remaining)
 
     @staticmethod
