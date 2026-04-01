@@ -218,7 +218,7 @@ custom_relinker_missing_function_info = yes
 The `sections.ld` file was not found in the Arduino framework. Check:
 - Framework is correctly installed
 - Chip variant is correct
-- Path: `~/.platformio/packages/framework-arduinoespressif32/tools/esp32-arduino-libs/<chip>/ld/sections.ld`
+- Path: `~/.platformio/packages/framework-arduinoespressif32-libs/<chip>/ld/sections.ld`
 
 ### Build Error: "Library not found"
 
@@ -252,7 +252,7 @@ A function was moved to Flash that gets called during Flash operations or from a
 
 The listed functions may not be in IRAM. Check the original `sections.ld`:
 ```bash
-cat ~/.platformio/packages/framework-arduinoespressif32/tools/esp32-arduino-libs/<chip>/ld/sections.ld | grep -A 50 ".iram0.text"
+cat ~/.platformio/packages/framework-arduinoespressif32-libs/<chip>/ld/sections.ld | grep -A 50 ".iram0.text"
 ```
 
 ### Relinker Not Running
@@ -344,11 +344,13 @@ void loop() {
 ### How It Works
 
 1. **Build Start**: Arduino build system starts
-2. **Relinker Detection**: `arduino_relinker.py` checks for relinker configuration
-3. **Copy sections.ld**: Original `sections.ld` is copied to build directory
-4. **CSV Processing**: `$ARDUINO_LIBS_DIR` is expanded to actual path
-5. **Run Relinker**: `relinker.py` modifies the `sections.ld`
-6. **Linking**: Modified `sections.ld` is used for linking
+2. **Stale Backup Recovery**: Any leftover backup from a previously interrupted build is restored
+3. **Relinker Detection**: `arduino_relinker.py` checks for relinker configuration
+4. **Copy sections.ld**: Original `sections.ld` is copied to build directory (`$BUILD_DIR/sections.ld`)
+5. **LIBPATH Prepend**: `$BUILD_DIR` is prepended to the linker search path so the build-local copy is found first
+6. **CSV Processing**: `$ARDUINO_LIBS_DIR` is expanded to actual path
+7. **Run Relinker**: `relinker.py` modifies the build-local `sections.ld`
+8. **Linking**: Linker resolves `-T sections.ld` from `$BUILD_DIR` (the relinked copy)
 
 ### Path Expansion
 
