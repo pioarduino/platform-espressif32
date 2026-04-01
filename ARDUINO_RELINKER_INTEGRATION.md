@@ -28,7 +28,7 @@ Determine your ESP32 chip variant:
 - `esp32` - Original ESP32 (Xtensa LX6 dual-core)
 - `esp32c2` - ESP32-C2 (RISC-V, 32KB IRAM)
 - `esp32c3` - ESP32-C3 (RISC-V single-core)
-- `esp32c6` - ESP32-C6 (RISC-V mit WiFi 6)
+- `esp32c6` - ESP32-C6 (RISC-V with WiFi 6)
 - `esp32h2` - ESP32-H2 (RISC-V, Zigbee/Thread)
 - `esp32s2` - ESP32-S2 (Xtensa LX7 single-core)
 - `esp32s3` - ESP32-S3 (Xtensa LX7 dual-core)
@@ -117,7 +117,7 @@ libheap.a,$ARDUINO_LIBS_DIR/libheap.a
 ```
 
 The `$ARDUINO_LIBS_DIR` variable is automatically expanded to the correct path:
-```
+```ini
 ~/.platformio/packages/framework-arduinoespressif32-libs/<chip>/lib/
 ```
 
@@ -206,7 +206,7 @@ This option is useful when:
 - Using a shared relinker configuration
 - Developing/testing new configurations
 
-Beispiel:
+Example:
 ```ini
 custom_relinker_missing_function_info = yes
 ```
@@ -299,7 +299,7 @@ libheap.a,heap_caps.c.obj,heap_caps_malloc,!CONFIG_HEAP_PLACE_FUNCTION_INTO_FLAS
 Complete example for ESP32-C2:
 
 ### Project Structure
-```
+```text
 my_arduino_project/
 ├── platformio.ini
 ├── src/
@@ -355,12 +355,12 @@ void loop() {
 ### Path Expansion
 
 The `$ARDUINO_LIBS_DIR` variable is expanded to:
-```
+```ini
 ~/.platformio/packages/framework-arduinoespressif32-libs/<chip>/lib/
 ```
 
 Example for ESP32-C2:
-```
+```ini
 /Users/username/.platformio/packages/framework-arduinoespressif32-libs/esp32c2/lib/
 ```
 

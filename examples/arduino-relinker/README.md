@@ -81,7 +81,7 @@ pio device monitor -e esp32-c2-devkitm-1
 
 ## Expected Output
 
-```
+```text
 === Arduino Relinker Example ===
 ESP32-C2 IRAM Optimization Demo
 ================================

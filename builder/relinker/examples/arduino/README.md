@@ -53,7 +53,7 @@ To customize the configuration for your project:
 
 ```bash
 mkdir -p relinker
-cp ~/.platformio/platforms/espressif32/builder/relinker/examples/arduino/esp32c2/*.csv relinker/
+cp ~/.platformio/platforms/espressif32/builder/relinker/examples/arduino/<chip>/*.csv relinker/
 ```
 
 Then in `platformio.ini`:
