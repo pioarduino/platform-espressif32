@@ -96,6 +96,7 @@ def setup_arduino_relinker(env, platform, mcu, chip_variant):
     # Resolve framework paths
     # ------------------------------------------------------------------
     framework_dir = platform.get_package_dir("framework-arduinoespressif32")
+    idf_framework_dir = platform.get_package_dir("framework-espidf")
 
     if not framework_dir or not framework_lib_dir:
         sys.stderr.write("Error: Arduino framework packages not found\n")
@@ -240,7 +241,7 @@ def setup_arduino_relinker(env, platform, mcu, chip_variant):
             function_file=_relinker_function,
             sdkconfig_file=arduino_sdkconfig,
             objdump=_relinker_objdump,
-            idf_path=None,
+            idf_path=idf_framework_dir or None,
             missing_function_info=_relinker_missing,
             debug=False,
         )
