@@ -9,4 +9,4 @@ libspi_flash.a,$ARDUINO_LIBS_DIR/libspi_flash.a
 liblog.a,$ARDUINO_LIBS_DIR/liblog.a
 libhal.a,$ARDUINO_LIBS_DIR/libhal.a
 libsoc.a,$ARDUINO_LIBS_DIR/libsoc.a
-libriscv.a,$ARDUINO_LIBS_DIR/libriscv.a
+libxtensa.a,$ARDUINO_LIBS_DIR/libxtensa.a

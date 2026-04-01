@@ -4,7 +4,7 @@ This directory contains relinker configuration files for the original ESP32 chip
 
 ## Overview
 
-The ESP32 is the original Xtensa LX6 based dual-core chip with 520 KB of SRAM. It features WiFi and Bluetooth Classic + BLE. Despite having more total SRAM than newer chips, the relinker helps optimize IRAM usage due to technical limitations in static DRAM allocation.
+The ESP32 is the original Xtensa LX6-based dual-core chip with 520 KB of SRAM. It features WiFi and Bluetooth Classic + BLE. Despite having more total SRAM than newer chips, the relinker helps optimize IRAM usage due to technical limitations in static DRAM allocation.
 
 ## Key Features
 

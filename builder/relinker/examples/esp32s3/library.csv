@@ -1,6 +1,6 @@
 library,path
-libble_app.a,$IDF_PATH/components/bt/controller/lib_esp32c3_family/esp32c3/libbtdm_app.a
-libpp.a,$IDF_PATH/components/esp_wifi/lib/esp32c3/libpp.a
+libble_app.a,$IDF_PATH/components/bt/controller/lib_esp32c3_family/esp32s3/libbtdm_app.a
+libpp.a,$IDF_PATH/components/esp_wifi/lib/esp32s3/libpp.a
 libbootloader_support.a,./esp-idf/bootloader_support/libbootloader_support.a
 libbt.a,./esp-idf/bt/libbt.a
 libdriver.a,./esp-idf/driver/libdriver.a
@@ -20,5 +20,5 @@ liblog.a,./esp-idf/log/liblog.a
 libmbedcrypto.a,./esp-idf/mbedtls/mbedtls/library/libmbedcrypto.a
 libnewlib.a,./esp-idf/newlib/libnewlib.a
 libpthread.a,./esp-idf/pthread/libpthread.a
-libriscv.a,./esp-idf/riscv/libriscv.a
 libspi_flash.a,./esp-idf/spi_flash/libspi_flash.a
+libxtensa.a,./esp-idf/xtensa/libxtensa.a

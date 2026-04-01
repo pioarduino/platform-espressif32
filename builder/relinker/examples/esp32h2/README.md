@@ -4,7 +4,7 @@ This directory contains relinker configuration files for the ESP32-H2 chip.
 
 ## Overview
 
-The ESP32-H2 is a RISC-V based chip designed for Bluetooth LE and IEEE 802.15.4 (Thread/Zigbee) connectivity. It has 320 KB of SRAM (including IRAM). The relinker helps optimize IRAM usage by moving non-critical functions from IRAM to Flash.
+The ESP32-H2 is a RISC-V-based chip designed for Bluetooth LE and IEEE 802.15.4 (Thread/Zigbee) connectivity. It has 320 KB of SRAM (including IRAM). The relinker helps optimize IRAM usage by moving non-critical functions from IRAM to Flash.
 
 ## Key Features
 

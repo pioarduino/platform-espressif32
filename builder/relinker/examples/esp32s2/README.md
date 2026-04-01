@@ -4,7 +4,7 @@ This directory contains relinker configuration files for the ESP32-S2 chip.
 
 ## Overview
 
-The ESP32-S2 is an Xtensa LX7 based single-core chip with 320 KB of SRAM. It features WiFi but no Bluetooth capability. The relinker helps optimize IRAM usage by moving non-critical functions from IRAM to Flash.
+The ESP32-S2 is an Xtensa LX7-based single-core chip with 320 KB of SRAM. It features WiFi but no Bluetooth capability. The relinker helps optimize IRAM usage by moving non-critical functions from IRAM to Flash.
 
 ## Key Features
 
