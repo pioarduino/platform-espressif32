@@ -61,7 +61,6 @@ The configuration includes functions from:
 - **Newlib** - Standard C library functions (malloc, free, locks)
 - **ESP System** - System initialization and management
 - **ESP Timer** - Timer and time management functions
-- **SPI Flash** - Flash operation functions
 - **Power Management** - Sleep and power management functions
 - **Hardware Support** - Clock, interrupt, and peripheral control
 - **Xtensa** - Xtensa-specific interrupt and exception handling

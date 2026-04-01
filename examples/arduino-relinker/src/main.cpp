@@ -47,13 +47,14 @@ void setup() {
   delay(1000);
   
   Serial.println("\n\n=== Arduino Relinker Example ===");
-  Serial.println("ESP32-C2 IRAM Optimization Demo");
+  Serial.println("ESP32 IRAM Optimization Demo");
   Serial.println("================================\n");
   
   // Display memory information
   Serial.printf("Free Heap: %d bytes\n", ESP.getFreeHeap());
   Serial.printf("Heap Size: %d bytes\n", ESP.getHeapSize());
-  Serial.printf("Free PSRAM: %d bytes\n", ESP.getFreePsram());
+  // C2 has no PSRAM, uncomment when PSRAM is available
+  //Serial.printf("Free PSRAM: %d bytes\n", ESP.getFreePsram());
   Serial.printf("Chip Model: %s\n", ESP.getChipModel());
   Serial.printf("Chip Revision: %d\n", ESP.getChipRevision());
   Serial.printf("CPU Frequency: %d MHz\n", ESP.getCpuFreqMHz());

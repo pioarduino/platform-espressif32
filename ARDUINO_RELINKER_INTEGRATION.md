@@ -60,10 +60,10 @@ Replace `esp32c2` with your chip variant.
 pio run -e myboard
 ```
 
-Während des Builds sehen Sie:
+During the build, you should see:
 
 ```text
-*** Arduino Relinker configured for esp32c2 ***
+*** Configuring Arduino Relinker for esp32c2 ***
 Running relinker to optimize IRAM usage
 ```
 
@@ -331,7 +331,7 @@ custom_relinker_function = relinker/function.csv
 void setup() {
   Serial.begin(115200);
   Serial.println("Arduino Relinker Test");
-  Serial.printf("Free IRAM: %d bytes\n", ESP.getFreeHeap());
+  Serial.printf("Free Heap: %d bytes\n", ESP.getFreeHeap());
 }
 
 void loop() {

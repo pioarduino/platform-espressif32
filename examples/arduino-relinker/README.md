@@ -120,7 +120,7 @@ To customize which functions are relocated:
 
 ```bash
 mkdir -p relinker
-cp ~/.platformio/platforms/espressif32/builder/relinker/examples/arduino/esp32c2/*.csv relinker/
+cp ~/.platformio/platforms/espressif32/builder/relinker/examples/arduino/<chip>/*.csv relinker/
 ```
 
 ### 2. Update platformio.ini
