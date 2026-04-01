@@ -141,9 +141,7 @@ def _ensure_entity_db():
                 from ldgen.entity import EntityDB as _EntityDB
                 EntityDB = _EntityDB
             except ImportError:
-                logging.warning(
-                    "IDF ldgen EntityDB not found; using fallback parser for objdump sections"
-                )
+                print("IDF EntityDB not found; using inbuilt parser.")
                 EntityDB = _FallbackEntityDB
 
 espidf_objdump = None

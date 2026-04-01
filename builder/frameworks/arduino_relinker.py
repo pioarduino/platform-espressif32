@@ -14,7 +14,6 @@ import os
 import sys
 import shutil
 from pathlib import Path
-from SCons.Script import DefaultEnvironment
 
 
 def setup_arduino_relinker(env, platform, mcu, chip_variant):
