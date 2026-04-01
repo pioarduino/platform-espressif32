@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+import fnmatch
 import logging
 import argparse
-import csv
 import os
 import subprocess
 import sys
@@ -23,6 +23,102 @@ import configuration
 _idf_path = os.environ.get('IDF_PATH', '')
 EntityDB = None
 
+
+class _FallbackEntityDB:
+    """Fallback EntityDB-compatible parser for ``objdump -h`` output.
+
+    Mirrors the storage layout and matching logic of ESP-IDF's
+    ``ldgen.entity.EntityDB`` so the relinker produces identical results
+    when the real module is not importable (e.g. Arduino builds without
+    an IDF_PATH).
+
+    Key design choices that match the real implementation:
+    * Object keys are stored **with** their original suffix (e.g.
+      ``func.c.o``) — the same way the real pyparsing parser emits them.
+    * ``get_sections`` uses :func:`fnmatch.filter` with the same four
+      glob patterns the real ``_match_obj`` uses.
+    * The ``In archive …`` first line is consumed and used to derive the
+      archive basename, exactly like the real ``add_sections_info``.
+    """
+
+    def __init__(self):
+        self.sections = {}
+
+    # -- add_sections_info ------------------------------------------------
+
+    def add_sections_info(self, sections_info_dump):
+        """Parse ``objdump -h <archive>`` output.
+
+        The first line is expected to be ``In archive <path>:``.  The
+        archive basename is used as key (same as the real EntityDB).
+        """
+        first_line = sections_info_dump.readline()
+
+        # Extract archive name from "In archive /path/to/lib.a:"
+        archive = None
+        if first_line.strip().startswith('In archive'):
+            archive_path = first_line.strip().split(None, 2)[-1].rstrip(':')
+            archive = os.path.basename(archive_path)
+
+        # Fallback: use the .name attribute the caller sets on the StringIO.
+        # In this case first_line was not a banner but real content — prepend
+        # it back so _parse_content sees the full output.
+        remaining = sections_info_dump.read()
+        if not archive:
+            archive = os.path.basename(getattr(sections_info_dump, 'name', ''))
+            remaining = first_line + remaining
+
+        self.sections[archive] = self._parse_content(remaining)
+
+    @staticmethod
+    def _parse_content(content):
+        """Return ``{object_name: [section, …]}`` from objdump output."""
+        objects = {}
+        current_obj = None
+
+        for line in content.splitlines():
+            # Object header: "func.c.o:     file format elf32-xtensa-le"
+            if ': ' in line and 'file format ' in line:
+                current_obj = line.split(':', 1)[0].strip()
+                objects.setdefault(current_obj, [])
+                continue
+
+            if current_obj is None:
+                continue
+
+            # Section entry: "  0 .text.foo  00000010 ..."
+            parts = line.split()
+            if len(parts) >= 2 and parts[0].isdigit():
+                sec_name = parts[1]
+                if sec_name.startswith('.'):
+                    objects[current_obj].append(sec_name)
+
+        return objects
+
+    # -- get_sections -----------------------------------------------------
+
+    def _match_obj(self, archive, obj):
+        """Replicate the real EntityDB._match_obj fnmatch logic."""
+        objs = list(self.sections.get(archive, {}).keys())
+        match_objs = (fnmatch.filter(objs, obj + '.*.o')
+                      + fnmatch.filter(objs, obj + '.o')
+                      + fnmatch.filter(objs, obj + '.*.obj')
+                      + fnmatch.filter(objs, obj + '.obj'))
+        if len(match_objs) > 1:
+            raise ValueError(
+                "Multiple matches for object: '%s: %s': %s"
+                % (archive, obj, str(match_objs)))
+        try:
+            return match_objs[0]
+        except IndexError:
+            return None
+
+    def get_sections(self, archive, obj):
+        matched = self._match_obj(archive, obj)
+        if matched:
+            return list(self.sections[archive][matched])
+        return []
+
 def _setup_ldgen_imports(idf_path=None):
     global _idf_path
     if idf_path:
@@ -37,8 +133,16 @@ def _ensure_entity_db():
     global EntityDB
     if EntityDB is None:
         _setup_ldgen_imports()
-        from entity import EntityDB as _EntityDB
-        EntityDB = _EntityDB
+        try:
+            from entity import EntityDB as _EntityDB
+            EntityDB = _EntityDB
+        except ImportError:
+            try:
+                from ldgen.entity import EntityDB as _EntityDB
+                EntityDB = _EntityDB
+            except ImportError:
+                print("IDF EntityDB not found; using inbuilt parser.")
+                EntityDB = _FallbackEntityDB
 
 espidf_objdump = None
 _lib_cache = {}
