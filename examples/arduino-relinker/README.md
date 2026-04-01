@@ -88,7 +88,6 @@ ESP32-C2 IRAM Optimization Demo
 
 Free Heap: 45000 bytes
 Heap Size: 50000 bytes
-Free PSRAM: 0 bytes
 Chip Model: ESP32-C2
 Chip Revision: 1
 CPU Frequency: 120 MHz
