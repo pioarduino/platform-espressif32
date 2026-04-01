@@ -469,6 +469,13 @@ if flag_custom_sdkconfig and not flag_any_custom_sdkconfig:
 pioframework = env.subst("$PIOFRAMEWORK")
 arduino_lib_compile_flag = env.subst("$ARDUINO_LIB_COMPILE_FLAG")
 
+# Setup Arduino relinker if configured (must run before build script)
+if "arduino" in pioframework and "espidf" not in pioframework:
+    # Check if relinker is configured before importing (only need to check one option)
+    if config.get(current_env_section, "custom_relinker_function", ""):
+        from arduino_relinker import setup_arduino_relinker
+        setup_arduino_relinker(env, platform, mcu, chip_variant)
+
 if ("arduino" in pioframework and "espidf" not in pioframework and
         arduino_lib_compile_flag in ("Inactive", "True")):
 

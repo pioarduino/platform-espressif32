@@ -1162,6 +1162,26 @@ class BackupManager:
         if os.path.exists(build_py_path) and not os.path.exists(backup_path):
             shutil.copy2(build_py_path, backup_path)
 
+    def backup_sections_ld(self, sections_ld_path: str) -> str:
+        """
+        Create backup of the original sections.ld file for relinker.
+
+        Creates a backup copy of the sections.ld linker script with
+        MCU-specific naming to prevent conflicts. Returns the backup path.
+
+        Args:
+            sections_ld_path: Path to the original sections.ld file
+
+        Returns:
+            Path to the backup file
+        """
+        backup_path = f"{sections_ld_path}.{self.config.mcu}.backup"
+
+        if os.path.exists(sections_ld_path) and not os.path.exists(backup_path):
+            shutil.copy2(sections_ld_path, backup_path)
+
+        return backup_path
+
     def restore_pioarduino_build_py(self, target=None, source=None, env=None) -> None:
         """
         Restore the original pioarduino-build.py from backup.
@@ -1180,6 +1200,26 @@ class BackupManager:
 
         if os.path.exists(backup_path):
             shutil.copy2(backup_path, build_py_path)
+            os.remove(backup_path)
+
+    def restore_sections_ld(self, sections_ld_path: str, target=None, source=None, env=None) -> None:
+        """
+        Restore the original sections.ld from backup after relinker.
+
+        Restores the original linker script from the backup copy
+        and removes the backup file. This is called after the build
+        completes to restore the framework to its original state.
+
+        Args:
+            sections_ld_path: Path to the sections.ld file to restore
+            target: Build target (unused, for PlatformIO compatibility)
+            source: Build source (unused, for PlatformIO compatibility)
+            env: Environment (unused, for PlatformIO compatibility)
+        """
+        backup_path = f"{sections_ld_path}.{self.config.mcu}.backup"
+
+        if os.path.exists(backup_path):
+            shutil.copy2(backup_path, sections_ld_path)
             os.remove(backup_path)
 
 
