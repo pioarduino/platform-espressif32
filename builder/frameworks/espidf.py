@@ -414,7 +414,7 @@ def HandleArduinoIDFsettings(env):
                 flash_size = env.GetProjectOption("board_upload.flash_size", None)
             except:
                 pass
-        
+
         # Fallback to board.json manifest
         if not flash_size:
             flash_size = board.get("upload", {}).get("flash_size", None)
@@ -430,7 +430,7 @@ def HandleArduinoIDFsettings(env):
             for size in flash_sizes:
                 if size != flash_size:
                     board_config_flags.append(f"# CONFIG_ESPTOOLPY_FLASHSIZE_{size} is not set")
-            
+
             # Set the specific flash size configs
             board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHSIZE=\"{flash_size}\"")
             board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHSIZE_{flash_size}=y")
@@ -438,7 +438,7 @@ def HandleArduinoIDFsettings(env):
         # Handle Flash and PSRAM frequency configuration with platformio.ini override support
         # Priority: platformio.ini > board.json manifest
         # From 80MHz onwards, Flash and PSRAM frequencies must be identical
-        
+
         # Get f_flash with override support
         f_flash = None
         if hasattr(env, 'GetProjectOption'):
@@ -448,7 +448,7 @@ def HandleArduinoIDFsettings(env):
                 pass
         if not f_flash:
             f_flash = board.get("build.f_flash", None)
-        
+
         # Get f_boot with override support
         f_boot = None
         if hasattr(env, 'GetProjectOption'):
@@ -458,7 +458,7 @@ def HandleArduinoIDFsettings(env):
                 pass
         if not f_boot:
             f_boot = board.get("build.f_boot", None)
-        
+
         # Get f_psram with override support (ESP32-P4 specific)
         f_psram = None
         if hasattr(env, 'GetProjectOption'):
@@ -468,10 +468,10 @@ def HandleArduinoIDFsettings(env):
                 pass
         if not f_psram:
             f_psram = board.get("build.f_psram", None)
-        
+
         # Determine the frequencies to use
         # ESP32-P4: f_flash for Flash, f_psram for PSRAM (doesn't affect bootloader name)
-        
+
         if mcu == "esp32p4":
             # ESP32-P4: f_flash is always used for Flash frequency
             # f_psram is used for PSRAM frequency (if set), otherwise use f_flash
@@ -777,7 +777,7 @@ def HandleArduinoIDFsettings(env):
     
     # Convert to list for processing
     idf_config_list = [line for line in idf_config_flags.splitlines() if line.strip()]
-    
+
     # Write final configuration file with checksum
     # Include the mtime of any referenced file (not just the raw "file://..."
     # string) so that editing the file changes the hash and triggers recompilation. 
@@ -1418,11 +1418,110 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
             str(Path(BUILD_DIR) / "esp-idf" / "esp_system" / "ld" / linker_script_name),
         )
 
-    return env.Command(
+    ld_script = env.Command(
         str(Path("$BUILD_DIR") / "sections.ld"),
         initial_ld_script,
         env.VerboseAction(cmd, "Generating project linker script $TARGET"),
     )
+
+    # Relinker post-processing: move selected functions from IRAM to Flash
+    relinker_function = config.get("env:" + env["PIOENV"], "custom_relinker_function", "")
+    relinker_library = config.get("env:" + env["PIOENV"], "custom_relinker_library", "")
+    relinker_object = config.get("env:" + env["PIOENV"], "custom_relinker_object", "")
+    
+    # Validate that all three relinker settings are provided together
+    relinker_settings = {
+        "custom_relinker_function": relinker_function,
+        "custom_relinker_library": relinker_library,
+        "custom_relinker_object": relinker_object,
+    }
+    relinker_set = [key for key, value in relinker_settings.items() if value]
+    relinker_missing = [key for key, value in relinker_settings.items() if not value]
+    
+    if relinker_set and relinker_missing:
+        # Some but not all settings are provided - this is an error
+        sys.stderr.write(
+            "Error: Incomplete relinker configuration in [env:%s]\n"
+            "All three custom_relinker_* settings must be provided together:\n"
+            "  - Set: %s\n"
+            "  - Missing: %s\n"
+            "Either provide all three settings or remove all of them.\n"
+            % (env["PIOENV"], ", ".join(relinker_set), ", ".join(relinker_missing))
+        )
+        env.Exit(1)
+    
+    if relinker_function and relinker_library and relinker_object:
+        # All three settings are provided - proceed with relinker
+        # Normalize relinker CSV paths to absolute paths relative to PROJECT_DIR
+        _relinker_library = relinker_library if os.path.isabs(relinker_library) else str(Path(PROJECT_DIR) / relinker_library)
+        _relinker_object = relinker_object if os.path.isabs(relinker_object) else str(Path(PROJECT_DIR) / relinker_object)
+        _relinker_function = relinker_function if os.path.isabs(relinker_function) else str(Path(PROJECT_DIR) / relinker_function)
+        
+        _relinker_dir = str(Path(platform.get_dir()) / "builder" / "relinker")
+        _relinker_script = str(Path(_relinker_dir) / "relinker.py")
+        _relinker_objdump = args["objdump"]
+        _relinker_missing_raw = config.get(
+            "env:" + env["PIOENV"], "custom_relinker_missing_function_info", "no"
+        ).strip().lower()
+        
+        # Validate the value
+        valid_true_values = ("yes", "true", "1")
+        valid_false_values = ("no", "false", "0")
+        if _relinker_missing_raw not in valid_true_values and _relinker_missing_raw not in valid_false_values:
+            sys.stderr.write(
+                f"Warning: Invalid value '{_relinker_missing_raw}' for custom_relinker_missing_function_info. "
+                f"Valid values are: {', '.join(valid_true_values + valid_false_values)}. "
+                f"Defaulting to 'no'.\n"
+            )
+            _relinker_missing_raw = "no"
+        
+        _relinker_missing = _relinker_missing_raw in valid_true_values
+        _relinker_cmd = (
+            '"$ESPIDF_PYTHONEXE" "{script}" '
+            '--input "$BUILD_DIR/sections.ld" '
+            '--output "$BUILD_DIR/sections.ld" '
+            '--library "{library}" '
+            '--object "{object}" '
+            '--function "{function}" '
+            '--sdkconfig "{sdkconfig}" '
+            '--objdump "{objdump}" '
+            '--idf-path "{idf_path}"'
+        ).format(
+            script=_relinker_script,
+            library=_relinker_library,
+            object=_relinker_object,
+            function=_relinker_function,
+            sdkconfig=SDKCONFIG_PATH,
+            objdump=_relinker_objdump,
+            idf_path=FRAMEWORK_DIR,
+        )
+        if _relinker_missing:
+            _relinker_cmd += ' --missing_function_info'
+        def write_relinker_stamp(target, source, env):
+            with open(str(target[0]), 'w') as f:
+                f.write('done')
+
+        _relinker_config_module = str(Path(_relinker_dir) / "configuration.py")
+        _relinker_sources = [
+            str(Path("$BUILD_DIR") / "sections.ld"),
+            _relinker_script,
+            _relinker_config_module,
+            _relinker_library,
+            _relinker_object,
+            _relinker_function,
+            SDKCONFIG_PATH,
+        ]
+        relinker_step = env.Command(
+            str(Path("$BUILD_DIR") / "sections.ld.relinked"),
+            _relinker_sources,
+            [
+                env.VerboseAction(_relinker_cmd, "Running relinker to optimize IRAM usage"),
+                env.VerboseAction(write_relinker_stamp, ""),
+            ],
+        )
+        env.Depends(relinker_step, ld_script)
+
+    return ld_script
 
 
 # A temporary workaround to avoid modifying CMake mainly for the "heap" library.
@@ -1502,9 +1601,82 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
     return build_envs
 
 
+def _ensure_generated_sources(config, project_src_dir, build_dir):
+    """Run ninja to build any generated source files that don't exist yet."""
+    generated_sources = [
+        s for s in config.get("sources", [])
+        if s.get("isGenerated") and not s["path"].endswith(".rule")
+    ]
+    if not generated_sources:
+        return
+
+    ninja_buildfile = str(Path(build_dir) / "build.ninja")
+    if not os.path.isfile(ninja_buildfile):
+        return
+
+    # Read ninja build file once to find which generated targets have CUSTOM_COMMANDs
+    ninja_custom_targets = set()
+    with open(ninja_buildfile, encoding="utf8") as fp:
+        for line in fp:
+            if "CUSTOM_COMMAND" in line and line.startswith("build "):
+                # Extract the output target(s) before the colon
+                outputs = re.split(
+                    r":\s+CUSTOM_COMMAND\b", line, maxsplit=1
+                )[0].replace("build ", "").strip()
+                for out in outputs.split():
+                    out = fs.to_unix_path(
+                        out.strip()
+                        .replace("${cmake_ninja_workdir}", "")
+                        .replace("$:", ":")
+                    ).lstrip("./")
+                    if out:
+                        ninja_custom_targets.add(out)
+
+    generated_targets = []
+    for source in generated_sources:
+        src_path = source["path"]
+        if not os.path.isabs(src_path):
+            abs_path = str(Path(project_src_dir) / src_path)
+        else:
+            abs_path = src_path
+        # Ninja targets are relative to build_dir, not project_src_dir
+        try:
+            ninja_target = fs.to_unix_path(
+                str(Path(abs_path).resolve().relative_to(Path(build_dir).resolve()))
+            ).lstrip("./")
+        except ValueError:
+            continue
+        if ninja_target not in ninja_custom_targets:
+            continue
+        generated_targets.append((ninja_target, src_path))
+
+    if not generated_targets:
+        return
+
+    idf_env = os.environ.copy()
+    populate_idf_env_vars(idf_env)
+    NINJA_DIR = platform.get_package_dir("tool-ninja")
+    ninja_exe = os.path.join(NINJA_DIR, "ninja")
+    all_targets = [t for t, _ in generated_targets]
+    result = exec_command(
+        [ninja_exe, "-C", build_dir, "-k", "0", *all_targets],
+        env=idf_env,
+    )
+    if result["returncode"] != 0:
+        # Non-fatal: some targets (ULP, cert bundles) are built by other
+        # mechanisms later. SCons will error if a source is truly missing.
+        # print("Warning: ninja could not generate some sources")
+        if result.get("err"):
+            print(result["err"])
+
+
 def compile_source_files(
     config, default_env, project_src_dir, prepend_dir=None, debug_allowed=True
 ):
+    active_build_dir = (
+        str(Path(BUILD_DIR) / prepend_dir) if prepend_dir else BUILD_DIR
+    )
+    _ensure_generated_sources(config, project_src_dir, active_build_dir)
     build_envs = prepare_build_envs(config, default_env, debug_allowed)
     objects = []
     # Canonical, symlink-resolved absolute path of the components directory
@@ -1524,19 +1696,25 @@ def compile_source_files(
 
             obj_path = str(Path("$BUILD_DIR") / (prepend_dir or ""))
             src_path_obj = Path(src_path).resolve()
+            build_dir_path = Path(active_build_dir).resolve()
             try:
                 rel = src_path_obj.relative_to(components_dir_path)
                 obj_path = str(Path(obj_path) / str(rel))
             except ValueError:
-                # Preserve project substructure when possible
+                # Generated sources in the build directory
                 try:
-                    rel_prj = src_path_obj.relative_to(Path(project_src_dir).resolve())
-                    obj_path = str(Path(obj_path) / str(rel_prj))
+                    rel_build = src_path_obj.relative_to(build_dir_path)
+                    obj_path = str(Path(obj_path) / str(rel_build))
                 except ValueError:
-                    if not os.path.isabs(source["path"]):
-                        obj_path = str(Path(obj_path) / source["path"])
-                    else:
-                        obj_path = str(Path(obj_path) / os.path.basename(src_path))
+                    # Preserve project substructure when possible
+                    try:
+                        rel_prj = src_path_obj.relative_to(Path(project_src_dir).resolve())
+                        obj_path = str(Path(obj_path) / str(rel_prj))
+                    except ValueError:
+                        if not os.path.isabs(source["path"]):
+                            obj_path = str(Path(obj_path) / source["path"])
+                        else:
+                            obj_path = str(Path(obj_path) / os.path.basename(src_path))
 
             preserve_source_file_extension = board.get(
                 "build.esp-idf.preserve_source_file_extension", "yes"
@@ -2432,6 +2610,16 @@ project_ld_script = generate_project_ld_script(
     sdk_config, [project_target_name, "__pio_env"]
 )
 env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", project_ld_script)
+
+# If relinker is configured, ensure the ELF depends on the relinked stamp
+_relinker_stamp = str(Path(BUILD_DIR) / "sections.ld.relinked")
+_rl_env_section = "env:" + env["PIOENV"]
+if os.path.exists(_relinker_stamp) or (
+    config.get(_rl_env_section, "custom_relinker_function", "") and
+    config.get(_rl_env_section, "custom_relinker_library", "") and
+    config.get(_rl_env_section, "custom_relinker_object", "")
+):
+    env.Depends("$BUILD_DIR/$PROGNAME$PROGSUFFIX", _relinker_stamp)
 
 elf_config = get_project_elf(target_configs)
 default_config_name = find_default_component(target_configs)
