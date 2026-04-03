@@ -132,8 +132,8 @@
       "type": "tool",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "2.19.1",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/cppcheck-v2.19.1.zip"
+      "package-version": "2.20.1",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/cppcheck-v2.20.1.zip"
     },
     "tool-clangtidy": {
       "type": "tool",
