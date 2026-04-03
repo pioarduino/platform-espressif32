@@ -16,7 +16,7 @@ Espressif Systems is a privately held, fabless semiconductor company renowned fo
 **You walk alone using this experimental setup!**
 
 Prerequisites:
--	Python (3.10, 3.11, 3.12, 3.13, 3.14 not with Windows!) and git is required for pioarduino to function properly.
+-	Python (3.10, 3.11, 3.12, 3.13, 3.14) and git is required for pioarduino to function properly.
 
 ## Installation
 - [Download and install Microsoft Visual Studio Code](https://code.visualstudio.com/). pioarduino IDE is on top of it.
