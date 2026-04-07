@@ -1320,9 +1320,12 @@ def extract_linker_script_fragments(
         for line in fp.readlines():
             if "sections.ld: CUSTOM_COMMAND" not in line:
                 continue
-            for fragment_match in re.finditer(r"(\S+\.lf\b)+", line):
+            # Ninja escapes special characters with '$': spaces become '$ ',
+            # colons become '$:'. The regex must treat '$'+char as part of
+            # the path so that paths containing spaces are not split.
+            for fragment_match in re.finditer(r"(?:\$.|[^\s])+\.lf\b", line):
                 result.append(_normalize_fragment_path(
-                    BUILD_DIR, fragment_match.group(0).replace("$:", ":")
+                    BUILD_DIR, fragment_match.group(0).replace("$:", ":").replace("$ ", " ")
                 ))
 
             break
