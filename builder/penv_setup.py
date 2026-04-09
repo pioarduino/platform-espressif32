@@ -207,8 +207,8 @@ def setup_python_paths(penv_dir):
     # Remove system site-packages entries that are not part of the penv
     sys.path[:] = [
         p for p in sys.path
-        if "site-packages" not in p
-        or os.path.realpath(p).startswith(penv_dir_resolved)
+        if "site-packages" not in p.lower()
+        or os.path.realpath(p).startswith(penv_dir_resolved + os.sep)
     ]
 
     # Add penv site-packages at the beginning
