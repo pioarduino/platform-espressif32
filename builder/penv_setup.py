@@ -187,21 +187,34 @@ def setup_pipenv_in_package(env, penv_dir):
 
 
 def setup_python_paths(penv_dir):
-    """Setup Python module search paths using the penv_dir."""    
-    # Add site-packages directory at the beginning of sys.path so that
-    # penv packages (including native extensions like littlefs' lfs) take
-    # priority over identically-named packages in the system site-packages.
+    """Setup Python module search paths using the penv_dir.
+    
+    Removes system site-packages from sys.path to prevent conflicts
+    (e.g. partially initialized littlefs imports) and adds only the
+    penv site-packages directory.
+    """
     python_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
     site_packages = (
         str(Path(penv_dir) / "Lib" / "site-packages") if IS_WINDOWS
         else str(Path(penv_dir) / "lib" / python_ver / "site-packages")
     )
-    
-    if os.path.isdir(site_packages):
-        if site_packages in sys.path:
-            sys.path.remove(site_packages)
+
+    if not os.path.isdir(site_packages):
+        return
+
+    penv_dir_resolved = os.path.realpath(penv_dir)
+
+    # Remove system site-packages entries that are not part of the penv
+    sys.path[:] = [
+        p for p in sys.path
+        if "site-packages" not in p
+        or os.path.realpath(p).startswith(penv_dir_resolved)
+    ]
+
+    # Add penv site-packages at the beginning
+    if site_packages not in sys.path:
         sys.path.insert(0, site_packages)
-        site.addsitedir(site_packages)
+    site.addsitedir(site_packages)
 
 
 def get_packages_to_install(deps, installed_packages):
