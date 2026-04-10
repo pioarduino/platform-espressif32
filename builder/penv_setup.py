@@ -16,6 +16,7 @@ import json
 import os
 import re
 import semantic_version
+import shutil
 import site
 import socket
 import subprocess
@@ -128,45 +129,49 @@ def get_executable_path(penv_dir, executable_name):
 
 def _get_penv_python_version(penv_dir):
     """
-    Detect the Python version used inside an existing penv by inspecting
-    its directory structure.
+    Detect the Python version used to create an existing penv.
 
-    On Windows, site-packages is at ``Lib/site-packages`` (version-less).
-    On POSIX, it is at ``lib/pythonX.Y/site-packages``.
+    Reads the ``version`` key from ``pyvenv.cfg`` which is always
+    written by both ``python -m venv`` and ``uv venv``.  This avoids
+    spawning a subprocess (which can fail when the penv Python is
+    corrupted) and works identically on all platforms.
+
+    Falls back to inspecting ``lib/pythonX.Y/`` directories on POSIX
+    if ``pyvenv.cfg`` is missing or unparseable.
 
     Returns:
-        tuple[int, int] | None: (major, minor) of the penv Python, or None
-        if the penv does not exist or its version cannot be determined.
+        tuple[int, int] | None: (major, minor) of the penv Python, or
+        None if the penv does not exist or its version cannot be
+        determined.
     """
     penv_path = Path(penv_dir)
-    if IS_WINDOWS:
-        sp = penv_path / "Lib" / "site-packages"
-        if sp.is_dir():
-            # Windows penv exists; read version from the Python executable
-            penv_python = get_executable_path(penv_dir, "python")
-            if os.path.isfile(penv_python):
-                try:
-                    out = subprocess.check_output(
-                        [penv_python, "-c", "import sys; print(sys.version_info.major, sys.version_info.minor)"],
-                        text=True, timeout=5
-                    ).strip()
-                    parts = out.split()
-                    return (int(parts[0]), int(parts[1]))
-                except Exception:
-                    pass
-        return None
 
-    lib_dir = penv_path / "lib"
-    if not lib_dir.is_dir():
-        return None
-    for entry in sorted(lib_dir.iterdir(), reverse=True):
-        if entry.is_dir() and entry.name.startswith("python") and (entry / "site-packages").is_dir():
-            ver_str = entry.name[len("python"):]
-            try:
-                major, minor = ver_str.split(".")
-                return (int(major), int(minor))
-            except (ValueError, TypeError):
-                continue
+    # Primary: parse pyvenv.cfg (cross-platform, no subprocess)
+    cfg_file = penv_path / "pyvenv.cfg"
+    if cfg_file.is_file():
+        try:
+            for line in cfg_file.read_text(encoding="utf-8").splitlines():
+                key, _, value = line.partition("=")
+                if key.strip().lower() == "version":
+                    parts = value.strip().split(".")
+                    if len(parts) >= 2:
+                        return (int(parts[0]), int(parts[1]))
+        except Exception:
+            pass
+
+    # Fallback (POSIX only): inspect lib/pythonX.Y/ directories
+    if not IS_WINDOWS:
+        lib_dir = penv_path / "lib"
+        if lib_dir.is_dir():
+            for entry in sorted(lib_dir.iterdir(), reverse=True):
+                if entry.is_dir() and entry.name.startswith("python") and (entry / "site-packages").is_dir():
+                    ver_str = entry.name[len("python"):]
+                    try:
+                        major, minor = ver_str.split(".")
+                        return (int(major), int(minor))
+                    except (ValueError, TypeError):
+                        continue
+
     return None
 
 
@@ -210,7 +215,7 @@ def _get_penv_site_packages(penv_dir):
     if not lib_dir.is_dir():
         return None
     # Prefer the newest python version directory
-    for entry in sorted(lib_dir.iterdir(), reverse=True):
+    for entry in sorted(lib_dir.iterdir(), key=lambda e: tuple(int(x) for x in e.name[6:].split('.') if x.isdigit()), reverse=True):
         if entry.is_dir() and entry.name.startswith("python"):
             sp = entry / "site-packages"
             if sp.is_dir():
@@ -237,7 +242,6 @@ def setup_pipenv_in_package(env, penv_dir):
             f"current interpreter is {current_ver[0]}.{current_ver[1]}. "
             f"Recreating penv..."
         )
-        import shutil
         shutil.rmtree(penv_dir, ignore_errors=True)
 
     if not os.path.isfile(get_executable_path(penv_dir, "python")):
@@ -321,6 +325,10 @@ def setup_python_paths(penv_dir):
         sys.path.insert(0, site_packages)
 
     site.addsitedir(site_packages)
+    # Re-ensure penv is still first after addsitedir may have appended it
+    if sys.path[0] != site_packages:
+        sys.path.remove(site_packages)
+        sys.path.insert(0, site_packages)
 
 
 def get_packages_to_install(deps, installed_packages):
@@ -697,7 +705,6 @@ def _setup_pipenv_minimal(penv_dir):
             f"current interpreter is {current_ver[0]}.{current_ver[1]}. "
             f"Recreating penv..."
         )
-        import shutil
         shutil.rmtree(penv_dir, ignore_errors=True)
 
     if not os.path.isfile(get_executable_path(penv_dir, "python")):
