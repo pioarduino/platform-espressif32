@@ -16,6 +16,7 @@ import json
 import os
 import re
 import semantic_version
+import shutil
 import site
 import socket
 import subprocess
@@ -126,14 +127,123 @@ def get_executable_path(penv_dir, executable_name):
     return str(Path(penv_dir) / scripts_dir / f"{executable_name}{exe_suffix}")
 
 
+def _get_penv_python_version(penv_dir):
+    """
+    Detect the Python version used to create an existing penv.
+
+    Reads the ``version`` key from ``pyvenv.cfg`` which is always
+    written by both ``python -m venv`` and ``uv venv``.  This avoids
+    spawning a subprocess (which can fail when the penv Python is
+    corrupted) and works identically on all platforms.
+
+    Falls back to inspecting ``lib/pythonX.Y/`` directories on POSIX
+    if ``pyvenv.cfg`` is missing or unparseable.
+
+    Returns:
+        tuple[int, int] | None: (major, minor) of the penv Python, or
+        None if the penv does not exist or its version cannot be
+        determined.
+    """
+    penv_path = Path(penv_dir)
+
+    # Primary: parse pyvenv.cfg (cross-platform, no subprocess)
+    cfg_file = penv_path / "pyvenv.cfg"
+    if cfg_file.is_file():
+        try:
+            for line in cfg_file.read_text(encoding="utf-8").splitlines():
+                key, _, value = line.partition("=")
+                if key.strip().lower() == "version":
+                    parts = value.strip().split(".")
+                    if len(parts) >= 2:
+                        return (int(parts[0]), int(parts[1]))
+        except Exception:
+            pass
+
+    # Fallback (POSIX only): inspect lib/pythonX.Y/ directories
+    if not IS_WINDOWS:
+        lib_dir = penv_path / "lib"
+        if lib_dir.is_dir():
+            for entry in sorted(lib_dir.iterdir(), reverse=True):
+                if entry.is_dir() and entry.name.startswith("python") and (entry / "site-packages").is_dir():
+                    ver_str = entry.name[len("python"):]
+                    try:
+                        major, minor = ver_str.split(".")
+                        return (int(major), int(minor))
+                    except (ValueError, TypeError):
+                        continue
+
+    return None
+
+
+def _penv_version_matches(penv_dir):
+    """
+    Check whether the existing penv was created with the same Python
+    major.minor version as the currently running interpreter.
+
+    Returns True if versions match or if the penv does not exist yet.
+    """
+    penv_ver = _get_penv_python_version(penv_dir)
+    if penv_ver is None:
+        return True  # no penv yet — nothing to mismatch
+    return penv_ver == (sys.version_info.major, sys.version_info.minor)
+
+
+def _get_penv_site_packages(penv_dir):
+    """
+    Locate the actual site-packages directory inside a penv.
+
+    Instead of constructing the path from ``sys.version_info`` (which
+    reflects the *host* interpreter and may differ from the penv's
+    Python version), this function inspects the penv's directory
+    structure and returns the first valid site-packages path found.
+
+    Returns:
+        str | None: Absolute path to the site-packages directory, or
+        None if it cannot be found.
+    """
+    penv_path = Path(penv_dir)
+
+    # Windows: Lib/site-packages (no version directory)
+    if IS_WINDOWS:
+        sp = penv_path / "Lib" / "site-packages"
+        if sp.is_dir():
+            return str(sp)
+        return None
+
+    # POSIX: lib/pythonX.Y/site-packages
+    lib_dir = penv_path / "lib"
+    if not lib_dir.is_dir():
+        return None
+    # Prefer the newest python version directory
+    for entry in sorted(lib_dir.iterdir(), key=lambda e: tuple(int(x) for x in e.name[6:].split('.') if x.isdigit()), reverse=True):
+        if entry.is_dir() and entry.name.startswith("python"):
+            sp = entry / "site-packages"
+            if sp.is_dir():
+                return str(sp)
+    return None
+
+
 def setup_pipenv_in_package(env, penv_dir):
     """
     Checks if 'penv' folder exists in platformio dir and creates virtual environment if not.
+    Recreates the penv if the Python version does not match the running interpreter.
     First tries to create with uv, falls back to python -m venv if uv is not available.
     
     Returns:
         str or None: Path to uv executable if uv was used, None if python -m venv was used
     """
+    # Recreate penv when Python version changed (e.g. Homebrew upgraded 3.13→3.14)
+    penv_python_path = get_executable_path(penv_dir, "python")
+    if os.path.isfile(penv_python_path) and not _penv_version_matches(penv_dir):
+        penv_ver = _get_penv_python_version(penv_dir)
+        current_ver = (sys.version_info.major, sys.version_info.minor)
+        print(
+            f"Python version mismatch: penv has {penv_ver[0]}.{penv_ver[1]}, "
+            f"current interpreter is {current_ver[0]}.{current_ver[1]}. "
+            f"Recreating penv..."
+        )
+        shutil.rmtree(penv_dir, ignore_errors=True)
+
     if not os.path.isfile(get_executable_path(penv_dir, "python")):
         # Attempt virtual environment creation using uv package manager
         uv_success = False
@@ -187,16 +297,38 @@ def setup_pipenv_in_package(env, penv_dir):
 
 
 def setup_python_paths(penv_dir):
-    """Setup Python module search paths using the penv_dir."""    
-    # Add site-packages directory
-    python_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-    site_packages = (
-        str(Path(penv_dir) / "Lib" / "site-packages") if IS_WINDOWS
-        else str(Path(penv_dir) / "lib" / python_ver / "site-packages")
-    )
-    
-    if os.path.isdir(site_packages):
-        site.addsitedir(site_packages)
+    """Setup Python module search paths using the penv_dir.
+
+    Dynamically locates the penv's site-packages directory instead of
+    deriving it from ``sys.version_info``, which reflects the *host*
+    interpreter and may differ from the Python version used to create
+    the penv.  The penv's site-packages is inserted at the front of
+    ``sys.path`` and conflicting system site-packages entries are
+    removed so that packages installed in the penv always take
+    precedence.
+    """
+    site_packages = _get_penv_site_packages(penv_dir)
+    if not site_packages:
+        return
+
+    penv_dir_resolved = os.path.realpath(penv_dir) + os.sep
+
+    # Remove system site-packages entries that are not part of the penv
+    sys.path[:] = [
+        p for p in sys.path
+        if "site-packages" not in p.lower()
+        or os.path.realpath(p).startswith(penv_dir_resolved)
+    ]
+
+    # Add penv site-packages at the beginning
+    if site_packages not in sys.path:
+        sys.path.insert(0, site_packages)
+
+    site.addsitedir(site_packages)
+    # Re-ensure penv is still first after addsitedir may have appended it
+    if sys.path[0] != site_packages:
+        sys.path.remove(site_packages)
+        sys.path.insert(0, site_packages)
 
 
 def get_packages_to_install(deps, installed_packages):
@@ -555,6 +687,7 @@ def _setup_python_environment_core(env, platform, platformio_dir, should_install
 def _setup_pipenv_minimal(penv_dir):
     """
     Setup virtual environment without SCons dependencies.
+    Recreates the penv if the Python version does not match the running interpreter.
     
     Args:
         penv_dir (str): Path to virtual environment directory
@@ -562,6 +695,18 @@ def _setup_pipenv_minimal(penv_dir):
     Returns:
         str or None: Path to uv executable if uv was used, None if python -m venv was used
     """
+    # Recreate penv when Python version changed (e.g. Homebrew upgraded 3.13→3.14)
+    penv_python_path = get_executable_path(penv_dir, "python")
+    if os.path.isfile(penv_python_path) and not _penv_version_matches(penv_dir):
+        penv_ver = _get_penv_python_version(penv_dir)
+        current_ver = (sys.version_info.major, sys.version_info.minor)
+        print(
+            f"Python version mismatch: penv has {penv_ver[0]}.{penv_ver[1]}, "
+            f"current interpreter is {current_ver[0]}.{current_ver[1]}. "
+            f"Recreating penv..."
+        )
+        shutil.rmtree(penv_dir, ignore_errors=True)
+
     if not os.path.isfile(get_executable_path(penv_dir, "python")):
         # Attempt virtual environment creation using uv package manager
         uv_success = False
