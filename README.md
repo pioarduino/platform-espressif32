@@ -27,6 +27,7 @@ Prerequisites:
 ```bash
 curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/pioarduino/pioarduino-core-installer/pioarduino/get-platformio.py
 python3 get-platformio.py
+source ~/.platformio/penv/bin/activate
 ```
 
 ## Usage
