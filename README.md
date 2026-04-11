@@ -13,7 +13,7 @@ Espressif Systems is a privately held, fabless semiconductor company renowned fo
 * No support for the Arduino Nora Nano board, issues needs to be solved by the community
 ## IDE Preparation
 Prerequisites:
--	Python (3.10, 3.11, 3.12, 3.13, 3.14) and git is required for pioarduino to function properly.
+-	Python (>3.9) and git is required for pioarduino to function properly. pioarduino will install a Python v3.13 venv for its usage
 
 ## Installation
 
