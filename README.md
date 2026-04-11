@@ -32,7 +32,15 @@ source ~/.platformio/penv/bin/activate
 > **Note:** The pioarduino platform installer automatically fixes the virtual environment if a conflict with the system Python is detected.
 
 ## Usage
+
+### VSCode
 Setup new VSCode pioarduino project.
+
+### CLI
+```bash
+mkdir my-project && cd my-project
+pio project init --board esp32dev
+```
 
 ## Documentation
 [pioarduino Wiki](https://deepwiki.com/pioarduino/platform-espressif32)
