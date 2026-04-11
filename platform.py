@@ -842,6 +842,7 @@ class Espressif32Platform(PlatformBase):
         supported_debug_tools = [
             "cmsis-dap",
             "esp-prog",
+            "esp-prog-2",
             "esp-bridge",
             "iot-bus-jtag",
             "jlink",
@@ -1109,7 +1110,7 @@ class Espressif32Platform(PlatformBase):
             if board.id == "esp32-s2-kaluga-1":
                 return "ftdi/esp32s2_kaluga_v1"
             return "ftdi/esp_ftdi"
-        if link == "esp-bridge":
+        if link in ("esp-prog-2", "esp-bridge"):
             return "esp_usb_bridge"
         if link == "esp-builtin":
             return "esp_usb_jtag"
