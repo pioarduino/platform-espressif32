@@ -29,6 +29,7 @@ curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/pioarduino/pio
 python3 get-platformio.py
 source ~/.platformio/penv/bin/activate
 ```
+> **Note:** The pioarduino platform installer automatically fixes the virtual environment if a conflict with the system Python is detected.
 
 ## Usage
 Setup new VSCode pioarduino project.
