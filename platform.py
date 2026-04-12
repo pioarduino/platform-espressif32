@@ -46,6 +46,7 @@ import requests
 import shutil
 import struct
 import subprocess
+import time
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Union
 
@@ -138,6 +139,47 @@ def is_internet_available():
     Uses the centralized internet check from penv_setup module.
     """
     return has_internet_connection()
+
+
+def patch_file_downloader():
+    """Monkey-patch PlatformIO's FileDownloader to retry on transient HTTP errors."""
+    from platformio.package.download import FileDownloader
+    from platformio.package.exception import PackageException
+
+    if getattr(FileDownloader.__init__, "_patched", False):
+        return
+
+    original_init = FileDownloader.__init__
+
+    def patched_init(self, *args, **kwargs):
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                original_init(self, *args, **kwargs)
+                return
+            except PackageException as e:
+                if attempt < max_retries - 1:
+                    delay = 2 ** (attempt + 1)
+                    logger.warning(
+                        "Package download failed: %s. Retrying in %ds... (attempt %d/%d)",
+                        e, delay, attempt + 1, max_retries,
+                    )
+                    try:
+                        if hasattr(self, "_http_response") and self._http_response is not None:
+                            self._http_response.close()
+                        if hasattr(self, "_http_session"):
+                            self._http_session.close()
+                    except (AttributeError, OSError) as cleanup_err:
+                        logger.debug("Retry cleanup failed: %s", cleanup_err)
+                    time.sleep(delay)
+                else:
+                    raise
+
+    patched_init._patched = True
+    FileDownloader.__init__ = patched_init
+
+
+patch_file_downloader()
 
 def safe_file_operation(operation_func):
     """Decorator for safe filesystem operations with error handling."""
@@ -571,14 +613,26 @@ class Espressif32Platform(PlatformBase):
         self.packages["framework-arduinoespressif32"]["optional"] = False
         self.packages["framework-arduinoespressif32-libs"]["optional"] = False
         if is_internet_available():
-            try:
-                response = requests.get(ARDUINO_ESP32_PACKAGE_URL, timeout=30)
-                response.raise_for_status()
-                packjdata = response.json()
-                dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
-                self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
-            except (requests.RequestException, KeyError, IndexError) as e:
-                logger.error(f"Failed to fetch Arduino framework library URL: {e}")
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    response = requests.get(ARDUINO_ESP32_PACKAGE_URL, timeout=30)
+                    response.raise_for_status()
+                    packjdata = response.json()
+                    dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
+                    self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
+                    break
+                except (requests.RequestException, ValueError, KeyError, IndexError) as e:
+                    if attempt < max_retries - 1:
+                        delay = 2 ** (attempt + 1)
+                        logger.warning(
+                            "Failed to fetch Arduino framework library URL: %s. "
+                            "Retrying in %ds... (attempt %d/%d)",
+                            e, delay, attempt + 1, max_retries,
+                        )
+                        time.sleep(delay)
+                    else:
+                        logger.error(f"Failed to fetch Arduino framework library URL: {e}")
         if mcu == "esp32c2":
             self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
         if mcu == "esp32c61":
