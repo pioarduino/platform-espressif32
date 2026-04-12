@@ -13,17 +13,34 @@ Espressif Systems is a privately held, fabless semiconductor company renowned fo
 * No support for the Arduino Nora Nano board, issues needs to be solved by the community
 ## IDE Preparation
 Prerequisites:
--	Python (3.10, 3.11, 3.12, 3.13, 3.14 not with Windows!) and git is required for pioarduino to function properly.
+-	Python (3.10, 3.11, 3.12, 3.13 or 3.14) and git is required for pioarduino to function properly.
 
 ## Installation
+
+### VSCode Extension
 - [Download and install Microsoft Visual Studio Code](https://code.visualstudio.com/). pioarduino IDE is on top of it.
 - Open the extension manager.
 - Search for the `pioarduino ide` extension.
 - Install pioarduino IDE extension.
 
+### CLI
+```bash
+curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/pioarduino/pioarduino-core-installer/pioarduino/get-platformio.py
+python3 get-platformio.py
+source ~/.platformio/penv/bin/activate
+```
+> **Note:** The pioarduino platform installer automatically fixes the virtual environment if a conflict with the system Python is detected.
+
 ## Usage
-1. Setup new VSCode pioarduino project.
-1. Check the `platform` setting in platformio.ini file:
+
+### VSCode
+Setup new VSCode pioarduino project.
+
+### CLI
+```bash
+mkdir my-project && cd my-project
+pio project init --board esp32dev
+```
 
 ## Documentation
 [pioarduino Wiki](https://deepwiki.com/pioarduino/platform-espressif32)
@@ -38,6 +55,10 @@ pioarduino provides native support for multiple filesystem options, allowing you
 - **LittleFS** (default) - Modern wear-leveling filesystem designed specifically for flash memory. Offers excellent reliability and performance for ESP32 projects.
 - **SPIFFS** - Simple legacy filesystem. While still functional, LittleFS is recommended for new projects due to better wear-leveling and reliability.
 - **FatFS** - Industry-standard FAT filesystem with broad compatibility across platforms and operating systems.
+
+### FatFS Integration
+
+FatFS support has been fully integrated as a Python module, providing the same seamless experience as LittleFS. Configuration is straightforward - simply specify your preferred filesystem in your project settings: See [FATFS_INTEGRATION.md](FATFS_INTEGRATION.md) for detailed documentation.
 
 **Quick Start:**
 
@@ -57,7 +78,7 @@ pio run -t download_fatfs # Download and extract FatFS from device
 See the [arduino-fatfs example](examples/arduino-fatfs/) for a complete working example.
 
 ### Stable Arduino
-currently espressif Arduino 3.3.7 and IDF v5.5.2+
+currently espressif Arduino 3.3.8 and IDF v5.5.4
 
 ```ini
 [env:stable]

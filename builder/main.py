@@ -22,13 +22,6 @@ import subprocess
 import sys
 from os.path import isfile, join
 from pathlib import Path
-from littlefs import LittleFS
-from fatfs import Partition, RamDisk, create_extended_partition
-from fatfs import create_esp32_wl_image
-from fatfs import calculate_esp32_wl_overhead
-from fatfs import is_esp32_wl_image, extract_fat_from_esp32_wl
-from fatfs.partition_extended import PartitionExtended
-from fatfs.wrapper import pyf_mkfs, PY_FR_OK as FR_OK
 import importlib.util
 
 from SCons.Script import (
@@ -55,7 +48,18 @@ core_dir = projectconfig.get("platformio", "core_dir")
 build_dir = Path(projectconfig.get("platformio", "build_dir"))
 
 # Configure Python environment through centralized platform management
+# Must happen before importing penv-installed packages (fatfs, littlefs, etc.)
 PYTHON_EXE, esptool_binary_path = platform.setup_python_env(env)
+
+from littlefs import LittleFS
+from littlefs import lfs as _lfs
+_lfs.FILENAME_ENCODING = "utf-8"
+from fatfs import Partition, RamDisk, create_extended_partition
+from fatfs import create_esp32_wl_image
+from fatfs import calculate_esp32_wl_overhead
+from fatfs import is_esp32_wl_image, extract_fat_from_esp32_wl
+from fatfs.partition_extended import PartitionExtended
+from fatfs.wrapper import pyf_mkfs, PY_FR_OK as FR_OK
 
 # Load SPIFFS generator from local module
 spiffsgen_path = platform_dir / "builder" / "spiffsgen.py"
@@ -65,6 +69,9 @@ sys.modules["spiffsgen"] = spiffsgen
 spec.loader.exec_module(spiffsgen)
 SpiffsFS = spiffsgen.SpiffsFS
 SpiffsBuildConfig = spiffsgen.SpiffsBuildConfig
+
+# Import GDB_TOOL_PACKAGES from penv_setup (already loaded into sys.modules by platform.py)
+from penv_setup import GDB_TOOL_PACKAGES
 
 # Load board configuration and determine MCU architecture
 board = env.BoardConfig()
@@ -837,9 +844,11 @@ env.Replace(
     CXX="%s-elf-g++" % toolchain_arch,
     GDB=join(
         platform.get_package_dir(
-            "tool-riscv32-esp-elf-gdb"
+            # risc-v GDB
+            GDB_TOOL_PACKAGES["riscv"]
             if not is_xtensa
-            else "tool-xtensa-esp-elf-gdb"
+            # xtensa GDB
+            else GDB_TOOL_PACKAGES["xtensa"]
         )
         or "",
         "bin",
@@ -1595,6 +1604,65 @@ def download_fs_action(target, source, env):
         return 1
 
 
+def esp32_create_combined_bin(source, target, env):
+    """
+    Post-build action: Combine all flash images into a single factory binary.
+    Uses esptool merge-bin to create a firmware.factory.bin that can be
+    flashed at offset 0.
+
+    Typical layout of the generated file:
+       Offset | File
+    -  0x0000 | bootloader.bin
+    -  0x8000 | partitions.bin
+    -  0xe000 | boot_app0.bin
+    - 0x10000 | firmware.bin
+    """
+    firmware_name = env.subst("$BUILD_DIR/${PROGNAME}.bin")
+    if not isfile(firmware_name):
+        return
+
+    factory_name = env.subst("$BUILD_DIR/${PROGNAME}.factory.bin")
+    flash_size = board.get("upload.flash_size", "4MB")
+    flash_mode = _get_board_flash_mode(env)
+    flash_freq = _get_board_f_image(env)
+    app_offset = env.subst("$ESP32_APP_OFFSET") or "0x10000"
+
+    cmd = [
+        "--chip", mcu,
+        "merge-bin",
+        "-o", factory_name,
+        "--flash-mode", flash_mode,
+        "--flash-freq", flash_freq,
+        "--flash-size", flash_size,
+    ]
+
+    print(f"Creating binary \"{os.path.basename(factory_name)}\" with:")
+    print("    Offset   | File")
+
+    for image in env.get("FLASH_EXTRA_IMAGES", []):
+        offset = image[0]
+        path = env.subst(image[1])
+        print(f" -  {str(offset).ljust(8)} | {os.path.basename(path)}")
+        cmd += [str(offset), path]
+
+    print(f" -  {app_offset.ljust(8)} | {os.path.basename(firmware_name)}")
+    cmd += [app_offset, firmware_name]
+
+    esptool = esptool_binary_path
+    try:
+        result = subprocess.run(
+            [esptool, *cmd], check=False, capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            print("Successfully created combined binary image.")
+        else:
+            print(f"esptool merge-bin failed (exit code {result.returncode})")
+            if result.stderr:
+                print(result.stderr)
+    except Exception as e:
+        print(f"Error creating factory binary: {e}")
+
+
 #
 # Target: Build executable and linkable firmware or FS image
 #
@@ -1610,7 +1678,7 @@ if "nobuild" in COMMAND_LINE_TARGETS:
 else:
     target_elf = env.BuildProgram()
     silent_action = env.Action(firmware_metrics)
-    # Hack to silence scons command output
+    # Silence scons command output
     silent_action.strfunction = lambda target, source, env: ""
     env.AddPostAction(target_elf, silent_action)
     if set(["buildfs", "uploadfs", "uploadfsota"]) & set(COMMAND_LINE_TARGETS):
@@ -1622,6 +1690,10 @@ else:
     else:
         target_firm = env.ElfToBin(str(Path("$BUILD_DIR") / "${PROGNAME}"), target_elf)
         env.Depends(target_firm, "checkprogsize")
+        silent_action = env.Action(esp32_create_combined_bin)
+        # Silence scons command output
+        silent_action.strfunction = lambda target, source, env: ""
+        env.AddPostAction(target_firm, silent_action)
 
 # Configure platform targets
 env.AddPlatformTarget(
@@ -1797,19 +1869,34 @@ elif upload_protocol in debug_tools:
                 ]
             )
     openocd_args.extend(["-c", "reset run; shutdown"])
-    openocd_args = [
-        f.replace(
-            "$PACKAGE_DIR",
-            _to_unix_slashes(
-                platform.get_package_dir("tool-openocd-esp32") or ""
-            ),
-        )
-        for f in openocd_args
-    ]
+    openocd_pkg_dir = _to_unix_slashes(
+        platform.get_package_dir("tool-openocd-esp32") or ""
+    )
+    if openocd_pkg_dir:
+        openocd_args = [
+            f.replace("$PACKAGE_DIR", openocd_pkg_dir)
+            for f in openocd_args
+        ]
+        openocd_executable = str(Path(openocd_pkg_dir) / "bin" / "openocd")
+    else:
+        filtered = []
+        i = 0
+        while i < len(openocd_args):
+            if openocd_args[i] == "-s" and i + 1 < len(openocd_args) \
+                    and "$PACKAGE_DIR" in openocd_args[i + 1]:
+                i += 2
+                continue
+            if "$PACKAGE_DIR" in openocd_args[i]:
+                i += 1
+                continue
+            filtered.append(openocd_args[i])
+            i += 1
+        openocd_args = filtered
+        openocd_executable = "openocd"
     env.Replace(
-        UPLOADER="openocd",
+        UPLOADER=openocd_executable,
         UPLOADERFLAGS=openocd_args,
-        UPLOADCMD="$UPLOADER $UPLOADERFLAGS",
+        UPLOADCMD='"$UPLOADER" $UPLOADERFLAGS',
     )
     upload_actions = [env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE")]
 

@@ -17,16 +17,12 @@ import sys
 from platformio.compat import IS_WINDOWS
 
 pyver = sys.version_info
-if IS_WINDOWS:
-    allowed = (3, 10) <= pyver < (3, 14)
-    supported = "3.10, 3.11, 3.12, 3.13"
-else:
-    allowed = (3, 10) <= pyver < (3, 15)
-    supported = "3.10, 3.11, 3.12, 3.13, 3.14"
+allowed = (3, 10) <= pyver < (3, 15)
+supported = "3.10, 3.11, 3.12, 3.13, 3.14"
+
 if not allowed:
     print(f"ERROR: Python version must be {supported}.", file=sys.stderr)
     print(f"Current Python version: {pyver.major}.{pyver.minor}.{pyver.micro}", file=sys.stderr)
-    print(f"Supported versions: {supported}", file=sys.stderr)
     raise SystemExit(1)
 
 # LZMA support check
@@ -48,6 +44,7 @@ import logging
 import os
 import requests
 import shutil
+import struct
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Union
@@ -62,11 +59,14 @@ from platformio.package.manager.tool import ToolPackageManager
 penv_setup_path = Path(__file__).parent / "builder" / "penv_setup.py"
 spec = importlib.util.spec_from_file_location("penv_setup", str(penv_setup_path))
 penv_setup_module = importlib.util.module_from_spec(spec)
+sys.modules["penv_setup"] = penv_setup_module
 spec.loader.exec_module(penv_setup_module)
 
 setup_penv_minimal = penv_setup_module.setup_penv_minimal
 get_executable_path = penv_setup_module.get_executable_path
 has_internet_connection = penv_setup_module.has_internet_connection
+install_freertos_gdb = penv_setup_module.install_freertos_gdb
+GDB_TOOL_PACKAGES = penv_setup_module.GDB_TOOL_PACKAGES
 
 
 # Constants
@@ -83,15 +83,13 @@ ESP_BUILTIN_DEBUG_MCUS = frozenset([
 MCU_TOOLCHAIN_CONFIG = {
     "xtensa": {
         "mcus": frozenset(["esp32", "esp32s2", "esp32s3"]),
-        "toolchains": ["toolchain-xtensa-esp-elf"],
-        "debug_tools": ["tool-xtensa-esp-elf-gdb"]
+        "toolchains": ["toolchain-xtensa-esp-elf", GDB_TOOL_PACKAGES["xtensa"]]
     },
     "riscv": {
         "mcus": frozenset([
             "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32p4"
         ]),
-        "toolchains": ["toolchain-riscv32-esp"],
-        "debug_tools": ["tool-riscv32-esp-elf-gdb"]
+        "toolchains": ["toolchain-riscv32-esp", GDB_TOOL_PACKAGES["riscv"]]
     }
 }
 
@@ -619,13 +617,24 @@ class Espressif32Platform(PlatformBase):
     def _configure_mcu_toolchains(
         self, mcu: str, variables: Dict, targets: List[str]
     ) -> None:
-        """Configure MCU-specific toolchains with optimized installation."""
+        """
+        Install toolchains and debugging packages required for the specified MCU.
+        
+        Installs the MCU's base toolchains (including GDB) from the MCU configuration. If an "ulp" 
+        directory exists, installs the ULP toolchain entries. When build variables or targets indicate 
+        debugging is required, installs debug-related tools (OpenOCD and ROM-ELF helper).
+        
+        Parameters:
+            mcu (str): MCU identifier (e.g., "esp32", "esp32c3").
+            variables (Dict): Build variables used to determine debugging requirements.
+            targets (List[str]): Build targets that may trigger installation of debug tooling.
+        """
         mcu_config = self._get_mcu_config(mcu)
         if not mcu_config:
             logger.warning(f"Unknown MCU: {mcu}")
             return
 
-        # Install base toolchains
+        # Install base toolchains (including GDB)
         for toolchain in mcu_config["toolchains"]:
             self.install_tool(toolchain)
 
@@ -634,14 +643,19 @@ class Espressif32Platform(PlatformBase):
             for toolchain in mcu_config["ulp_toolchain"]:
                 self.install_tool(toolchain)
 
-        # Debug tools when needed
+        # Additional debug tools when needed
         if self._needs_debug_tools(variables, targets):
-            for debug_tool in mcu_config["debug_tools"]:
-                self.install_tool(debug_tool)
             self.install_tool("tool-openocd-esp32")
+            self.install_tool("tool-esp-rom-elfs")
 
     def _configure_installer(self) -> None:
-        """Configure the ESP-IDF tools installer with proper version checking."""
+        """
+        Ensure the ESP-IDF tools installer is present and up to date.
+        
+        Verifies and installs the tool-esp_install package when necessary, removes a legacy
+        PlatformIO install marker to avoid conflicts, and marks the installer package as
+        optional if idf_tools.py is available. Logs a warning if idf_tools.py cannot be found.
+        """
         
         # Check version - installs only when needed
         if not self._check_tl_install_version():
@@ -759,6 +773,9 @@ class Espressif32Platform(PlatformBase):
             self._configure_arduino_framework(frameworks, mcu)
             self._configure_espidf_framework(frameworks, variables, board_config, mcu)
             self._configure_mcu_toolchains(mcu, variables, targets)
+            
+            # Install freertos-gdb after MCU toolchains are installed
+            install_freertos_gdb(self, get_executable_path(str(Path(core_dir) / "penv"), "uv"), penv_python, str(Path(core_dir) / ".cache" / "uv"))
 
             if "espidf" in frameworks:
                 self._install_common_idf_packages()
@@ -788,7 +805,21 @@ class Espressif32Platform(PlatformBase):
         return result
 
     def _add_dynamic_options(self, board):
-        """Add dynamic board options for upload protocols and debug tools."""
+        """
+        Add dynamic upload protocol and debug-tool entries to a board manifest.
+        
+        Ensures upload.protocols and upload.protocol defaults, auto-adds supported debug tools
+        (and MCU-specific builtin/ftdi entries), sets an SVD path when available, and
+        populates debug.tools with OpenOCD server configurations, init commands, and
+        per-tool metadata. Returns the updated board object.
+        
+        Parameters:
+            board: Board object whose manifest will be modified.
+        
+        Returns:
+            The same Board instance with its manifest updated to include dynamic upload
+            protocols and debug tool configurations.
+        """
         # Upload protocols
         if not board.get("upload.protocols", []):
             board.manifest["upload"]["protocols"] = ["esptool", "espota"]
@@ -801,6 +832,7 @@ class Espressif32Platform(PlatformBase):
         supported_debug_tools = [
             "cmsis-dap",
             "esp-prog",
+            "esp-prog-2",
             "esp-bridge",
             "iot-bus-jtag",
             "jlink",
@@ -820,6 +852,12 @@ class Espressif32Platform(PlatformBase):
         mcu = board.get("build.mcu", "")
         if mcu in ESP_BUILTIN_DEBUG_MCUS:
             supported_debug_tools.append("esp-builtin")
+
+        # Auto-assign SVD path based on MCU if not already set
+        if debug and not debug.get("svd_path"):
+            svd_file = Path(self.get_dir()) / "misc" / "svd" / f"{mcu}.svd"
+            if svd_file.is_file():
+                debug["svd_path"] = str(svd_file)
 
         upload_protocol = board.manifest.get("upload", {}).get("protocol")
         upload_protocols = board.manifest.get("upload", {}).get("protocols", [])
@@ -841,6 +879,22 @@ class Espressif32Platform(PlatformBase):
             openocd_interface = self._get_openocd_interface(link, board)
             server_args = self._get_debug_server_args(openocd_interface, debug)
 
+            init_cmds = [
+                "define pio_reset_halt_target",
+                "   monitor reset halt",
+                "   maintenance flush register-cache",
+                "end",
+                "define pio_reset_run_target",
+                "   monitor reset",
+                "end",
+            ]
+            init_cmds.extend([
+                "target extended-remote $DEBUG_PORT",
+                "$LOAD_CMDS",
+                "pio_reset_halt_target",
+                "$INIT_BREAK",
+            ])
+
             debug["tools"][link] = {
                 "server": {
                     "package": "tool-openocd-esp32",
@@ -848,19 +902,7 @@ class Espressif32Platform(PlatformBase):
                     "arguments": server_args,
                 },
                 "init_break": "thb app_main",
-                "init_cmds": [
-                    "define pio_reset_halt_target",
-                    "   monitor reset halt",
-                    "   flushregs",
-                    "end",
-                    "define pio_reset_run_target",
-                    "   monitor reset",
-                    "end",
-                    "target extended-remote $DEBUG_PORT",
-                    "$LOAD_CMDS",
-                    "pio_reset_halt_target",
-                    "$INIT_BREAK",
-                ],
+                "init_cmds": init_cmds,
                 "onboard": link in debug.get("onboard_tools", []),
                 "default": link == debug.get("default_tool"),
             }
@@ -871,15 +913,195 @@ class Espressif32Platform(PlatformBase):
         board.manifest["debug"] = debug
         return board
 
+    def _gdb_has_python(self, mcu: str) -> bool:
+        """
+        Determine whether the GDB executable for the given MCU supports embedding Python.
+        
+        Returns:
+            True if a GDB binary for the MCU accepts Python commands,
+            False otherwise (including when no matching tool/package is found or the probe fails).
+        """
+        mcu_config = self._get_mcu_config(mcu)
+        if not mcu_config:
+            return False
+        # Filter toolchains to get only GDB tools
+        gdb_tools = [tool for tool in mcu_config["toolchains"] if "gdb" in tool]
+        for tool_pkg in gdb_tools:
+            pkg_dir = self.get_package_dir(tool_pkg)
+            if not pkg_dir:
+                continue
+            is_xtensa = mcu in MCU_TOOLCHAIN_CONFIG["xtensa"]["mcus"]
+            if is_xtensa:
+                # Per-target binary first, then the generic name
+                arch_prefixes = [f"xtensa-{mcu}-elf", "xtensa-esp-elf"]
+            else:
+                arch_prefixes = ["riscv32-esp-elf"]
+            candidates = []
+            for prefix in arch_prefixes:
+                if IS_WINDOWS:
+                    candidates.append(Path(pkg_dir) / "bin" / f"{prefix}-gdb.exe")
+                candidates.append(Path(pkg_dir) / "bin" / f"{prefix}-gdb")
+            gdb_path = next((path for path in candidates if path.is_file()), None)
+            if not gdb_path:
+                continue
+            try:
+                result = subprocess.run(
+                    [str(gdb_path), "--batch-silent", "--ex", "python import os"],
+                    capture_output=True, timeout=10,
+                )
+                return result.returncode == 0
+            except (OSError, subprocess.TimeoutExpired):
+                logger.debug("GDB Python support probe failed for %s", gdb_path)
+                return False
+        return False
+
+    @staticmethod
+    def _get_freertos_gdb_cmds() -> List[str]:
+        """
+        Generate GDB commands to load FreeRTOS thread-awareness extension.
+        
+        Returns:
+            list[str]: GDB command strings that attempt to import the `freertos_gdb` Python
+            extension and print a warning if it is not available.
+        """
+        # Use single-line try/except to survive cleanup_cmds stripping indentation
+        return [
+            "python",
+            "try: import freertos_gdb",
+            "except ModuleNotFoundError: print('warning: python extension \"freertos_gdb\" not found.')",
+            "end",
+        ]
+
+    def _get_rom_elf_gdb_cmds(self, mcu: str) -> List[str]:
+        """
+        Generate a GDB command sequence that automatically selects and loads ROM ELF symbols for the given MCU.
+        
+        Builds a `target hookpost-extended-remote` hook using ROM metadata (from misc/roms.json) and installed
+        ROM ELF artifacts (tool-esp-rom-elfs) so the appropriate ROM symbol file is loaded after connecting to the target.
+        
+        Parameters:
+            mcu (str): MCU identifier used to look up ROM entries in misc/roms.json.
+        
+        Returns:
+            A list of GDB command strings that implement the ROM selection and loading hook; an empty list
+            if ROM metadata or ROM ELF package is not available.
+        """
+        rom_elfs_dir = self.get_package_dir("tool-esp-rom-elfs")
+        if not rom_elfs_dir or not Path(rom_elfs_dir).is_dir():
+            return []
+
+        roms_json = Path(self.get_dir()) / "misc" / "roms.json"
+        if not roms_json.is_file():
+            return []
+
+        try:
+            with open(roms_json, encoding="utf-8") as f:
+                roms = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return []
+
+        if mcu not in roms:
+            return []
+
+        rom_elfs_path = to_unix_path(str(Path(rom_elfs_dir).resolve()))
+        if not rom_elfs_path.endswith("/"):
+            rom_elfs_path += "/"
+
+        entries = roms[mcu]
+        cmds = [
+            "define target hookpost-extended-remote",
+            "set confirm off",
+        ]
+        cmds.extend(
+            self._build_rom_elf_conditions(entries, mcu, rom_elfs_path, depth=1)
+        )
+        cmds.extend([
+            "set confirm on",
+            "end",
+        ])
+        return cmds
+
+    @staticmethod
+    def _rom_date_condition(date_addr: int, date_str: str) -> str:
+        """
+        Constructs a GDB conditional expression that compares 32-bit memory words
+        starting at a given address to a provided build-date string.
+        
+        Parameters:
+            date_addr (int): Base memory address where the build-date string is stored.
+            date_str (str): Build-date string to match; compared in 4-byte little-endian chunks.
+        
+        Returns:
+            condition (str): A GDB `if` expression like `if (*(int*)0xADDR) == 0xVALUE && ...`
+            that tests each 4-byte chunk of `date_str` against memory at `date_addr`.
+        """
+        parts = []
+        for i in range(0, len(date_str), 4):
+            chunk = date_str[i:i + 4]
+            value = hex(struct.unpack('<I', chunk.encode('utf-8').ljust(4, b'\x00'))[0])
+            parts.append(f"(*(int*) {hex(date_addr + i)}) == {value}")
+        return "if " + " && ".join(parts)
+
+    @classmethod
+    def _build_rom_elf_conditions(
+        cls, entries: list, mcu: str, rom_dir: str, depth: int
+    ) -> List[str]:
+        """
+        Build a list of GDB conditional command strings that load ROM ELF symbols based on ROM revision.
+        
+        Parameters:
+            entries (list): Ordered list of ROM metadata dicts, each containing at least
+                "build_date_str_addr" (hex string), "build_date_str" (string), and "rev" (revision identifier).
+            mcu (str): MCU identifier used to form ROM ELF filenames.
+            rom_dir (str): Directory path (may include trailing slash) where ROM ELF files reside.
+            depth (int): Current recursion depth used to compute indentation for nested blocks.
+        
+        Returns:
+            List[str]: A sequence of GDB command lines forming nested if/else/end blocks that
+            evaluate ROM build-date memory values and call `add-symbol-file` for the matching ROM ELF.
+        """
+        if not entries:
+            return []
+        indent = "  " * depth
+        entry = entries[0]
+        addr = int(entry["build_date_str_addr"], 16)
+        rom_file = f"{mcu}_rev{entry['rev']}_rom.elf"
+        rom_path = f"{rom_dir}{rom_file}"
+        lines = [
+            f"{indent}{cls._rom_date_condition(addr, entry['build_date_str'])}",
+            f'{indent}  add-symbol-file "{rom_path}"',
+        ]
+        if len(entries) > 1:
+            lines.append(f"{indent}else")
+            lines.extend(
+                cls._build_rom_elf_conditions(entries[1:], mcu, rom_dir, depth + 1)
+            )
+        else:
+            lines.append(f"{indent}else")
+            lines.append(
+                f"{indent}  echo Warning: Unknown {mcu} ROM revision.\\n"
+            )
+        lines.append(f"{indent}end")
+        return lines
+
     def _get_openocd_interface(self, link: str, board) -> str:
-        """Determine OpenOCD interface configuration for debug link."""
+        """
+        Resolve the OpenOCD interface identifier for a given debug link and board.
+        
+        Parameters:
+            link (str): Debug link name.
+            board: Board object whose `id` may affect the chosen interface.
+        
+        Returns:
+            str: OpenOCD interface string (for example "jlink", "ftdi/esp_ftdi", or "esp_usb_jtag").
+        """
         if link in ("jlink", "cmsis-dap"):
             return link
         if link in ("esp-prog", "ftdi"):
             if board.id == "esp32-s2-kaluga-1":
                 return "ftdi/esp32s2_kaluga_v1"
-            return "ftdi/esp32_devkitj_v1"
-        if link == "esp-bridge":
+            return "ftdi/esp_ftdi"
+        if link in ("esp-prog-2", "esp-bridge"):
             return "esp_usb_bridge"
         if link == "esp-builtin":
             return "esp_usb_jtag"
@@ -900,7 +1122,31 @@ class Espressif32Platform(PlatformBase):
         ]
 
     def configure_debug_session(self, debug_config):
-        """Configure debug session with flash image loading."""
+        """
+        Configure debug session to inject debug extensions and prepare GDB load commands for flashing.
+        
+        This updates the provided debug_config in-place:
+        - Injects additional GDB init commands and ROM/FreeRTOS extensions via _inject_debug_extensions.
+        - If the debug server is OpenOCD, appends an adapter speed argument derived from debug_config.speed.
+        - If debug_config.load_cmds is the default ["load"] and valid flash image metadata is present in
+          build_data["extra"]["flash_images"], replaces load_cmds with a sequence of `monitor program_esp
+          "<path>" <offset> verify` entries for each flash image and the application binary
+          (using build_data["prog_path"] and application_offset if available;
+          falls back to DEFAULT_APP_OFFSET and logs a warning).
+        - If flash image metadata is missing or invalid, leaves load_cmds unchanged and logs a warning.
+        
+        Parameters:
+            debug_config: object
+                Debug session configuration object that must provide (at least) the attributes:
+                - build_data (dict): build metadata including an "extra" dict with "flash_images"
+                  (list of { "path", "offset" }) and optional "application_offset".
+                - server (dict | None): server configuration; if server["executable"]
+                  contains "openocd", server["arguments"] (list) will be extended.
+                - load_cmds (list): current GDB load commands; may be replaced.
+                - speed (str | None): optional adapter speed value used when configuring OpenOCD.
+        """
+        self._inject_debug_extensions(debug_config)
+
         build_extra_data = debug_config.build_data.get("extra", {})
         flash_images = build_extra_data.get("flash_images", [])
 
@@ -909,13 +1155,19 @@ class Espressif32Platform(PlatformBase):
                 "-c", f"adapter speed {debug_config.speed or DEFAULT_DEBUG_SPEED}"
             ])
 
+        if debug_config.load_cmds != ["load"]:
+            return
+
         ignore_conds = [
-            debug_config.load_cmds != ["load"],
             not flash_images,
             not all([Path(item["path"]).is_file() for item in flash_images]),
         ]
 
         if any(ignore_conds):
+            logger.warning(
+                "Falling back to default GDB load; "
+                "flash_images metadata missing or incomplete."
+            )
             return
 
         load_cmds = [
@@ -923,9 +1175,50 @@ class Espressif32Platform(PlatformBase):
             f'{item["offset"]} verify'
             for item in flash_images
         ]
+        app_offset = build_extra_data.get("application_offset")
+        if not app_offset:
+            logger.warning(
+                "Application offset not found in build metadata, "
+                "falling back to default %s. Debug flashing may target "
+                "the wrong address for custom partition layouts.",
+                DEFAULT_APP_OFFSET,
+            )
+            app_offset = DEFAULT_APP_OFFSET
         load_cmds.append(
             f'monitor program_esp '
             f'"{to_unix_path(debug_config.build_data["prog_path"][:-4])}.bin" '
-            f'{build_extra_data.get("application_offset", DEFAULT_APP_OFFSET)} verify'
+            f'{app_offset} verify'
         )
         debug_config.load_cmds = load_cmds
+
+    def _inject_debug_extensions(self, debug_config):
+        """
+        Inject FreeRTOS thread-awareness and ROM ELF GDB commands into the debug tool's init_cmds.
+        
+        This inserts additional GDB initialization commands (FreeRTOS Python-based helpers when available
+        and ROM-ELF symbol loading commands) into debug_config.tool_settings["init_cmds"] at the position
+        immediately before the "target extended-remote" command.
+        
+        Parameters:
+            debug_config: An object representing the debug session configuration. It must provide:
+                - board_config: a mapping containing "build.mcu".
+                - tool_settings: a mapping containing "init_cmds", a list of GDB init command strings.
+        """
+        mcu = debug_config.board_config.get("build.mcu", "")
+        if not mcu:
+            return
+        tool_init_cmds = debug_config.tool_settings.get("init_cmds")
+        if tool_init_cmds is None:
+            return
+        # Find insertion point: just before "target extended-remote"
+        insert_idx = next(
+            (i for i, cmd in enumerate(tool_init_cmds)
+             if "target extended-remote" in cmd),
+            len(tool_init_cmds),
+        )
+        extra_cmds = []
+        if self._gdb_has_python(mcu):
+            extra_cmds.extend(self._get_freertos_gdb_cmds())
+        extra_cmds.extend(self._get_rom_elf_gdb_cmds(mcu))
+        for i, cmd in enumerate(extra_cmds):
+            tool_init_cmds.insert(insert_idx + i, cmd)
