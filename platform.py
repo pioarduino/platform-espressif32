@@ -142,7 +142,7 @@ def is_internet_available():
 
 
 def patch_file_downloader():
-    """Monkey-patch PlatformIO's FileDownloader to retry on transient HTTP errors (502/503)."""
+    """Monkey-patch PlatformIO's FileDownloader to retry on transient HTTP errors."""
     from platformio.package.download import FileDownloader
     from platformio.package.exception import PackageException
 
@@ -169,8 +169,8 @@ def patch_file_downloader():
                             self._http_response.close()
                         if hasattr(self, "_http_session"):
                             self._http_session.close()
-                    except Exception:
-                        pass
+                    except (AttributeError, OSError) as cleanup_err:
+                        logger.debug("Retry cleanup failed: %s", cleanup_err)
                     time.sleep(delay)
                 else:
                     raise
@@ -622,7 +622,7 @@ class Espressif32Platform(PlatformBase):
                     dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
                     self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
                     break
-                except (requests.RequestException, KeyError, IndexError) as e:
+                except (requests.RequestException, ValueError, KeyError, IndexError) as e:
                     if attempt < max_retries - 1:
                         delay = 2 ** (attempt + 1)
                         logger.warning(
