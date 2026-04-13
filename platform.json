@@ -33,7 +33,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.8/esp32-core-3.3.8.zip"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.8/esp32-core-3.3.8.tar.xz"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
