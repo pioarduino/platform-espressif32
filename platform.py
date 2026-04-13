@@ -146,6 +146,11 @@ def patch_file_downloader():
     from platformio.package.download import FileDownloader
     from platformio.package.exception import PackageException
 
+    # Skip if FileDownloader already has native retry support (platformio-core with RETRY)
+    if hasattr(FileDownloader, "RETRY"):
+        logger.debug("FileDownloader has native retry support, skipping monkey-patch")
+        return
+
     if getattr(FileDownloader.__init__, "_patched", False):
         return
 
