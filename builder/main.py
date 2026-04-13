@@ -1851,7 +1851,7 @@ elif upload_protocol in debug_tools:
             "-c",
             "adapter speed %s" % env.GetProjectOption("debug_speed", "5000"),
             "-c",
-            "program_esp {{$SOURCE}} %s verify"
+            "program_esp {$SOURCE} %s verify"
             % (
                 "$FS_START"
                 if "uploadfs" in COMMAND_LINE_TARGETS
@@ -1864,7 +1864,7 @@ elif upload_protocol in debug_tools:
             openocd_args.extend(
                 [
                     "-c",
-                    "program_esp {{%s}} %s verify"
+                    "program_esp {%s} %s verify"
                     % (_to_unix_slashes(image[1]), image[0]),
                 ]
             )
