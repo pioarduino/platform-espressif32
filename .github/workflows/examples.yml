@@ -50,8 +50,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
-        with:
-          submodules: "recursive"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -63,7 +61,7 @@ jobs:
           enable-cache: false
       - name: Install dependencies
         run: |
-          uv pip install --system -U https://github.com/pioarduino/platformio-core/archive/refs/tags/v6.1.19.zip
+          uv pip install --system pioarduino
           pio pkg install --global --platform file://.
       - name: git clone Tasmota and add to examples
         if: "matrix.example == 'examples/tasmota'"
