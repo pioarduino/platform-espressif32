@@ -435,6 +435,28 @@ def HandleArduinoIDFsettings(env):
             board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHSIZE=\"{flash_size}\"")
             board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHSIZE_{flash_size}=y")
 
+        # Check for PSRAM support based on board flags (needed before frequency config)
+        extra_flags = board.get("build.extra_flags", "")
+        # Handle both string and list formats
+        if isinstance(extra_flags, str):
+            has_psram = "-DBOARD_HAS_PSRAM" in extra_flags
+        else:
+            has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
+        
+        # Additional PSRAM detection methods
+        if not has_psram:
+            # Check if memory_type contains psram indicators
+            if memory_type and ("opi" in memory_type.lower() or "psram" in memory_type.lower()):
+                has_psram = True
+            # Check build.psram_type
+            elif "psram_type" in board.get("build", {}):
+                has_psram = True
+            # Check for SPIRAM mentions in extra_flags
+            elif isinstance(extra_flags, str) and "PSRAM" in extra_flags:
+                has_psram = True
+            elif not isinstance(extra_flags, str) and any("PSRAM" in str(flag) for flag in extra_flags):
+                has_psram = True
+
         # Handle Flash and PSRAM frequency configuration with platformio.ini override support
         # Priority: platformio.ini > board.json manifest
         # From 80MHz onwards, Flash and PSRAM frequencies must be identical
@@ -531,15 +553,16 @@ def HandleArduinoIDFsettings(env):
                 if mcu == "esp32p4":
                     board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_VAL={flash_freq_val}")
                 
-                # Configure PSRAM frequency
-                # Disable other SPIRAM speed options first
-                psram_freqs = ["20", "40", "80", "120", "200"]
-                for freq in psram_freqs:
-                    if freq != psram_freq_str:
-                        board_config_flags.append(f"# CONFIG_SPIRAM_SPEED_{freq}M is not set")
-                # Then set the specific SPIRAM configs
-                board_config_flags.append(f"CONFIG_SPIRAM_SPEED={psram_freq_str}")
-                board_config_flags.append(f"CONFIG_SPIRAM_SPEED_{psram_freq_str}M=y")
+                # Configure PSRAM frequency only if board has PSRAM
+                if has_psram:
+                    # Disable other SPIRAM speed options first
+                    psram_freqs = ["20", "40", "80", "120", "200"]
+                    for freq in psram_freqs:
+                        if freq != psram_freq_str:
+                            board_config_flags.append(f"# CONFIG_SPIRAM_SPEED_{freq}M is not set")
+                    # Then set the specific SPIRAM configs
+                    board_config_flags.append(f"CONFIG_SPIRAM_SPEED={psram_freq_str}")
+                    board_config_flags.append(f"CONFIG_SPIRAM_SPEED_{psram_freq_str}M=y")
                 
                 # Enable experimental features for Flash frequencies > 80MHz
                 if flash_freq_val > 80:
@@ -547,28 +570,6 @@ def HandleArduinoIDFsettings(env):
                     board_config_flags.append("CONFIG_SPI_FLASH_HPM_ENABLE=y")
                     board_config_flags.append("CONFIG_SPI_FLASH_HPM_AUTO=y")
 
-        # Check for PSRAM support based on board flags
-        extra_flags = board.get("build.extra_flags", "")
-        # Handle both string and list formats
-        if isinstance(extra_flags, str):
-            has_psram = "-DBOARD_HAS_PSRAM" in extra_flags
-        else:
-            has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
-        
-        # Additional PSRAM detection methods
-        if not has_psram:
-            # Check if memory_type contains psram indicators
-            if memory_type and ("opi" in memory_type.lower() or "psram" in memory_type.lower()):
-                has_psram = True
-            # Check build.psram_type
-            elif "psram_type" in board.get("build", {}):
-                has_psram = True
-            # Check for SPIRAM mentions in extra_flags
-            elif isinstance(extra_flags, str) and "PSRAM" in extra_flags:
-                has_psram = True
-            elif not isinstance(extra_flags, str) and any("PSRAM" in str(flag) for flag in extra_flags):
-                has_psram = True
-        
         if has_psram:
             # Enable basic SPIRAM support
             board_config_flags.append("CONFIG_SPIRAM=y")
