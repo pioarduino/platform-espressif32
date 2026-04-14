@@ -805,7 +805,7 @@ class Espressif32Platform(PlatformBase):
         Espressif's clangd has native Xtensa and ESP RISC-V support that the
         upstream clangd lacks.
         """
-        engine = os.environ.get("PLATFORMIO_IDE_INTELLISENSE_ENGINE", "")
+        engine = os.environ.get("PLATFORMIO_IDE_INTELLISENSE_ENGINE", "").strip().lower()
         if engine == "clangd" and "tool-clangd-esp" in self.packages:
             logger.info("clangd IntelliSense engine detected, installing tool-clangd-esp")
             self.install_tool("tool-clangd-esp")
