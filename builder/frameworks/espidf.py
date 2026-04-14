@@ -240,7 +240,19 @@ if "espidf" in pio_orig_frwrk:
 
 # Check for board-specific configurations that require sdkconfig generation
 def has_board_specific_config():
-    """Check if board has configuration that needs to be applied to sdkconfig."""
+    """Check if board has configuration that needs to be applied to sdkconfig.
+    
+    Returns True when any board manifest field would produce sdkconfig flags,
+    including flash mode, CPU frequency, flash size, memory type, or PSRAM.
+    """
+    # Always true when basic board build fields exist (flash mode, f_cpu, flash size, etc.)
+    if board.get("build.f_cpu", None) or board.get("build.f_flash", None):
+        return True
+    if flash_mode:
+        return True
+    if board.get("upload", {}).get("flash_size", None):
+        return True
+
     # Check for PSRAM support
     extra_flags = board.get("build.extra_flags", [])
     has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
@@ -639,6 +651,11 @@ def HandleArduinoIDFsettings(env):
             board_config_flags.extend([
                 "# CONFIG_SPIRAM is not set"
             ])
+            if mcu == "esp32":
+                board_config_flags.extend([
+                    "# CONFIG_BOOTLOADER_SPI_CUSTOM_WP_PIN is not set",
+                    "CONFIG_BOOTLOADER_SPI_WP_PIN=7"
+                ])
 
         # Use flash_memory_type for flash config
         if flash_memory_type and "opi" in flash_memory_type.lower():
