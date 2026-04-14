@@ -797,6 +797,19 @@ class Espressif32Platform(PlatformBase):
             if any(tool in package for tool in check_tools):
                 self.install_tool(package)
 
+    def _configure_clangd_tool(self) -> None:
+        """Install Espressif's clangd when the IDE has clangd IntelliSense enabled.
+
+        The pioarduino IDE extension exports PLATFORMIO_IDE_INTELLISENSE_ENGINE
+        so the platform can automatically install the matching tool package.
+        Espressif's clangd has native Xtensa and ESP RISC-V support that the
+        upstream clangd lacks.
+        """
+        engine = os.environ.get("PLATFORMIO_IDE_INTELLISENSE_ENGINE", "")
+        if engine == "clangd" and "tool-clangd-esp" in self.packages:
+            logger.info("clangd IntelliSense engine detected, installing tool-clangd-esp")
+            self.install_tool("tool-clangd-esp")
+
     def _handle_dfuutil_tool(self, variables: Dict) -> None:
         """Install dfuutil tool for Arduino Nano ESP32 board."""
         board_config = self.board_config(variables.get("board"))
@@ -851,6 +864,7 @@ class Espressif32Platform(PlatformBase):
 
             self._configure_rom_elfs_for_exception_decoder(variables)
             self._configure_check_tools(variables)
+            self._configure_clangd_tool()
             self._handle_dfuutil_tool(variables)
 
             logger.info("Package configuration completed successfully")
