@@ -255,7 +255,10 @@ def has_board_specific_config():
 
     # Check for PSRAM support
     extra_flags = board.get("build.extra_flags", [])
-    has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
+    if isinstance(extra_flags, str):
+        has_psram = "-DBOARD_HAS_PSRAM" in extra_flags
+    else:
+        has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
     
     # Check for special memory types  
     memory_type = None
@@ -752,17 +755,26 @@ def HandleArduinoIDFsettings(env):
                     continue
                 
                 # Check if we have a custom replacement for this flag
+                # Search from the end so that later entries (user overrides) win
                 flag_replaced = False
-                for custom_flag in idf_config_flags[:]:  # Create copy for safe removal
-                    custom_flag_name = extract_flag_name(custom_flag.replace("'", ""))
-                    
+                last_match_idx = None
+                for idx in range(len(idf_config_flags) - 1, -1, -1):
+                    custom_flag_name = extract_flag_name(idf_config_flags[idx].replace("'", ""))
                     if flag_name == custom_flag_name:
-                        cleaned_flag = custom_flag.replace("'", "")
-                        dst.write(cleaned_flag + "\n")
-                        print(f"Replace: {line.strip()} with: {cleaned_flag}")
-                        idf_config_flags.remove(custom_flag)
-                        flag_replaced = True
-                        break
+                        if last_match_idx is None:
+                            last_match_idx = idx
+                        else:
+                            # Remove earlier duplicate (lower priority)
+                            idf_config_flags.pop(idx)
+                            if last_match_idx > idx:
+                                last_match_idx -= 1
+                
+                if last_match_idx is not None:
+                    custom_flag = idf_config_flags.pop(last_match_idx)
+                    cleaned_flag = custom_flag.replace("'", "")
+                    dst.write(cleaned_flag + "\n")
+                    print(f"Replace: {line.strip()} with: {cleaned_flag}")
+                    flag_replaced = True
                 
                 if not flag_replaced:
                     dst.write(line)
