@@ -135,6 +135,13 @@
       "package-version": "2.20.1",
       "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/cppcheck-v2.20.1.zip"
     },
+    "tool-clangd-esp": {
+      "type": "tool",
+      "optional": true,
+      "owner": "pioarduino",
+      "package-version": "21.1.3+20260304",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/clangd-esp-21.1.3_20260304.zip"
+    },
     "tool-clangtidy": {
       "type": "tool",
       "optional": true,
