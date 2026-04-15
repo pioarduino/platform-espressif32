@@ -76,12 +76,15 @@ os.environ["IDF_COMPONENT_OVERWRITE_MANAGED_COMPONENTS"] = "1"
 config = env.GetProjectConfig()
 board = env.BoardConfig()
 pio_orig_frwrk = env.GetProjectOption("framework")
-mcu = board.get("build.mcu", "esp32")
+mcu = board.get("build.mcu", None)
+if not mcu:
+    sys.stderr.write("Error: Missing required board manifest field 'build.mcu'\n")
+    env.Exit(1)
 chip_variant = board.get("build.chip_variant", "").lower()
 chip_variant = chip_variant if chip_variant else mcu
 flash_speed = board.get("build.f_flash", "40000000L")
 flash_frequency = str(flash_speed.replace("000000L", ""))
-flash_mode = board.get("build.flash_mode", "dio")
+flash_mode = board.get("build.flash_mode", None)
 boot_mode = board.get("build.boot", None)
 idf_variant = mcu.lower()
 flag_custom_sdkonfig = False
@@ -240,10 +243,25 @@ if "espidf" in pio_orig_frwrk:
 
 # Check for board-specific configurations that require sdkconfig generation
 def has_board_specific_config():
-    """Check if board has configuration that needs to be applied to sdkconfig."""
+    """Check if board has configuration that needs to be applied to sdkconfig.
+    
+    Returns True when any board manifest field would produce sdkconfig flags,
+    including flash mode, CPU frequency, flash size, memory type, or PSRAM.
+    """
+    # Always true when basic board build fields exist (flash mode, f_cpu, flash size, etc.)
+    if board.get("build.f_cpu", None) or board.get("build.f_flash", None):
+        return True
+    if flash_mode:
+        return True
+    if board.get("upload", {}).get("flash_size", None):
+        return True
+
     # Check for PSRAM support
     extra_flags = board.get("build.extra_flags", [])
-    has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
+    if isinstance(extra_flags, str):
+        has_psram = "-DBOARD_HAS_PSRAM" in extra_flags
+    else:
+        has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
     
     # Check for special memory types  
     memory_type = None
@@ -435,6 +453,28 @@ def HandleArduinoIDFsettings(env):
             board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHSIZE=\"{flash_size}\"")
             board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHSIZE_{flash_size}=y")
 
+        # Check for PSRAM support based on board flags (needed before frequency config)
+        extra_flags = board.get("build.extra_flags", "")
+        # Handle both string and list formats
+        if isinstance(extra_flags, str):
+            has_psram = "-DBOARD_HAS_PSRAM" in extra_flags
+        else:
+            has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
+        
+        # Additional PSRAM detection methods
+        if not has_psram:
+            # Check if memory_type contains psram indicators
+            if memory_type and ("opi" in memory_type.lower() or "psram" in memory_type.lower()):
+                has_psram = True
+            # Check build.psram_type
+            elif "psram_type" in board.get("build", {}):
+                has_psram = True
+            # Check for SPIRAM mentions in extra_flags
+            elif isinstance(extra_flags, str) and "PSRAM" in extra_flags:
+                has_psram = True
+            elif not isinstance(extra_flags, str) and any("PSRAM" in str(flag) for flag in extra_flags):
+                has_psram = True
+
         # Handle Flash and PSRAM frequency configuration with platformio.ini override support
         # Priority: platformio.ini > board.json manifest
         # From 80MHz onwards, Flash and PSRAM frequencies must be identical
@@ -531,15 +571,16 @@ def HandleArduinoIDFsettings(env):
                 if mcu == "esp32p4":
                     board_config_flags.append(f"CONFIG_ESPTOOLPY_FLASHFREQ_VAL={flash_freq_val}")
                 
-                # Configure PSRAM frequency
-                # Disable other SPIRAM speed options first
-                psram_freqs = ["20", "40", "80", "120", "200"]
-                for freq in psram_freqs:
-                    if freq != psram_freq_str:
-                        board_config_flags.append(f"# CONFIG_SPIRAM_SPEED_{freq}M is not set")
-                # Then set the specific SPIRAM configs
-                board_config_flags.append(f"CONFIG_SPIRAM_SPEED={psram_freq_str}")
-                board_config_flags.append(f"CONFIG_SPIRAM_SPEED_{psram_freq_str}M=y")
+                # Configure PSRAM frequency only if board has PSRAM
+                if has_psram:
+                    # Disable other SPIRAM speed options first
+                    psram_freqs = ["20", "40", "80", "120", "200"]
+                    for freq in psram_freqs:
+                        if freq != psram_freq_str:
+                            board_config_flags.append(f"# CONFIG_SPIRAM_SPEED_{freq}M is not set")
+                    # Then set the specific SPIRAM configs
+                    board_config_flags.append(f"CONFIG_SPIRAM_SPEED={psram_freq_str}")
+                    board_config_flags.append(f"CONFIG_SPIRAM_SPEED_{psram_freq_str}M=y")
                 
                 # Enable experimental features for Flash frequencies > 80MHz
                 if flash_freq_val > 80:
@@ -547,28 +588,6 @@ def HandleArduinoIDFsettings(env):
                     board_config_flags.append("CONFIG_SPI_FLASH_HPM_ENABLE=y")
                     board_config_flags.append("CONFIG_SPI_FLASH_HPM_AUTO=y")
 
-        # Check for PSRAM support based on board flags
-        extra_flags = board.get("build.extra_flags", "")
-        # Handle both string and list formats
-        if isinstance(extra_flags, str):
-            has_psram = "-DBOARD_HAS_PSRAM" in extra_flags
-        else:
-            has_psram = any("-DBOARD_HAS_PSRAM" in flag for flag in extra_flags)
-        
-        # Additional PSRAM detection methods
-        if not has_psram:
-            # Check if memory_type contains psram indicators
-            if memory_type and ("opi" in memory_type.lower() or "psram" in memory_type.lower()):
-                has_psram = True
-            # Check build.psram_type
-            elif "psram_type" in board.get("build", {}):
-                has_psram = True
-            # Check for SPIRAM mentions in extra_flags
-            elif isinstance(extra_flags, str) and "PSRAM" in extra_flags:
-                has_psram = True
-            elif not isinstance(extra_flags, str) and any("PSRAM" in str(flag) for flag in extra_flags):
-                has_psram = True
-        
         if has_psram:
             # Enable basic SPIRAM support
             board_config_flags.append("CONFIG_SPIRAM=y")
@@ -638,6 +657,11 @@ def HandleArduinoIDFsettings(env):
             board_config_flags.extend([
                 "# CONFIG_SPIRAM is not set"
             ])
+            if mcu == "esp32":
+                board_config_flags.extend([
+                    "# CONFIG_BOOTLOADER_SPI_CUSTOM_WP_PIN is not set",
+                    "CONFIG_BOOTLOADER_SPI_WP_PIN=7"
+                ])
 
         # Use flash_memory_type for flash config
         if flash_memory_type and "opi" in flash_memory_type.lower():
@@ -734,17 +758,26 @@ def HandleArduinoIDFsettings(env):
                     continue
                 
                 # Check if we have a custom replacement for this flag
+                # Search from the end so that later entries (user overrides) win
                 flag_replaced = False
-                for custom_flag in idf_config_flags[:]:  # Create copy for safe removal
-                    custom_flag_name = extract_flag_name(custom_flag.replace("'", ""))
-                    
+                last_match_idx = None
+                for idx in range(len(idf_config_flags) - 1, -1, -1):
+                    custom_flag_name = extract_flag_name(idf_config_flags[idx].replace("'", ""))
                     if flag_name == custom_flag_name:
-                        cleaned_flag = custom_flag.replace("'", "")
-                        dst.write(cleaned_flag + "\n")
-                        print(f"Replace: {line.strip()} with: {cleaned_flag}")
-                        idf_config_flags.remove(custom_flag)
-                        flag_replaced = True
-                        break
+                        if last_match_idx is None:
+                            last_match_idx = idx
+                        else:
+                            # Remove earlier duplicate (lower priority)
+                            idf_config_flags.pop(idx)
+                            if last_match_idx > idx:
+                                last_match_idx -= 1
+                
+                if last_match_idx is not None:
+                    custom_flag = idf_config_flags.pop(last_match_idx)
+                    cleaned_flag = custom_flag.replace("'", "")
+                    dst.write(cleaned_flag + "\n")
+                    print(f"Replace: {line.strip()} with: {cleaned_flag}")
+                    flag_replaced = True
                 
                 if not flag_replaced:
                     dst.write(line)

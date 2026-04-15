@@ -357,6 +357,10 @@ if flag_custom_sdkconfig:
     new_build_unflags = build_unflags.split()
     env.Replace(BUILD_UNFLAGS=new_build_unflags)
 
+    # add linker script esp32.rom.libc-funcs.ld for esp32 when PSRAM is NOT configured
+    if not has_psram_config():
+        env.Append(LINKFLAGS=["-T", "esp32.rom.libc-funcs.ld"])
+
 
 def get_MD5_hash(phrase):
     return hashlib.md5(phrase.encode('utf-8')).hexdigest()[:16]

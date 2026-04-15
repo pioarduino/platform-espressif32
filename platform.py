@@ -46,6 +46,7 @@ import requests
 import shutil
 import struct
 import subprocess
+import time
 from pathlib import Path
 from typing import Optional, Dict, List, Any, Union
 
@@ -137,6 +138,52 @@ def is_internet_available():
     Uses the centralized internet check from penv_setup module.
     """
     return has_internet_connection()
+
+
+def patch_file_downloader():
+    """Monkey-patch PlatformIO's FileDownloader to retry on transient HTTP errors."""
+    from platformio.package.download import FileDownloader
+    from platformio.package.exception import PackageException
+
+    # Skip if FileDownloader already has native retry support (platformio-core with RETRY)
+    if hasattr(FileDownloader, "RETRY"):
+        logger.debug("FileDownloader has native retry support, skipping monkey-patch")
+        return
+
+    if getattr(FileDownloader.__init__, "_patched", False):
+        return
+
+    original_init = FileDownloader.__init__
+
+    def patched_init(self, *args, **kwargs):
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                original_init(self, *args, **kwargs)
+                return
+            except PackageException as e:
+                if attempt < max_retries - 1:
+                    delay = 2 ** (attempt + 1)
+                    logger.warning(
+                        "Package download failed: %s. Retrying in %ds... (attempt %d/%d)",
+                        e, delay, attempt + 1, max_retries,
+                    )
+                    try:
+                        if hasattr(self, "_http_response") and self._http_response is not None:
+                            self._http_response.close()
+                        if hasattr(self, "_http_session"):
+                            self._http_session.close()
+                    except (AttributeError, OSError) as cleanup_err:
+                        logger.debug("Retry cleanup failed: %s", cleanup_err)
+                    time.sleep(delay)
+                else:
+                    raise
+
+    patched_init._patched = True
+    FileDownloader.__init__ = patched_init
+
+
+patch_file_downloader()
 
 def safe_file_operation(operation_func):
     """Decorator for safe filesystem operations with error handling."""
@@ -569,6 +616,31 @@ class Espressif32Platform(PlatformBase):
         safe_remove_directory_pattern(Path(self.packages_dir), f"framework-arduinoespressif32.*")
         self.packages["framework-arduinoespressif32"]["optional"] = False
         self.packages["framework-arduinoespressif32-libs"]["optional"] = False
+        if is_internet_available():
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    response = requests.get(ARDUINO_ESP32_PACKAGE_URL, timeout=30)
+                    response.raise_for_status()
+                    packjdata = response.json()
+                    dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
+                    self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
+                    break
+                except (requests.RequestException, ValueError, KeyError, IndexError) as e:
+                    if attempt < max_retries - 1:
+                        delay = 2 ** (attempt + 1)
+                        logger.warning(
+                            "Failed to fetch Arduino framework library URL: %s. "
+                            "Retrying in %ds... (attempt %d/%d)",
+                            e, delay, attempt + 1, max_retries,
+                        )
+                        time.sleep(delay)
+                    else:
+                        logger.error(f"Failed to fetch Arduino framework library URL: {e}")
+        if mcu == "esp32c2":
+            self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
+        if mcu == "esp32c61":
+            self.packages["framework-arduino-c61-skeleton-lib"]["optional"] = False
 
     def _configure_espidf_framework(
         self, frameworks: List[str], variables: Dict, board_config: Dict, mcu: str
@@ -724,6 +796,19 @@ class Espressif32Platform(PlatformBase):
             if any(tool in package for tool in check_tools):
                 self.install_tool(package)
 
+    def _configure_clangd_tool(self) -> None:
+        """Install Espressif's clangd when the IDE has clangd IntelliSense enabled.
+
+        The pioarduino IDE extension exports PLATFORMIO_IDE_INTELLISENSE_ENGINE
+        so the platform can automatically install the matching tool package.
+        Espressif's clangd has native Xtensa and ESP RISC-V support that the
+        upstream clangd lacks.
+        """
+        engine = os.environ.get("PLATFORMIO_IDE_INTELLISENSE_ENGINE", "").strip().lower()
+        if engine == "clangd" and "tool-clangd-esp" in self.packages:
+            logger.info("clangd IntelliSense engine detected, installing tool-clangd-esp")
+            self.install_tool("tool-clangd-esp")
+
     def _handle_dfuutil_tool(self, variables: Dict) -> None:
         """Install dfuutil tool for Arduino Nano ESP32 board."""
         board_config = self.board_config(variables.get("board"))
@@ -778,6 +863,7 @@ class Espressif32Platform(PlatformBase):
 
             self._configure_rom_elfs_for_exception_decoder(variables)
             self._configure_check_tools(variables)
+            self._configure_clangd_tool()
             self._handle_dfuutil_tool(variables)
 
             logger.info("Package configuration completed successfully")
@@ -828,6 +914,7 @@ class Espressif32Platform(PlatformBase):
         supported_debug_tools = [
             "cmsis-dap",
             "esp-prog",
+            "esp-prog-2",
             "esp-bridge",
             "iot-bus-jtag",
             "jlink",
@@ -1095,7 +1182,7 @@ class Espressif32Platform(PlatformBase):
             if board.id == "esp32-s2-kaluga-1":
                 return "ftdi/esp32s2_kaluga_v1"
             return "ftdi/esp_ftdi"
-        if link == "esp-bridge":
+        if link in ("esp-prog-2", "esp-bridge"):
             return "esp_usb_bridge"
         if link == "esp-builtin":
             return "esp_usb_jtag"
