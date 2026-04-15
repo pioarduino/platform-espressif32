@@ -77,6 +77,9 @@ config = env.GetProjectConfig()
 board = env.BoardConfig()
 pio_orig_frwrk = env.GetProjectOption("framework")
 mcu = board.get("build.mcu", None)
+if not mcu:
+    sys.stderr.write("Error: Missing required board manifest field 'build.mcu'\n")
+    env.Exit(1)
 chip_variant = board.get("build.chip_variant", "").lower()
 chip_variant = chip_variant if chip_variant else mcu
 flash_speed = board.get("build.f_flash", "40000000L")
