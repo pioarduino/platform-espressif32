@@ -1,4 +1,13 @@
-# ESP32 Exception Decoder - Standalone Mode
+# Attention: Support has ended for ESP32 Exception Decoder
+
+Use VSC Extension `ESP32 Exception Decoder` as replacement
+
+https://marketplace.visualstudio.com/items?itemName=Jason2866.esp-decoder
+
+https://open-vsx.org/extension/Jason2866/esp-decoder
+
+
+## ESP32 Exception Decoder - Standalone Mode
 
 This tool decodes ESP32 crash logs (exception backtraces) using the firmware ELF file to provide human-readable function names and source code locations.
 
