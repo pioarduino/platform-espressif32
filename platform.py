@@ -616,27 +616,6 @@ class Espressif32Platform(PlatformBase):
         safe_remove_directory_pattern(Path(self.packages_dir), f"framework-arduinoespressif32.*")
         self.packages["framework-arduinoespressif32"]["optional"] = False
         self.packages["framework-arduinoespressif32-libs"]["optional"] = False
-        if is_internet_available():
-            max_retries = 5
-            for attempt in range(max_retries):
-                try:
-                    response = requests.get(ARDUINO_ESP32_PACKAGE_URL, timeout=30)
-                    response.raise_for_status()
-                    packjdata = response.json()
-                    dyn_lib_url = packjdata['packages'][0]['tools'][0]['systems'][0]['url']
-                    self.packages["framework-arduinoespressif32-libs"]["version"] = dyn_lib_url
-                    break
-                except (requests.RequestException, ValueError, KeyError, IndexError) as e:
-                    if attempt < max_retries - 1:
-                        delay = 2 ** (attempt + 1)
-                        logger.warning(
-                            "Failed to fetch Arduino framework library URL: %s. "
-                            "Retrying in %ds... (attempt %d/%d)",
-                            e, delay, attempt + 1, max_retries,
-                        )
-                        time.sleep(delay)
-                    else:
-                        logger.error(f"Failed to fetch Arduino framework library URL: {e}")
         if mcu == "esp32c2":
             self.packages["framework-arduino-c2-skeleton-lib"]["optional"] = False
         if mcu == "esp32c61":
