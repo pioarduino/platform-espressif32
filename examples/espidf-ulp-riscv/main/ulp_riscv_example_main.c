@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Unlicense OR CC0-1.0
+ */
 /* ULP riscv DS18B20 1wire temperature sensor example
 
    This example code is in the Public Domain (or CC0 licensed, at your option.)
@@ -26,6 +31,13 @@ static void init_ulp_program(void);
 
 void app_main(void)
 {
+    /* If user is using USB-serial-jtag then idf monitor needs some time to
+    *  re-connect to the USB port. We wait 1 sec here to allow for it to make the reconnection
+    *  before we print anything. Otherwise the chip will go back to sleep again before the user
+    *  has time to monitor any output.
+    */
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
     /* Initialize selected GPIO as RTC IO, enable input, disable pullup and pulldown */
     rtc_gpio_init(GPIO_NUM_0);
     rtc_gpio_set_direction(GPIO_NUM_0, RTC_GPIO_MODE_INPUT_ONLY);
@@ -33,15 +45,15 @@ void app_main(void)
     rtc_gpio_pullup_dis(GPIO_NUM_0);
     rtc_gpio_hold_en(GPIO_NUM_0);
 
-    esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
+    uint32_t causes = esp_sleep_get_wakeup_causes();
     /* not a wakeup from ULP, load the firmware */
-    if (cause != ESP_SLEEP_WAKEUP_ULP) {
+    if (!(causes & BIT(ESP_SLEEP_WAKEUP_ULP))) {
         printf("Not a ULP-RISC-V wakeup, initializing it! \n");
         init_ulp_program();
     }
 
     /* ULP Risc-V read and detected a change in GPIO_0, prints */
-    if (cause == ESP_SLEEP_WAKEUP_ULP) {
+    if (causes & BIT(ESP_SLEEP_WAKEUP_ULP)) {
         printf("ULP-RISC-V woke up the main CPU! \n");
         printf("ULP-RISC-V read changes in GPIO_0 current is: %s \n",
             (bool)(ulp_gpio_level_previous == 0) ? "Low" : "High" );

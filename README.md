@@ -9,9 +9,12 @@
 Espressif Systems is a privately held, fabless semiconductor company renowned for delivering cost-effective wireless communication microcontrollers. Their innovative solutions are widely adopted in mobile devices and Internet of Things (IoT) applications around the globe.
 
 ## General
-* Issues with boards (wrong / missing). All issues caused from boards will not be fixed from the maintainer(s). A PR needs to be provided against branch `develop` to solve.
-* No support for the Arduino Nora Nano board, issues needs to be solved by the community
-## IDE Preparation
+* **Do not open issues with this experimental build**
+- Feedback in Discord to fix bugs is welcome.
+- **NO** questions how to use and when something is not working as expected
+
+**You walk alone using this experimental setup!**
+
 Prerequisites:
 -	Python (3.10, 3.11, 3.12, 3.13 or 3.14) and git is required for pioarduino to function properly.
 
@@ -67,58 +70,24 @@ FatFS support has been fully integrated as a Python module, providing the same s
 board_build.filesystem = fatfs
 ```
 
-**Available Commands:**
 
-```bash
-pio run -t buildfs        # Build FatFS image
-pio run -t uploadfs       # Upload FatFS image
-pio run -t download_fatfs # Download and extract FatFS from device
-```
-
-See the [arduino-fatfs example](examples/arduino-fatfs/) for a complete working example.
-
-### Stable Arduino
-currently espressif Arduino 3.3.7 and IDF v5.5.2.260206
+## Experimental Arduino 4.0 based on IDF 6.0
+pioarduino Arduino repo branch `release/v4.0.x`, used to compile Arduino libs with IDF 6.0
 
 ```ini
-[env:stable]
-platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
+[env:experimental]
+platform = https://github.com/pioarduino/platform-espressif32.git#prep_IDF6
 board = ...
 ...
 ```
 
-### Development Arduino
-espressif Arduino repo branch master and latest compiled Arduino libs
+## Removed
+- Matter
+- Rainmaker
+- Speech recognition
 
-```ini
-[env:development]
-platform = https://github.com/pioarduino/platform-espressif32.git#develop
-board = ...
-...
-```
+## Known limitations / bugs
+- Ethernet PHY (wired Ethernet) is not implemented in Arduino
 
-###  ESP32-C2, ESP32-C61 and ESP32-solo1 Arduino support (via pioarduino only feature: *Hybrid compile*)
-Example configuration:
-
-```ini
-[env:esp32-c2-devkitm-1]
-platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
-framework = arduino
-board = esp32-c2-devkitm-1
-monitor_speed = 115200
-
-[env:esp32-c61-devkitc1-n8r2]
-platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
-framework = arduino
-board = esp32-c61-devkitc1-n8r2
-monitor_speed = 115200
-
-[env:esp32solo1]
-platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
-framework = arduino
-board = esp32-solo1
-monitor_speed = 115200
-
-```
 
 Looking for sponsor button? There is none. If you want to donate, please spend a litte to a charity organization.

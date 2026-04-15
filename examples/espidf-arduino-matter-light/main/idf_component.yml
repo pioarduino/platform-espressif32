@@ -1,4 +1,0 @@
-dependencies:
-  espressif/esp_matter:
-    version: ">=1.4.0"
-    require: public
