@@ -358,7 +358,7 @@ if flag_custom_sdkconfig:
     env.Replace(BUILD_UNFLAGS=new_build_unflags)
 
     # add linker script esp32.rom.libc-funcs.ld for esp32 when PSRAM is NOT configured
-    if not has_psram_config():
+    if mcu == "esp32" and not has_psram_config():
         env.Append(LINKFLAGS=["-T", "esp32.rom.libc-funcs.ld"])
 
 
