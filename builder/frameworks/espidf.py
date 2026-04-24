@@ -1440,10 +1440,10 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
     ).format(**args)
 
     linker_script_name = "sections.ld.in"
-    # Check for P4 >= rev3
-    if idf_variant == "esp32p4" and chip_variant == "esp32p4":
-        # ESP32-P4 rev >= 3 has different linker script
-        linker_script_name = "sections.rev3.ld.in"
+#    # Check for P4 >= rev3
+#    if idf_variant == "esp32p4" and chip_variant == "esp32p4":
+#        # ESP32-P4 rev >= 3 has different linker script
+#        linker_script_name = "sections.rev3.ld.in"
     
     initial_ld_script = str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld" / idf_variant / linker_script_name)
 
