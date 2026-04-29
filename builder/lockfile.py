@@ -614,15 +614,37 @@ def _parse_github_url(url: str) -> Optional[tuple[str, str, Optional[str]]]:
     return match.group(1), match.group(2), match.group(3)
 
 
-def _parse_platform_release_url(url: str) -> Optional[tuple[str, str, str]]:
-    """Parse a GitHub release download URL into (owner, repo, version).
+_PLATFORM_URL_PATTERNS = (
+    # https://github.com/owner/repo/releases/download/VERSION/filename
+    re.compile(r"^https?://github\.com/([^/]+)/([^/]+)/releases/download/([^/]+)/"),
+    # https://github.com/owner/repo/archive/refs/tags/VERSION.(zip|tar.gz)
+    re.compile(
+        r"^https?://github\.com/([^/]+)/([^/]+)/archive/refs/tags/([^/]+?)\.(?:zip|tar\.gz|tgz)$"
+    ),
+    # https://github.com/owner/repo/archive/VERSION.(zip|tar.gz)
+    re.compile(
+        r"^https?://github\.com/([^/]+)/([^/]+)/archive/([^/]+?)\.(?:zip|tar\.gz|tgz)$"
+    ),
+    # [git+]https://github.com/owner/repo[.git]#VERSION
+    re.compile(r"^(?:git\+)?https?://github\.com/([^/]+)/([^/#]+?)(?:\.git)?#([^/#]+)$"),
+)
 
-    Handles: https://github.com/owner/repo/releases/download/VERSION/filename
+
+def _parse_platform_release_url(url: str) -> Optional[tuple[str, str, str]]:
+    """Parse a GitHub-hosted platform URL into (owner, repo, version).
+
+    Handles release-download, archive (refs/tags or short form) and git-ref URLs.
+    Returns None for non-GitHub URLs or otherwise unrecognized formats.
     """
-    match = re.match(r"https?://github\.com/([^/]+)/([^/]+)/releases/download/([^/]+)/", url)
-    if not match:
-        return None
-    return match.group(1), match.group(2), match.group(3)
+    for pattern in _PLATFORM_URL_PATTERNS:
+        match = pattern.match(url)
+        if match:
+            owner, repo, version = match.group(1), match.group(2), match.group(3)
+            # Strip a trailing .git that might still be present in some forms
+            if repo.endswith(".git"):
+                repo = repo[:-4]
+            return owner, repo, version
+    return None
 
 
 _SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
@@ -820,12 +842,25 @@ def _check_sha_dep(
     }
 
 
+_VERSION_NUMERIC_RE = re.compile(r"^v?(\d+(?:\.\d+)*)(?:[-+_.].*)?$")
+_PRERELEASE_SUFFIX_RE = re.compile(
+    r"[-_.](?:rc|alpha|beta|dev|pre|nightly)(?:\d|[-._]|$)", re.IGNORECASE
+)
+
+
 def _parse_version_tuple(tag: str) -> Optional[tuple[int, ...]]:
-    """Parse a version tag like 'v2.0.0' or '4.2.1' into a comparable tuple."""
-    match = re.match(r"^v?(\d+(?:\.\d+)*)$", tag)
+    """Parse a version tag like 'v2.0.0', '4.2.1' or '54.03.20-rc1' into a comparable
+    tuple of the numeric components only. Returns None if no leading numeric version
+    can be extracted."""
+    match = _VERSION_NUMERIC_RE.match(tag)
     if not match:
         return None
     return tuple(int(x) for x in match.group(1).split("."))
+
+
+def _is_prerelease_tag(tag: str) -> bool:
+    """Return True if a version tag carries a pre-release suffix (rc/alpha/beta/...)."""
+    return bool(_PRERELEASE_SUFFIX_RE.search(tag))
 
 
 def _check_tag_dep(
@@ -837,6 +872,7 @@ def _check_tag_dep(
         return None
 
     has_v_prefix = tag.startswith("v")
+    current_is_prerelease = _is_prerelease_tag(tag)
 
     # Fetch tags (first page, up to 100)
     tags = github.get_json(f"repos/{owner}/{repo}/tags?per_page=100")
@@ -852,6 +888,9 @@ def _check_tag_dep(
             continue
         # Must match prefix convention
         if has_v_prefix != tag_name.startswith("v"):
+            continue
+        # Don't promote a pre-release as a newer version of a stable tag
+        if not current_is_prerelease and _is_prerelease_tag(tag_name):
             continue
         if ver > current_ver:
             newer.append((ver, tag_name))
@@ -899,26 +938,46 @@ def _check_git_deps(entries: list[dict[str, Any]], github: GitHubClient) -> list
 def _check_platform(
     project_dir: Path, env_name: str, github: GitHubClient
 ) -> Optional[dict[str, Any]]:
-    """Check if a newer platform release is available on GitHub."""
+    """Check if a newer platform release is available on GitHub.
+
+    Reports separately:
+      - status="outdated": newer release within the same major exists
+      - status="major_update_available": newer release with a higher major exists
+      - status="up_to_date": current is the highest stable tag
+      - status="unsupported_url": platform URL is not GitHub-resolvable
+      - status="unknown_version": current version string can't be parsed
+    """
     platform_url = get_platform_url(project_dir, env_name)
     if platform_url == "unknown":
         return None
 
     parsed = _parse_platform_release_url(platform_url)
     if not parsed:
-        return None
+        return {
+            "name": platform_url,
+            "current": "?",
+            "status": "unsupported_url",
+            "message": "platform URL not recognized — update check skipped",
+        }
 
     owner, repo, current_version = parsed
     current_ver = _parse_version_tuple(current_version)
     if current_ver is None:
-        return None
+        return {
+            "name": repo,
+            "current": current_version,
+            "status": "unknown_version",
+            "message": "current version not numerically parseable",
+        }
 
     releases = github.get_json(f"repos/{owner}/{repo}/releases?per_page=50")
     if not releases or not isinstance(releases, list):
         return None
 
-    # Find newer releases matching the same major version prefix
-    newer = []
+    current_is_prerelease = _is_prerelease_tag(current_version)
+    same_major: list[tuple[tuple[int, ...], str]] = []
+    higher_major: list[tuple[tuple[int, ...], str]] = []
+
     for rel in releases:
         tag = rel.get("tag_name", "")
         if rel.get("draft") or rel.get("prerelease"):
@@ -926,27 +985,52 @@ def _check_platform(
         ver = _parse_version_tuple(tag)
         if ver is None:
             continue
-        # Match same major version prefix (e.g. 55.x.y)
-        if ver and current_ver and ver[0] == current_ver[0] and ver > current_ver:
-            newer.append((ver, tag))
+        # Skip prereleases unless we are already on one
+        if not current_is_prerelease and _is_prerelease_tag(tag):
+            continue
+        if ver <= current_ver:
+            continue
+        if ver[0] == current_ver[0]:
+            same_major.append((ver, tag))
+        elif ver[0] > current_ver[0]:
+            higher_major.append((ver, tag))
 
-    if not newer:
+    if same_major:
+        same_major.sort(reverse=True)
+        latest_tag = same_major[0][1]
+        # If a higher major also exists, mention it for awareness
+        extra = ""
+        if higher_major:
+            higher_major.sort(reverse=True)
+            extra = f" (cross-major {higher_major[0][1]} also available)"
         return {
             "name": repo,
             "current": current_version,
-            "status": "up_to_date",
-            "message": "latest release",
+            "status": "outdated",
+            "latest": latest_tag,
+            "latest_major": higher_major[0][1] if higher_major else None,
+            "message": f"{current_version} → {latest_tag} available{extra}",
         }
 
-    newer.sort(reverse=True)
-    latest_tag = newer[0][1]
+    if higher_major:
+        higher_major.sort(reverse=True)
+        latest_major_tag = higher_major[0][1]
+        return {
+            "name": repo,
+            "current": current_version,
+            "status": "major_update_available",
+            "latest_major": latest_major_tag,
+            "message": (
+                f"{current_version} → {latest_major_tag} (cross-major update; "
+                "manual review recommended)"
+            ),
+        }
 
     return {
         "name": repo,
         "current": current_version,
-        "status": "outdated",
-        "latest": latest_tag,
-        "message": f"{current_version} → {latest_tag} available",
+        "status": "up_to_date",
+        "message": "latest release",
     }
 
 
@@ -1042,7 +1126,10 @@ def outdated(
 
     has_outdated = any(e["is_outdated"] for e in entries)
     has_git_outdated = any(r["status"] == "outdated" for r in git_results)
-    has_platform_outdated = platform_result is not None and platform_result["status"] == "outdated"
+    has_platform_outdated = platform_result is not None and platform_result["status"] in (
+        "outdated",
+        "major_update_available",
+    )
 
     if output_json:
         data: dict[str, Any] = {
@@ -1102,7 +1189,15 @@ def outdated(
     if platform_result:
         print(f"\n{'Platform'}")
         print("-" * 76)
-        marker = " *" if platform_result["status"] == "outdated" else "  "
+        status = platform_result["status"]
+        if status == "outdated":
+            marker = " *"
+        elif status == "major_update_available":
+            marker = "!!"
+        elif status in ("unsupported_url", "unknown_version"):
+            marker = " ?"
+        else:
+            marker = "  "
         print(f"{marker}{platform_result['name']:<38} {platform_result['message']}")
 
     if github_skipped_reason:
