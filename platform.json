@@ -33,31 +33,31 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/arduino-esp32/archive/release/v4.0.x.zip"
+      "version": "https://github.com/espressif/arduino-esp32/archive/master.zip"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/esp32-arduino-lib-builder/releases/download/idf-release_v6.0/esp32-arduino-libs-idf-release_v6.0-bdb43f08-v2.zip"
+      "version": "https://github.com/pioarduino/esp32-arduino-lib-builder/releases/download/idf-release_v6.0/esp32-arduino-libs-idf-release_v6.0-32c259d9-v2.zip"
     },
     "framework-arduino-c2-skeleton-lib": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c2-skeleton/c2_a9de5ec5b9_compile_skeleton.zip"
+      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c2-skeleton/c2_32c259d945_compile_skeleton.zip"
     },
     "framework-arduino-c61-skeleton-lib": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c61-skeleton/c61_a9de5ec5b9_compile_skeleton.zip"
+      "version": "https://github.com/pioarduino/platform-espressif32/releases/download/c61-skeleton/c61_32c259d945_compile_skeleton.zip"
     },
     "framework-espidf": {
       "type": "framework",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp-idf/releases/download/v6.0.0/esp-idf-v6.0.0.tar.xz"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v6.0.1/esp-idf-v6.0.1.tar.xz"
     },
     "toolchain-xtensa-esp-elf": {
       "type": "toolchain",
