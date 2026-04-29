@@ -56,7 +56,19 @@ def _default_run_cmd(args: list[str], cwd: Optional[str] = None, check: bool = T
 
 def run_cmd(args: list[str], cwd: Optional[str | Path] = None, check: bool = True) -> str:
     """Run a command and return stdout, stripped."""
-    return _default_run_cmd(args, cwd=str(cwd) if cwd else None, check=check)
+    return _run_cmd(args, cwd=str(cwd) if cwd else None, check=check)
+
+
+# Mockable seam — tests monkeypatch ``lockfile._run_cmd`` to inject fake output.
+_run_cmd = _default_run_cmd
+
+
+def _pio_import_fn() -> tuple[Any, Any, Any]:
+    """Return the PIO classes used by outdated/update.
+
+    Exists as a single function so tests can monkeypatch it to inject fakes.
+    """
+    return LibraryPackageManager, PackageSpec, ProjectConfig
 
 
 # ── Git helpers ──────────────────────────────────────────────────────────────
@@ -532,7 +544,7 @@ def restore(project_dir: Path, envs: list[str]) -> int:
                         "--library",
                         spec,
                         "--no-save",
-                        "--skip-dependencies",
+#                        "--skip-dependencies",
                     ],
                     cwd=str(project_dir),
                 )
@@ -1043,11 +1055,7 @@ def _get_outdated_entries(
     lib_filter: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     """Check all deps across envs for available updates using PIO's API."""
-    lib_pkg_mgr_cls, pkg_spec_cls, proj_config_cls = (
-        LibraryPackageManager,
-        PackageSpec,
-        ProjectConfig,
-    )
+    lib_pkg_mgr_cls, pkg_spec_cls, proj_config_cls = _pio_import_fn()
 
     config = proj_config_cls.get_instance(str(project_dir / "platformio.ini"))
     entries: list[dict[str, Any]] = []
@@ -1304,11 +1312,7 @@ def update(
         print(f"Error: no platformio.ini in {project_dir}", file=sys.stderr)
         return 1
 
-    _pm_cls, _spec_cls, proj_config_cls = (
-        LibraryPackageManager,
-        PackageSpec,
-        ProjectConfig,
-    )
+    _pm_cls, _spec_cls, proj_config_cls = _pio_import_fn()
     config = proj_config_cls.get_instance(str(project_dir / "platformio.ini"))
     tracker = ConfigSourceTracker(config, fallback_path=project_dir / "platformio.ini")
 
