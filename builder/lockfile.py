@@ -43,9 +43,6 @@ GLOBAL_PACKAGE_PREFIXES = (
 )
 
 
-# ── Shell helpers (mockable seam) ────────────────────────────────────────────
-
-
 def _default_run_cmd(args: list[str], cwd: Optional[str] = None, check: bool = True) -> str:
     result = subprocess.run(
         args,
@@ -55,10 +52,6 @@ def _default_run_cmd(args: list[str], cwd: Optional[str] = None, check: bool = T
         check=check,
     )
     return result.stdout.strip()
-
-
-# Module-level runner — tests replace this to avoid real subprocesses.
-_run_cmd: Callable[..., str] = _default_run_cmd
 
 
 def run_cmd(args: list[str], cwd: Optional[str | Path] = None, check: bool = True) -> str:
@@ -601,10 +594,6 @@ def _lib_install_spec(lib: dict[str, Any]) -> Optional[str]:
     return None
 
 
-# Mockable seam — tests replace this to avoid requiring PIO.
-_pio_import_fn = _import_pio
-
-
 # ── GitHub-aware update detection ──────────────────────────────────────────
 
 
@@ -729,10 +718,6 @@ def _create_github_client() -> Optional[GitHubClient]:
         return GitHubClient("gh")
 
     return None
-
-
-# Mockable seam for tests.
-_create_github_client_fn: Callable[[], Optional[GitHubClient]] = _create_github_client
 
 
 def _check_git_dep(
