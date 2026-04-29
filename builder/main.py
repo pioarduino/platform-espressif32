@@ -76,10 +76,13 @@ from penv_setup import GDB_TOOL_PACKAGES
 # Load lockfile module for dependency locking and build snapshot management
 lockfile_path = platform_dir / "builder" / "lockfile.py"
 spec_lockfile = importlib.util.spec_from_file_location("lockfile", str(lockfile_path))
-lockfile = importlib.util.module_from_spec(spec_lockfile)
-sys.modules["lockfile"] = lockfile
-spec_lockfile.loader.exec_module(lockfile)
-lockfile.register_pio_targets(env)
+if spec_lockfile is None or spec_lockfile.loader is None:
+    print("WARNING: could not load lockfile module", file=sys.stderr)
+else:
+    lockfile = importlib.util.module_from_spec(spec_lockfile)
+    sys.modules["lockfile"] = lockfile
+    spec_lockfile.loader.exec_module(lockfile)
+    lockfile.register_pio_targets(env)
 
 # Load board configuration and determine MCU architecture
 board = env.BoardConfig()

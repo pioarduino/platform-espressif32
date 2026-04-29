@@ -1259,7 +1259,13 @@ def update(
         print("\nDry run — no files modified.")
         return 0
 
-    # Apply replacements to each config file
+    # Apply replacements to each config file. Restrict substitutions to
+    # `lib_deps` blocks so we don't accidentally rewrite identical strings
+    # that happen to appear elsewhere (e.g. comments, other options).
+    lib_deps_re = re.compile(
+        r"(^[ \t]*lib_deps[ \t]*=)([^\n]*(?:\n[ \t]+[^\n]*)*)",
+        re.MULTILINE,
+    )
     for filepath, specs in replacements.items():
         content = filepath.read_text()
 
@@ -1268,10 +1274,15 @@ def update(
         backup_path.write_text(content)
         print(f"\nBackup: {backup_path}")
 
-        for old_spec, new_spec in specs:
-            content = content.replace(old_spec, new_spec)
+        def _rewrite_block(match: re.Match[str]) -> str:
+            head, body = match.group(1), match.group(2)
+            for old_spec, new_spec in specs:
+                body = body.replace(old_spec, new_spec)
+            return head + body
 
-        filepath.write_text(content)
+        new_content = lib_deps_re.sub(_rewrite_block, content)
+
+        filepath.write_text(new_content)
         print(f"Updated: {filepath}")
 
     print("\nRun `pio pkg install` then `pio-lock capture` to lock the new versions.")
