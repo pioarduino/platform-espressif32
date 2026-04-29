@@ -73,6 +73,14 @@ SpiffsBuildConfig = spiffsgen.SpiffsBuildConfig
 # Import GDB_TOOL_PACKAGES from penv_setup (already loaded into sys.modules by platform.py)
 from penv_setup import GDB_TOOL_PACKAGES
 
+# Load lockfile module for dependency locking and build snapshot management
+lockfile_path = platform_dir / "builder" / "lockfile.py"
+spec_lockfile = importlib.util.spec_from_file_location("lockfile", str(lockfile_path))
+lockfile = importlib.util.module_from_spec(spec_lockfile)
+sys.modules["lockfile"] = lockfile
+spec_lockfile.loader.exec_module(lockfile)
+lockfile.register_pio_targets(env)
+
 # Load board configuration and determine MCU architecture
 board = env.BoardConfig()
 board_id = env.subst("$BOARD")
@@ -798,13 +806,17 @@ def build_fs_router(target, source, env):
 
 def switch_off_ldf():
     """
-    Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, buildfs, 
-    download_fs, and erase targets.
+    Disables LDF (Library Dependency Finder) for uploadfs, uploadfsota, buildfs,
+    download_fs, erase, and lockfile/snapshot targets.
 
     This optimization prevents unnecessary library dependency scanning and compilation
-    when only filesystem operations are performed.
+    when only filesystem operations or lockfile/snapshot management are performed.
     """
-    fs_targets = {"uploadfs", "uploadfsota", "buildfs", "erase", "download_fs"}
+    fs_targets = {
+        "uploadfs", "uploadfsota", "buildfs", "erase", "download_fs",
+        "lock-capture", "lock-check", "lock-restore",
+        "snapshot-capture", "snapshot-check", "snapshot-clear", "snapshot-print",
+    }
     if fs_targets & set(COMMAND_LINE_TARGETS):
         # Disable LDF by modifying project configuration directly
         env_section = "env:" + env["PIOENV"]
