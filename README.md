@@ -21,10 +21,10 @@ Prerequisites:
 ## Installation
 
 ### VSCode Extension
-- [Download and install Microsoft Visual Studio Code](https://code.visualstudio.com/). pioarduino IDE is on top of it.
+- Download and install [Microsoft Visual Studio Code](https://code.visualstudio.com/). [pioarduino IDE](https://marketplace.visualstudio.com/items?itemName=pioarduino.pioarduino-ide) is on top of it.
 - Open the extension manager.
 - Search for the `pioarduino ide` extension.
-- Install pioarduino IDE extension.
+- Install [pioarduino IDE](https://marketplace.visualstudio.com/items?itemName=pioarduino.pioarduino-ide) extension.
 
 ### CLI
 ```bash
