@@ -18,6 +18,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,6 +31,31 @@ from platformio.project.config import ProjectConfig
 
 LOCKFILE_NAME = "pio.lock.json"
 SNAPSHOT_NAME = "build_snapshot.json"
+
+
+def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+    """Atomically write JSON data to a file using temp file + rename.
+
+    This ensures that the file is either fully written or not modified at all,
+    preventing corruption from interrupted writes (Ctrl+C, power loss, OOM).
+    """
+    json_str = json.dumps(data, indent=2) + "\n"
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".tmp")
+    try:
+        os.write(fd, json_str.encode("utf-8"))
+        os.fsync(fd)
+        os.close(fd)
+        os.replace(tmp_path, path)
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 # Global packages to record (frameworks and toolchains — the ones that matter
 # for build reproducibility). Skip IDE helpers, contrib, filesystem tools.
@@ -132,7 +158,7 @@ def generate_snapshot(project_dir: Path, *, pinned: bool = False) -> dict[str, A
         print("WARNING: Working tree has uncommitted changes", file=sys.stderr)
 
     path = project_dir / SNAPSHOT_NAME
-    path.write_text(json.dumps(snapshot, indent=2) + "\n")
+    _atomic_write_json(path, snapshot)
     dirty_marker = "*" if dirty else ""
     print(f"Build snapshot generated: {snapshot['build_date']} (commit {commit}{dirty_marker})")
     return snapshot
@@ -493,7 +519,7 @@ def capture(
 
     dest = output_path or (project_dir / LOCKFILE_NAME)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(json.dumps(lockdata, indent=2) + "\n")
+    _atomic_write_json(dest, lockdata)
     print(f"Wrote {dest}")
     return 0
 
