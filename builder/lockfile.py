@@ -56,7 +56,7 @@ def _default_run_cmd(args: list[str], cwd: Optional[str] = None, check: bool = T
 
 def run_cmd(args: list[str], cwd: Optional[str | Path] = None, check: bool = True) -> str:
     """Run a command and return stdout, stripped."""
-    return _run_cmd(args, cwd=str(cwd) if cwd else None, check=check)
+    return _default_run_cmd(args, cwd=str(cwd) if cwd else None, check=check)
 
 
 # ── Git helpers ──────────────────────────────────────────────────────────────
@@ -959,7 +959,11 @@ def _get_outdated_entries(
     lib_filter: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     """Check all deps across envs for available updates using PIO's API."""
-    lib_pkg_mgr_cls, pkg_spec_cls, proj_config_cls = _pio_import_fn()
+    lib_pkg_mgr_cls, pkg_spec_cls, proj_config_cls = (
+        LibraryPackageManager,
+        PackageSpec,
+        ProjectConfig,
+    )
 
     config = proj_config_cls.get_instance(str(project_dir / "platformio.ini"))
     entries: list[dict[str, Any]] = []
@@ -1022,7 +1026,7 @@ def outdated(
     entries = _get_outdated_entries(project_dir, envs)
 
     # GitHub-aware checks for git deps and platform
-    github = _create_github_client_fn()
+    github = _create_github_client()
     git_results: list[dict[str, Any]] = []
     platform_result: Optional[dict[str, Any]] = None
     github_skipped_reason: Optional[str] = None
@@ -1205,7 +1209,11 @@ def update(
         print(f"Error: no platformio.ini in {project_dir}", file=sys.stderr)
         return 1
 
-    _pm_cls, _spec_cls, proj_config_cls = _pio_import_fn()
+    _pm_cls, _spec_cls, proj_config_cls = (
+        LibraryPackageManager,
+        PackageSpec,
+        ProjectConfig,
+    )
     config = proj_config_cls.get_instance(str(project_dir / "platformio.ini"))
     tracker = ConfigSourceTracker(config, fallback_path=project_dir / "platformio.ini")
 
