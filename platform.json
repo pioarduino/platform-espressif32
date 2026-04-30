@@ -125,8 +125,8 @@
       "type": "debugger",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "2.1200.20260304",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20260304.zip"
+      "package-version": "2.1200.20260424",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20260424.zip"
     },
     "tool-cppcheck": {
       "type": "tool",
@@ -139,8 +139,8 @@
       "type": "tool",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "21.1.3+20260304",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/clangd-esp-21.1.3_20260304.zip"
+      "package-version": "21.1.3+20260408",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/clangd-esp-21.1.3_20260408.zip"
     },
     "tool-clangtidy": {
       "type": "tool",
