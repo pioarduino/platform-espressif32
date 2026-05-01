@@ -1,2 +1,5 @@
 *.pyc
 .DS_Store
+pio.lock.json
+build_snapshot.json
+*.lock
