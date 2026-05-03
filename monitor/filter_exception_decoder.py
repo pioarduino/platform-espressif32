@@ -776,6 +776,16 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
             self._rx_buf_bytes = 0
 
         text = "".join(chunks)
+        if self.buffer:
+            # Re-introduce held-over bytes from the previous call into the
+            # output stream so they are visible to both the pattern matchers
+            # (via ``line = text[last:idx]``) and to the caller (via
+            # ``text[:last]``). Previously these bytes were prepended only
+            # onto ``line`` and silently dropped from the returned text,
+            # causing the first character(s) of lines split across rx
+            # chunks to disappear from the serial monitor output.
+            text = self.buffer + text
+            self.buffer = ""
 
         last = 0
         while True:
@@ -788,9 +798,6 @@ See https://docs.platformio.org/page/projectconf/build_configurations.html
                 return text[:last]
 
             line = text[last:idx]
-            if self.buffer:
-                line = self.buffer + line
-                self.buffer = ""
             last = idx + 1
 
             # Feed RISC-V panic accumulator
