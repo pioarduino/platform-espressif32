@@ -67,6 +67,7 @@ setup_penv_minimal = penv_setup_module.setup_penv_minimal
 get_executable_path = penv_setup_module.get_executable_path
 has_internet_connection = penv_setup_module.has_internet_connection
 install_freertos_gdb = penv_setup_module.install_freertos_gdb
+install_pio_lock = penv_setup_module.install_pio_lock
 GDB_TOOL_PACKAGES = penv_setup_module.GDB_TOOL_PACKAGES
 
 
@@ -858,6 +859,10 @@ class Espressif32Platform(PlatformBase):
             
             # Install freertos-gdb after MCU toolchains are installed
             install_freertos_gdb(self, get_executable_path(str(Path(core_dir) / "penv"), "uv"), penv_python, str(Path(core_dir) / ".cache" / "uv"))
+
+            # Install pio-lock if enabled in platformio.ini (via custom_pio_lock = true)
+            if variables.get("custom_pio_lock", "false").lower() in ("true", "yes", "1"):
+                install_pio_lock(self, get_executable_path(str(Path(core_dir) / "penv"), "uv"), penv_python, str(Path(core_dir) / ".cache" / "uv"))
 
             if "espidf" in frameworks:
                 self._install_common_idf_packages()

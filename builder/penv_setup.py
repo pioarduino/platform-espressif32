@@ -806,6 +806,57 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable, uv_cac
         # Don't exit - esptool installation is not critical for penv setup
 
 
+def install_pio_lock(platform, uv_executable, penv_executable, uv_cache_dir=None):
+    """
+    Install pio-lock into the platform's Python virtual environment.
+
+    pio-lock provides dependency lockfile functionality for PlatformIO,
+    enabling reproducible builds for embedded projects.
+
+    Args:
+        platform: PlatformIO platform object
+        uv_executable (str): Path to uv executable
+        penv_executable (str): Path to penv Python executable
+        uv_cache_dir: Optional path to uv cache directory
+    """
+    if not has_network:
+        return
+
+    uv_env = None
+    if uv_cache_dir:
+        uv_env = dict(os.environ)
+        uv_env["UV_CACHE_DIR"] = str(uv_cache_dir)
+
+    # Check if pio-lock is already installed
+    try:
+        result = subprocess.run(
+            [penv_executable, "-c", "import pio_lock; print('pio-lock installed')"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return
+    except Exception:
+        pass
+
+    # Install pio-lock from GitHub repository
+    try:
+        subprocess.check_call([
+            uv_executable, "pip", "install", "--quiet",
+            f"--python={penv_executable}",
+            "git+https://github.com/m-mcgowan/pio-lock.git"
+        ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+            timeout=60,
+            env=uv_env,
+        )
+        print("Installed pio-lock for dependency lockfile support")
+    except Exception as exc:
+        print(f"Warning: Failed to install pio-lock: {exc}")
+
+
 def install_freertos_gdb(platform, uv_executable, penv_executable, uv_cache_dir=None):
     """
     Install freertos-gdb into each GDB tool's embedded Python site (share/gdb/python/).
