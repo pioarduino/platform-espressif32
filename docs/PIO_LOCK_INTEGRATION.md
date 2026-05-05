@@ -56,13 +56,10 @@ After enabling `custom_pio_lock`, the following targets become available:
 ### Initial Setup and Capture
 
 ```bash
-# 1. Install dependencies normally
-pio pkg install -e myenv
-
-# 2. Capture the resolved dependency state
+# Capture the resolved dependency state
 pio run -t lock-capture -e myenv
 
-# 3. Commit the lockfile to version control
+# Commit the lockfile to version control
 git add pio.lock.json
 git commit -m "Add dependency lockfile"
 ```
@@ -70,14 +67,14 @@ git commit -m "Add dependency lockfile"
 ### Restoring Dependencies (CI/Another Machine)
 
 ```bash
-# 1. Clone the repository (with lockfile)
+# Clone the repository (with lockfile)
 git clone https://github.com/user/project.git
 cd project
 
-# 2. Restore exact dependency versions
+# Restore exact dependency versions
 pio run -t lock-restore -e myenv
 
-# 3. Build as usual
+# Build as usual
 pio run -e myenv
 ```
 
@@ -110,11 +107,6 @@ pio run -t snapshot-clear -e myenv
 ### Development Machine
 
 ```bash
-# Start development
-pio pkg install -e esp32dev
-
-# ... make changes, test ...
-
 # Capture dependencies before committing
 pio run -t lock-capture -e esp32dev
 
@@ -168,7 +160,6 @@ git commit -m "Update dependencies"
 Whenever you modify `lib_deps` in `platformio.ini` or run `pio pkg install/update`, recapture the lockfile:
 
 ```bash
-pio pkg update
 pio run -t lock-capture -e myenv
 ```
 
@@ -234,15 +225,6 @@ The `pio.lock.json` file contains structured dependency information:
 ```
 
 ## Troubleshooting
-
-### pio-lock not found
-
-If targets are not available after enabling `custom_pio_lock`:
-
-```bash
-# Force platform reconfiguration
-pio pkg update -p https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
-```
 
 ### Lock restore fails
 
