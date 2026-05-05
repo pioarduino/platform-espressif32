@@ -81,12 +81,18 @@ if projectconfig.get(f"env:{env_name}", "custom_pio_lock", default="false").lowe
         import pio_lock
         # Register custom targets with SCons
         pio_lock.register_pio_targets(env)
-    except ImportError:
-        # pio-lock not yet installed, will be installed on next platform configure
-        pass
-    except AttributeError:
-        # pio_lock installed but register_pio_targets not available (old version)
-        pass
+    except ImportError as exc:
+        sys.stderr.write(
+            f"Warning: custom_pio_lock=true but pio_lock could not be imported "
+            f"({exc}). Lock targets (lock-capture/lock-restore/lock-check) "
+            f"will not be available.\n"
+        )
+    except AttributeError as exc:
+        sys.stderr.write(
+            f"Warning: pio_lock is installed but does not expose "
+            f"register_pio_targets ({exc}). Update pio-lock to a compatible "
+            f"version.\n"
+        )
 
 # Load board configuration and determine MCU architecture
 board = env.BoardConfig()

@@ -845,7 +845,7 @@ def install_pio_lock(platform, uv_executable, penv_executable, uv_cache_dir=None
         subprocess.check_call([
             uv_executable, "pip", "install", "--quiet",
             f"--python={penv_executable}",
-            "git+https://github.com/m-mcgowan/pio-lock.git"
+            "git+https://github.com/m-mcgowan/pio-lock.git@v0.2.0"
         ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.STDOUT,

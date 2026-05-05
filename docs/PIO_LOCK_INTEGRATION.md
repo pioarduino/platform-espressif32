@@ -231,7 +231,8 @@ The `pio.lock.json` file contains structured dependency information:
 If `lock-restore` fails due to missing packages:
 
 ```bash
-# Clean and reinstall
+# WARNING: This removes lib_deps, platform, framework, toolchains and tools
+# for the env, forcing a full re-download on the next run.
 pio pkg uninstall -e myenv
 pio run -t lock-restore -e myenv
 ```

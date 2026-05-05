@@ -56,10 +56,6 @@ pioarduino provides native support for multiple filesystem options, allowing you
 - **SPIFFS** - Simple legacy filesystem. While still functional, LittleFS is recommended for new projects due to better wear-leveling and reliability.
 - **FatFS** - Industry-standard FAT filesystem with broad compatibility across platforms and operating systems.
 
-### FatFS Integration
-
-FatFS support has been fully integrated as a Python module, providing the same seamless experience as LittleFS. Configuration is straightforward - simply specify your preferred filesystem in your project settings: See [FATFS_INTEGRATION.md](FATFS_INTEGRATION.md) for detailed documentation.
-
 **Quick Start:**
 
 ```ini
