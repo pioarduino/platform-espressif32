@@ -73,6 +73,21 @@ SpiffsBuildConfig = spiffsgen.SpiffsBuildConfig
 # Import GDB_TOOL_PACKAGES from penv_setup (already loaded into sys.modules by platform.py)
 from penv_setup import GDB_TOOL_PACKAGES
 
+# Automatically register pio-lock targets if custom_pio_lock is enabled
+env_name = env.subst("$PIOENV")
+if projectconfig.get(f"env:{env_name}", "custom_pio_lock", default="false").lower() in ("true", "yes", "1"):
+    try:
+        # Try to import pio_lock module from penv
+        import pio_lock
+        # Register custom targets with SCons
+        pio_lock.register_pio_targets(env)
+    except ImportError:
+        # pio-lock not yet installed, will be installed on next platform configure
+        pass
+    except AttributeError:
+        # pio_lock installed but register_pio_targets not available (old version)
+        pass
+
 # Load board configuration and determine MCU architecture
 board = env.BoardConfig()
 board_id = env.subst("$BOARD")
