@@ -837,7 +837,7 @@ def install_pio_lock(platform, uv_executable, penv_executable, uv_cache_dir=None
 
     # Define pio-lock as additional dependency
     # todo: Replace with official pio-lock package when available
-    # For now, use the fork from m-mcgowan without version and install check
+    # For now, use the git source from m-mcgowan without version and install check
     pio_lock_dep = {
         "pio-lock": "git+https://github.com/m-mcgowan/pio-lock.git@v0.2.0"
     }
