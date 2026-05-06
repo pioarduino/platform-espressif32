@@ -329,11 +329,12 @@ def get_packages_to_install(deps, installed_packages):
     """
     Generator for Python packages that need to be installed.
     Compares package names case-insensitively.
-    
+    Handles both semantic version specs and direct URLs (git+, http, etc.).
+
     Args:
         deps (dict): Dictionary of package names and version specifications
         installed_packages (dict): Dictionary of currently installed packages (keys should be lowercase)
-        
+
     Yields:
         str: Package name that needs to be installed
     """
@@ -341,21 +342,27 @@ def get_packages_to_install(deps, installed_packages):
         name = package.lower()
         if name not in installed_packages:
             yield package
+        elif spec.startswith(('http://', 'https://', 'git+', 'file://')):
+            # URL/git/file specs cannot be parsed by semantic_version.SimpleSpec.
+            # Treat the pinned URL as already satisfied if present in the env;
+            # use `uv pip install --upgrade` separately to refresh on demand.
+            continue
         else:
             version_spec = semantic_version.SimpleSpec(spec)
             if not version_spec.match(installed_packages[name]):
                 yield package
 
 
-def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
+def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None, additional_deps=None):
     """
     Ensure uv package manager is available in penv and install required Python dependencies.
-    
+
     Args:
         python_exe: Path to Python executable in the penv
         external_uv_executable: Path to external uv executable used to create the penv (can be None)
         uv_cache_dir: Optional path to uv cache directory
-    
+        additional_deps: Optional dictionary of additional package names and version specs to install
+
     Returns:
         bool: True if successful, False otherwise
     """
@@ -471,23 +478,29 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
         return result
 
     installed_packages = _get_installed_uv_packages()
-    packages_to_install = list(get_packages_to_install(python_deps, installed_packages))
-    
+
+    # Combine core and additional dependencies
+    all_deps = dict(python_deps)
+    if additional_deps:
+        all_deps.update(additional_deps)
+
+    packages_to_install = list(get_packages_to_install(all_deps, installed_packages))
+
     if packages_to_install:
         packages_list = []
         for p in packages_to_install:
-            spec = python_deps[p]
+            spec = all_deps[p]
             if spec.startswith(('http://', 'https://', 'git+', 'file://')):
                 packages_list.append(spec)
             else:
                 packages_list.append(f"{p}{spec}")
-        
+
         cmd = [
             penv_uv_executable, "pip", "install",
             f"--python={python_exe}",
             "--quiet", "--upgrade"
         ] + packages_list
-        
+
         try:
             subprocess.check_call(
                 cmd,
@@ -496,7 +509,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
                 timeout=300,
                 env=uv_env
             )
-                
+
         except subprocess.CalledProcessError as e:
             print(f"Error: Failed to install Python dependencies (exit code: {e.returncode})")
             return False
@@ -509,7 +522,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
         except Exception as e:
             print(f"Error installing Python dependencies: {e}")
             return False
-    
+
     return True
 
 
@@ -804,6 +817,34 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable, uv_cac
     except subprocess.CalledProcessError as e:
         print(f"Warning: Failed to install esptool from {esptool_repo_path} (exit {e.returncode})")
         # Don't exit - esptool installation is not critical for penv setup
+
+
+def install_pio_lock(platform, uv_executable, penv_executable, uv_cache_dir=None):
+    """
+    Install pio-lock into the platform's Python virtual environment.
+
+    pio-lock provides dependency lockfile functionality for PlatformIO,
+    enabling reproducible builds for embedded projects.
+
+    Args:
+        platform: PlatformIO platform object
+        uv_executable (str): Path to uv executable
+        penv_executable (str): Path to penv Python executable
+        uv_cache_dir: Optional path to uv cache directory
+    """
+    if not has_network:
+        return
+
+    # Define pio-lock as additional dependency
+    # todo: Replace with official pio-lock package when available
+    # For now, use the git source from m-mcgowan without version and install check
+    pio_lock_dep = {
+        "pio-lock": "git+https://github.com/m-mcgowan/pio-lock.git@v0.2.0"
+    }
+
+    # Use the centralized installer
+    if not install_python_deps(penv_executable, uv_executable, uv_cache_dir, pio_lock_dep):
+        print("Warning: Failed to install pio-lock")
 
 
 def install_freertos_gdb(platform, uv_executable, penv_executable, uv_cache_dir=None):
