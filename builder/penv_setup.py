@@ -329,21 +329,30 @@ def get_packages_to_install(deps, installed_packages):
     """
     Generator for Python packages that need to be installed.
     Compares package names case-insensitively.
-    
+    Handles both semantic version specs and direct URLs (git+, http, etc.).
+
     Args:
         deps (dict): Dictionary of package names and version specifications
         installed_packages (dict): Dictionary of currently installed packages (keys should be lowercase)
-        
+
     Yields:
         str: Package name that needs to be installed
     """
     for package, spec in deps.items():
         name = package.lower()
-        if name not in installed_packages:
+        # URL-based specs (git+, http, file) cannot be version-checked
+        # Always install/reinstall these
+        if spec.startswith(('http://', 'https://', 'git+', 'file://')):
+            yield package
+        elif name not in installed_packages:
             yield package
         else:
-            version_spec = semantic_version.SimpleSpec(spec)
-            if not version_spec.match(installed_packages[name]):
+            try:
+                version_spec = semantic_version.SimpleSpec(spec)
+                if not version_spec.match(installed_packages[name]):
+                    yield package
+            except ValueError:
+                # Invalid version spec, install to be safe
                 yield package
 
 
