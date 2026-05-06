@@ -340,19 +340,16 @@ def get_packages_to_install(deps, installed_packages):
     """
     for package, spec in deps.items():
         name = package.lower()
-        # URL-based specs (git+, http, file) cannot be version-checked
-        # Always install/reinstall these
-        if spec.startswith(('http://', 'https://', 'git+', 'file://')):
+        if name not in installed_packages:
             yield package
-        elif name not in installed_packages:
-            yield package
+        elif spec.startswith(('http://', 'https://', 'git+', 'file://')):
+            # URL/git/file specs cannot be parsed by semantic_version.SimpleSpec.
+            # Treat the pinned URL as already satisfied if present in the env;
+            # use `uv pip install --upgrade` separately to refresh on demand.
+            continue
         else:
-            try:
-                version_spec = semantic_version.SimpleSpec(spec)
-                if not version_spec.match(installed_packages[name]):
-                    yield package
-            except ValueError:
-                # Invalid version spec, install to be safe
+            version_spec = semantic_version.SimpleSpec(spec)
+            if not version_spec.match(installed_packages[name]):
                 yield package
 
 
@@ -844,9 +841,7 @@ def install_pio_lock(platform, uv_executable, penv_executable, uv_cache_dir=None
     }
 
     # Use the centralized installer
-    if install_python_deps(penv_executable, uv_executable, uv_cache_dir, pio_lock_dep):
-        print("Installed pio-lock for dependency lockfile support")
-    else:
+    if not install_python_deps(penv_executable, uv_executable, uv_cache_dir, pio_lock_dep):
         print("Warning: Failed to install pio-lock")
 
 
