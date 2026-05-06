@@ -102,6 +102,14 @@ is_xtensa = mcu in ("esp32", "esp32s2", "esp32s3")
 toolchain_arch = "xtensa-%s" % mcu
 filesystem = board.get("build.filesystem", "littlefs")
 
+# ESP-IDF partition table constants. Defined module-wide so the partition
+# downloader and the filesystem detector share a single source of truth.
+DATA_PARTITION_TYPE = 0x01
+SUBTYPE_FAT = 0x81
+SUBTYPE_SPIFFS = 0x82
+SUBTYPE_LITTLEFS = 0x83
+KNOWN_FS_SUBTYPES = (SUBTYPE_FAT, SUBTYPE_SPIFFS, SUBTYPE_LITTLEFS)
+
 
 def load_board_script(env):
     if not board_id:
@@ -1197,14 +1205,11 @@ def _download_partition_image(env, fs_type_filter=None):
     Returns:
         tuple: (fs_file_path, fs_start, fs_size, fs_subtype) or (None, None, None, None) on error
     """
-    # Known filesystem subtypes for ESP32 data partitions:
-    #   0x81 = FAT, 0x82 = SPIFFS, 0x83 = LittleFS
-    # All other data subtypes (e.g. 0x00 ota, 0x01 phy, 0x02 nvs,
-    # 0x03 coredump, 0x04 nvs_keys, 0x05 efuse, 0x06 undefined) must
-    # be excluded so that e.g. a coredump partition is not mistakenly
-    # treated as a filesystem partition.
-    KNOWN_FS_SUBTYPES = (0x81, 0x82, 0x83)
-    DATA_PARTITION_TYPE = 0x01
+    # KNOWN_FS_SUBTYPES (FAT/SPIFFS/LittleFS) and DATA_PARTITION_TYPE are
+    # defined at module scope. All other data subtypes (e.g. 0x00 ota,
+    # 0x01 phy, 0x02 nvs, 0x03 coredump, 0x04 nvs_keys, 0x05 efuse,
+    # 0x06 undefined) are excluded so that e.g. a coredump partition is
+    # not mistakenly treated as a filesystem partition.
     # Ensure upload port is set
     if not env.subst("$UPLOAD_PORT"):
         env.AutodetectUploadPort()
@@ -1316,7 +1321,11 @@ def _download_partition_image(env, fs_type_filter=None):
         # Prefer filesystem partitions in this order: LittleFS, SPIFFS, FAT.
         # When the caller supplied an explicit filter, just take the first
         # match.
-        priority = {0x83: 0, 0x82: 1, 0x81: 2}.get(part_subtype, 99)
+        priority = {
+            SUBTYPE_LITTLEFS: 0,
+            SUBTYPE_SPIFFS: 1,
+            SUBTYPE_FAT: 2,
+        }.get(part_subtype, 99)
         if candidate is None or priority < candidate[0]:
             candidate = (priority, part_offset, part_size, part_subtype, part_label)
             if fs_type_filter is not None:
@@ -1670,12 +1679,12 @@ def download_fs_action(target, source, env):
     
     # 3. Fall back to partition table subtype if no clear signature found
     if fs_type is None:
-        if fs_subtype == 0x81:
+        if fs_subtype == SUBTYPE_FAT:
             fs_type = "fatfs"
-        elif fs_subtype == 0x82:
+        elif fs_subtype == SUBTYPE_SPIFFS:
             # Subtype 0x82 can be either SPIFFS or LittleFS, default to SPIFFS
             fs_type = "spiffs"
-        elif fs_subtype == 0x83:
+        elif fs_subtype == SUBTYPE_LITTLEFS:
             fs_type = "littlefs"
         else:
             print(f"Warning: Unknown partition subtype 0x{fs_subtype:02X}, defaulting to SPIFFS")
