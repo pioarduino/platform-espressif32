@@ -347,15 +347,16 @@ def get_packages_to_install(deps, installed_packages):
                 yield package
 
 
-def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
+def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None, additional_deps=None):
     """
     Ensure uv package manager is available in penv and install required Python dependencies.
-    
+
     Args:
         python_exe: Path to Python executable in the penv
         external_uv_executable: Path to external uv executable used to create the penv (can be None)
         uv_cache_dir: Optional path to uv cache directory
-    
+        additional_deps: Optional dictionary of additional package names and version specs to install
+
     Returns:
         bool: True if successful, False otherwise
     """
@@ -471,23 +472,29 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
         return result
 
     installed_packages = _get_installed_uv_packages()
-    packages_to_install = list(get_packages_to_install(python_deps, installed_packages))
-    
+
+    # Combine core and additional dependencies
+    all_deps = dict(python_deps)
+    if additional_deps:
+        all_deps.update(additional_deps)
+
+    packages_to_install = list(get_packages_to_install(all_deps, installed_packages))
+
     if packages_to_install:
         packages_list = []
         for p in packages_to_install:
-            spec = python_deps[p]
+            spec = all_deps[p]
             if spec.startswith(('http://', 'https://', 'git+', 'file://')):
                 packages_list.append(spec)
             else:
                 packages_list.append(f"{p}{spec}")
-        
+
         cmd = [
             penv_uv_executable, "pip", "install",
             f"--python={python_exe}",
             "--quiet", "--upgrade"
         ] + packages_list
-        
+
         try:
             subprocess.check_call(
                 cmd,
@@ -496,7 +503,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
                 timeout=300,
                 env=uv_env
             )
-                
+
         except subprocess.CalledProcessError as e:
             print(f"Error: Failed to install Python dependencies (exit code: {e.returncode})")
             return False
@@ -509,7 +516,7 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None):
         except Exception as e:
             print(f"Error installing Python dependencies: {e}")
             return False
-    
+
     return True
 
 
@@ -822,39 +829,16 @@ def install_pio_lock(platform, uv_executable, penv_executable, uv_cache_dir=None
     if not has_network:
         return
 
-    uv_env = None
-    if uv_cache_dir:
-        uv_env = dict(os.environ)
-        uv_env["UV_CACHE_DIR"] = str(uv_cache_dir)
+    # Define pio-lock as additional dependency
+    pio_lock_dep = {
+        "pio-lock": "git+https://github.com/m-mcgowan/pio-lock.git@v0.2.0"
+    }
 
-    # Check if pio-lock is already installed
-    try:
-        result = subprocess.run(
-            [penv_executable, "-c", "import pio_lock; print('pio-lock installed')"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        if result.returncode == 0:
-            return
-    except Exception:
-        pass
-
-    # Install pio-lock from GitHub repository
-    try:
-        subprocess.check_call([
-            uv_executable, "pip", "install", "--quiet",
-            f"--python={penv_executable}",
-            "git+https://github.com/m-mcgowan/pio-lock.git@v0.2.0"
-        ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
-            timeout=60,
-            env=uv_env,
-        )
+    # Use the centralized installer
+    if install_python_deps(penv_executable, uv_executable, uv_cache_dir, pio_lock_dep):
         print("Installed pio-lock for dependency lockfile support")
-    except Exception as exc:
-        print(f"Warning: Failed to install pio-lock: {exc}")
+    else:
+        print("Warning: Failed to install pio-lock")
 
 
 def install_freertos_gdb(platform, uv_executable, penv_executable, uv_cache_dir=None):
