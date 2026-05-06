@@ -1191,11 +1191,20 @@ def _download_partition_image(env, fs_type_filter=None):
     Args:
         env: SCons environment object
         fs_type_filter: List of partition subtypes to look for (e.g., [0x82, 0x83] for LittleFS/SPIFFS)
-                       or [0x81] for FAT. If None, accepts any data partition.
+                       or [0x81] for FAT. If None, accepts any known filesystem
+                       partition (FAT/SPIFFS/LittleFS).
 
     Returns:
         tuple: (fs_file_path, fs_start, fs_size, fs_subtype) or (None, None, None, None) on error
     """
+    # Known filesystem subtypes for ESP32 data partitions:
+    #   0x81 = FAT, 0x82 = SPIFFS, 0x83 = LittleFS
+    # All other data subtypes (e.g. 0x00 ota, 0x01 phy, 0x02 nvs,
+    # 0x03 coredump, 0x04 nvs_keys, 0x05 efuse, 0x06 undefined) must
+    # be excluded so that e.g. a coredump partition is not mistakenly
+    # treated as a filesystem partition.
+    KNOWN_FS_SUBTYPES = (0x81, 0x82, 0x83)
+    DATA_PARTITION_TYPE = 0x01
     # Ensure upload port is set
     if not env.subst("$UPLOAD_PORT"):
         env.AutodetectUploadPort()
@@ -1235,35 +1244,100 @@ def _download_partition_image(env, fs_type_filter=None):
         partition_data = f.read()
 
     # Parse partition entries (format: 0xAA 0x50 followed by entry data)
-    entries = [e for e in partition_data.split(b'\xaaP') if len(e) > 0]
+    # split() removes the 0xAA 0x50 magic, so each valid entry body is 30 bytes
+    entries = [e for e in partition_data.split(b'\xaaP') if len(e) >= 30]
 
     fs_start = None
     fs_size = None
     fs_subtype = None
 
+    # Determine which subtypes are acceptable. When no explicit filter is
+    # provided, restrict to known filesystem subtypes (FAT/SPIFFS/LittleFS)
+    # so that auxiliary data partitions (nvs, phy, otadata, coredump, ...)
+    # are never picked up as a filesystem partition.
+    allowed_subtypes = (
+        tuple(fs_type_filter) if fs_type_filter is not None else KNOWN_FS_SUBTYPES
+    )
+
+    # Partition table entry layout (after the 0xAA 0x50 magic):
+    #   Byte 0     : Type     (0x00 = app, 0x01 = data)
+    #   Byte 1     : SubType  (0x81=FAT, 0x82=SPIFFS, 0x83=LittleFS,
+    #                          0x00=ota, 0x01=phy, 0x02=nvs, 0x03=coredump, ...)
+    #   Bytes 2-5  : Offset   (little-endian uint32)
+    #   Bytes 6-9  : Size     (little-endian uint32)
+    #   Bytes 10-25: Label    (16 bytes, NUL-padded)
+    #   Bytes 26-29: Flags    (little-endian uint32)
+    candidate = None
     for entry in entries:
-        if len(entry) < 32:
+        # Each ESP-IDF partition table entry is 32 bytes including the
+        # 2-byte 0xAA 0x50 magic; split() removes the magic so a valid
+        # entry chunk is 30 bytes (type, subtype, offset, size, label,
+        # flags). Anything shorter is truncated/garbage.
+        if len(entry) < 30:
             continue
 
-        # Byte 0: Type (0x01 for data partitions)
-        # Byte 1: SubType (0x81=FAT, 0x82=SPIFFS, 0x83=LittleFS)
-        # Bytes 2-5: Offset (4 bytes, little-endian)
-        # Bytes 6-9: Size (4 bytes, little-endian)
-
+        part_type = entry[0]
         part_subtype = entry[1]
 
-        # Check if this partition matches our filter
-        if fs_type_filter is None or part_subtype in fs_type_filter:
-            fs_start = int.from_bytes(entry[2:6], byteorder='little', signed=False)
-            fs_size = int.from_bytes(entry[6:10], byteorder='little', signed=False)
-            fs_subtype = part_subtype
-            break
+        # Only consider data partitions (type 0x01); skip app and others.
+        if part_type != DATA_PARTITION_TYPE:
+            continue
 
-    if fs_start is None or fs_size is None:
-        print("Error: No matching filesystem partition found in partition table")
+        # Skip subtypes that are not in the allowed list. This explicitly
+        # excludes coredump (0x03), nvs (0x02), phy (0x01), otadata (0x00),
+        # nvs_keys (0x04), efuse_em (0x05) and undefined (0x06).
+        if part_subtype not in allowed_subtypes:
+            continue
+
+        part_offset = int.from_bytes(entry[2:6], byteorder='little', signed=False)
+        part_size = int.from_bytes(entry[6:10], byteorder='little', signed=False)
+
+        # Sanity check offset/size: must be non-zero and 4 KB aligned.
+        if part_size == 0 or part_offset == 0:
+            continue
+        if (part_offset % 0x1000) != 0 or (part_size % 0x1000) != 0:
+            continue
+
+        # Try to extract a readable label for diagnostics.
+        try:
+            part_label = entry[10:26].split(b'\x00', 1)[0].decode('ascii', 'replace')
+        except Exception:
+            part_label = ""
+
+        # Defensive: if a partition is *labelled* coredump but somehow has a
+        # filesystem subtype, ignore it.
+        if part_label.strip().lower() == "coredump":
+            print(
+                f"  Skipping partition labelled 'coredump' "
+                f"(subtype 0x{part_subtype:02X})"
+            )
+            continue
+
+        # Prefer filesystem partitions in this order: LittleFS, SPIFFS, FAT.
+        # When the caller supplied an explicit filter, just take the first
+        # match.
+        priority = {0x83: 0, 0x82: 1, 0x81: 2}.get(part_subtype, 99)
+        if candidate is None or priority < candidate[0]:
+            candidate = (priority, part_offset, part_size, part_subtype, part_label)
+            if fs_type_filter is not None:
+                # Caller asked for specific subtypes; first match wins.
+                break
+
+    if candidate is None:
+        print(
+            "Error: No matching filesystem partition (FAT/SPIFFS/LittleFS) "
+            "found in partition table"
+        )
         return None, None, None, None
 
-    print(f"\nFound filesystem partition (subtype {hex(fs_subtype)}):")
+    _, fs_start, fs_size, fs_subtype, fs_label = candidate
+    if fs_label:
+        print(
+            f"\nFound filesystem partition '{fs_label}' "
+            f"(subtype {hex(fs_subtype)}):"
+        )
+    else:
+        print(f"\nFound filesystem partition (subtype {hex(fs_subtype)}):")
     print(f"  Start: {hex(fs_start)}")
     print(f"  Size: {hex(fs_size)} ({fs_size} bytes)")
 
