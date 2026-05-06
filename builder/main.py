@@ -73,6 +73,27 @@ SpiffsBuildConfig = spiffsgen.SpiffsBuildConfig
 # Import GDB_TOOL_PACKAGES from penv_setup (already loaded into sys.modules by platform.py)
 from penv_setup import GDB_TOOL_PACKAGES
 
+# Automatically register pio-lock targets if custom_pio_lock is enabled
+env_name = env.subst("$PIOENV")
+if projectconfig.get(f"env:{env_name}", "custom_pio_lock", default="false").lower() in ("true", "yes", "1"):
+    try:
+        # Try to import pio_lock module from penv
+        import pio_lock
+        # Register custom targets with SCons
+        pio_lock.register_pio_targets(env)
+    except ImportError as exc:
+        sys.stderr.write(
+            f"Warning: custom_pio_lock=true but pio_lock could not be imported "
+            f"({exc}). Lock targets (lock-capture/lock-restore/lock-check) "
+            f"will not be available.\n"
+        )
+    except AttributeError as exc:
+        sys.stderr.write(
+            f"Warning: pio_lock is installed but does not expose "
+            f"register_pio_targets ({exc}). Update pio-lock to a compatible "
+            f"version.\n"
+        )
+
 # Load board configuration and determine MCU architecture
 board = env.BoardConfig()
 board_id = env.subst("$BOARD")
@@ -80,6 +101,14 @@ mcu = board.get("build.mcu", "esp32")
 is_xtensa = mcu in ("esp32", "esp32s2", "esp32s3")
 toolchain_arch = "xtensa-%s" % mcu
 filesystem = board.get("build.filesystem", "littlefs")
+
+# ESP-IDF partition table constants. Defined module-wide so the partition
+# downloader and the filesystem detector share a single source of truth.
+DATA_PARTITION_TYPE = 0x01
+SUBTYPE_FAT = 0x81
+SUBTYPE_SPIFFS = 0x82
+SUBTYPE_LITTLEFS = 0x83
+KNOWN_FS_SUBTYPES = (SUBTYPE_FAT, SUBTYPE_SPIFFS, SUBTYPE_LITTLEFS)
 
 
 def load_board_script(env):
@@ -478,7 +507,13 @@ def build_fs_image(target, source, env):
         disk_version = (2 << 16) | 1
 
     try:
-        # Create LittleFS instance with Arduino / IDF compatible parameters
+        # Create LittleFS instance with Arduino / IDF compatible parameters.
+        # Suppress the constructor's auto-mount: when the backing buffer is
+        # uninitialized, LittleFS(mount=True) calls lfs_mount() first, which
+        # mutates the internal lfs_t state before failing. The subsequent
+        # implicit format() then runs on a dirty struct and produces a
+        # superblock that some targets (e.g. ESP8684/XH-C2X) refuse to mount.
+        # An explicit format() + mount() on a fresh instance avoids this.
         fs = LittleFS(
             block_size=block_size,
             block_count=block_count,
@@ -489,8 +524,11 @@ def build_fs_image(target, source, env):
             block_cycles=500,         # Wear leveling cycles
             name_max=64,              # ESP-IDF default filename length
             disk_version=disk_version,
-            mount=True
+            mount=False
         )
+
+        fs.format()
+        fs.mount()
 
         # Add all files from source directory
         source_path = Path(source_dir)
@@ -1170,11 +1208,17 @@ def _download_partition_image(env, fs_type_filter=None):
     Args:
         env: SCons environment object
         fs_type_filter: List of partition subtypes to look for (e.g., [0x82, 0x83] for LittleFS/SPIFFS)
-                       or [0x81] for FAT. If None, accepts any data partition.
+                       or [0x81] for FAT. If None, accepts any known filesystem
+                       partition (FAT/SPIFFS/LittleFS).
 
     Returns:
         tuple: (fs_file_path, fs_start, fs_size, fs_subtype) or (None, None, None, None) on error
     """
+    # KNOWN_FS_SUBTYPES (FAT/SPIFFS/LittleFS) and DATA_PARTITION_TYPE are
+    # defined at module scope. All other data subtypes (e.g. 0x00 ota,
+    # 0x01 phy, 0x02 nvs, 0x03 coredump, 0x04 nvs_keys, 0x05 efuse,
+    # 0x06 undefined) are excluded so that e.g. a coredump partition is
+    # not mistakenly treated as a filesystem partition.
     # Ensure upload port is set
     if not env.subst("$UPLOAD_PORT"):
         env.AutodetectUploadPort()
@@ -1214,35 +1258,104 @@ def _download_partition_image(env, fs_type_filter=None):
         partition_data = f.read()
 
     # Parse partition entries (format: 0xAA 0x50 followed by entry data)
-    entries = [e for e in partition_data.split(b'\xaaP') if len(e) > 0]
+    # split() removes the 0xAA 0x50 magic, so each valid entry body is 30 bytes
+    entries = [e for e in partition_data.split(b'\xaaP') if len(e) >= 30]
 
     fs_start = None
     fs_size = None
     fs_subtype = None
 
+    # Determine which subtypes are acceptable. When no explicit filter is
+    # provided, restrict to known filesystem subtypes (FAT/SPIFFS/LittleFS)
+    # so that auxiliary data partitions (nvs, phy, otadata, coredump, ...)
+    # are never picked up as a filesystem partition.
+    allowed_subtypes = (
+        tuple(fs_type_filter) if fs_type_filter is not None else KNOWN_FS_SUBTYPES
+    )
+
+    # Partition table entry layout (after the 0xAA 0x50 magic):
+    #   Byte 0     : Type     (0x00 = app, 0x01 = data)
+    #   Byte 1     : SubType  (0x81=FAT, 0x82=SPIFFS, 0x83=LittleFS,
+    #                          0x00=ota, 0x01=phy, 0x02=nvs, 0x03=coredump, ...)
+    #   Bytes 2-5  : Offset   (little-endian uint32)
+    #   Bytes 6-9  : Size     (little-endian uint32)
+    #   Bytes 10-25: Label    (16 bytes, NUL-padded)
+    #   Bytes 26-29: Flags    (little-endian uint32)
+    candidate = None
     for entry in entries:
-        if len(entry) < 32:
+        # Each ESP-IDF partition table entry is 32 bytes including the
+        # 2-byte 0xAA 0x50 magic; split() removes the magic so a valid
+        # entry chunk is 30 bytes (type, subtype, offset, size, label,
+        # flags). Anything shorter is truncated/garbage.
+        if len(entry) < 30:
             continue
 
-        # Byte 0: Type (0x01 for data partitions)
-        # Byte 1: SubType (0x81=FAT, 0x82=SPIFFS, 0x83=LittleFS)
-        # Bytes 2-5: Offset (4 bytes, little-endian)
-        # Bytes 6-9: Size (4 bytes, little-endian)
-
+        part_type = entry[0]
         part_subtype = entry[1]
 
-        # Check if this partition matches our filter
-        if fs_type_filter is None or part_subtype in fs_type_filter:
-            fs_start = int.from_bytes(entry[2:6], byteorder='little', signed=False)
-            fs_size = int.from_bytes(entry[6:10], byteorder='little', signed=False)
-            fs_subtype = part_subtype
-            break
+        # Only consider data partitions (type 0x01); skip app and others.
+        if part_type != DATA_PARTITION_TYPE:
+            continue
 
-    if fs_start is None or fs_size is None:
-        print("Error: No matching filesystem partition found in partition table")
+        # Skip subtypes that are not in the allowed list. This explicitly
+        # excludes coredump (0x03), nvs (0x02), phy (0x01), otadata (0x00),
+        # nvs_keys (0x04), efuse_em (0x05) and undefined (0x06).
+        if part_subtype not in allowed_subtypes:
+            continue
+
+        part_offset = int.from_bytes(entry[2:6], byteorder='little', signed=False)
+        part_size = int.from_bytes(entry[6:10], byteorder='little', signed=False)
+
+        # Sanity check offset/size: must be non-zero and 4 KB aligned.
+        if part_size == 0 or part_offset == 0:
+            continue
+        if (part_offset % 0x1000) != 0 or (part_size % 0x1000) != 0:
+            continue
+
+        # Try to extract a readable label for diagnostics.
+        try:
+            part_label = entry[10:26].split(b'\x00', 1)[0].decode('ascii', 'replace')
+        except Exception:
+            part_label = ""
+
+        # Defensive: if a partition is *labelled* coredump but somehow has a
+        # filesystem subtype, ignore it.
+        if part_label.strip().lower() == "coredump":
+            print(
+                f"  Skipping partition labelled 'coredump' "
+                f"(subtype 0x{part_subtype:02X})"
+            )
+            continue
+
+        # Prefer filesystem partitions in this order: LittleFS, SPIFFS, FAT.
+        # When the caller supplied an explicit filter, just take the first
+        # match.
+        priority = {
+            SUBTYPE_LITTLEFS: 0,
+            SUBTYPE_SPIFFS: 1,
+            SUBTYPE_FAT: 2,
+        }.get(part_subtype, 99)
+        if candidate is None or priority < candidate[0]:
+            candidate = (priority, part_offset, part_size, part_subtype, part_label)
+            if fs_type_filter is not None:
+                # Caller asked for specific subtypes; first match wins.
+                break
+
+    if candidate is None:
+        print(
+            "Error: No matching filesystem partition (FAT/SPIFFS/LittleFS) "
+            "found in partition table"
+        )
         return None, None, None, None
 
-    print(f"\nFound filesystem partition (subtype {hex(fs_subtype)}):")
+    _, fs_start, fs_size, fs_subtype, fs_label = candidate
+    if fs_label:
+        print(
+            f"\nFound filesystem partition '{fs_label}' "
+            f"(subtype {hex(fs_subtype)}):"
+        )
+    else:
+        print(f"\nFound filesystem partition (subtype {hex(fs_subtype)}):")
     print(f"  Start: {hex(fs_start)}")
     print(f"  Size: {hex(fs_size)} ({fs_size} bytes)")
 
@@ -1575,12 +1688,12 @@ def download_fs_action(target, source, env):
     
     # 3. Fall back to partition table subtype if no clear signature found
     if fs_type is None:
-        if fs_subtype == 0x81:
+        if fs_subtype == SUBTYPE_FAT:
             fs_type = "fatfs"
-        elif fs_subtype == 0x82:
+        elif fs_subtype == SUBTYPE_SPIFFS:
             # Subtype 0x82 can be either SPIFFS or LittleFS, default to SPIFFS
             fs_type = "spiffs"
-        elif fs_subtype == 0x83:
+        elif fs_subtype == SUBTYPE_LITTLEFS:
             fs_type = "littlefs"
         else:
             print(f"Warning: Unknown partition subtype 0x{fs_subtype:02X}, defaulting to SPIFFS")
