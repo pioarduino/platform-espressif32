@@ -426,16 +426,20 @@ def fetch_fs_size(env):
     """
     fs = None
     custom_fs_partition = board.get("build.filesystem_partition", "")
+    valid_data_types = {"data", "1", "0x01"}
+    valid_fs_subtypes = {"spiffs", "fat", "littlefs", "0x82", "0x81", "0x83"}
 
     partitions = _parse_partitions(env)
 
     # User-specified partition name has priority
     if custom_fs_partition:
         for p in partitions:
-            if p["name"] == custom_fs_partition and p["type"] == "data" and p["subtype"] in (
-                "spiffs",
-                "fat",
-                "littlefs",
+            p_type = str(p["type"]).strip().lower()
+            p_subtype = str(p["subtype"]).strip().lower()
+            if (
+                p["name"] == custom_fs_partition
+                and p_type in valid_data_types
+                and p_subtype in valid_fs_subtypes
             ):
                 fs = p
                 break
@@ -449,11 +453,9 @@ def fetch_fs_size(env):
     # Fallback: use last FS partition (original behavior)
     if not fs:
         for p in partitions:
-            if p["type"] == "data" and p["subtype"] in (
-                "spiffs",
-                "fat",
-                "littlefs",
-            ):
+            p_type = str(p["type"]).strip().lower()
+            p_subtype = str(p["subtype"]).strip().lower()
+            if p_type in valid_data_types and p_subtype in valid_fs_subtypes:
                 fs = p
 
     if not fs:
