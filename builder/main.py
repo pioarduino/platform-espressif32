@@ -452,7 +452,7 @@ def fetch_fs_size(env):
         if not fs:
             print(
                 "Warning! Selected filesystem partition `%s` is not available in the "
-                "partition table! Default partition will be used!"
+                "partition table! Falling back to last available filesystem partition."
                 % custom_fs_partition
             )
 
