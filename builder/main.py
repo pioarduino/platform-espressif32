@@ -110,6 +110,10 @@ SUBTYPE_SPIFFS = 0x82
 SUBTYPE_LITTLEFS = 0x83
 KNOWN_FS_SUBTYPES = (SUBTYPE_FAT, SUBTYPE_SPIFFS, SUBTYPE_LITTLEFS)
 
+# String representations for partition type matching
+VALID_DATA_TYPES = {"data", "1", "0x01"}
+VALID_FS_SUBTYPES = {"spiffs", "fat", "littlefs", "0x82", "0x81", "0x83"}
+
 
 def load_board_script(env):
     if not board_id:
@@ -426,8 +430,6 @@ def fetch_fs_size(env):
     """
     fs = None
     custom_fs_partition = board.get("build.filesystem_partition", "")
-    valid_data_types = {"data", "1", "0x01"}
-    valid_fs_subtypes = {"spiffs", "fat", "littlefs", "0x82", "0x81", "0x83"}
 
     partitions = _parse_partitions(env)
 
@@ -438,8 +440,8 @@ def fetch_fs_size(env):
             p_subtype = str(p["subtype"]).strip().lower()
             if (
                 p["name"] == custom_fs_partition
-                and p_type in valid_data_types
-                and p_subtype in valid_fs_subtypes
+                and p_type in VALID_DATA_TYPES
+                and p_subtype in VALID_FS_SUBTYPES
             ):
                 fs = p
                 break
@@ -455,7 +457,7 @@ def fetch_fs_size(env):
         for p in partitions:
             p_type = str(p["type"]).strip().lower()
             p_subtype = str(p["subtype"]).strip().lower()
-            if p_type in valid_data_types and p_subtype in valid_fs_subtypes:
+            if p_type in VALID_DATA_TYPES and p_subtype in VALID_FS_SUBTYPES:
                 fs = p
 
     if not fs:
