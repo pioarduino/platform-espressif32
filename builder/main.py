@@ -112,7 +112,11 @@ KNOWN_FS_SUBTYPES = (SUBTYPE_FAT, SUBTYPE_SPIFFS, SUBTYPE_LITTLEFS)
 
 # String representations for partition type matching
 VALID_DATA_TYPES = {"data", "1", "0x01"}
-VALID_FS_SUBTYPES = {"spiffs", "fat", "littlefs", hex(SUBTYPE_SPIFFS), hex(SUBTYPE_FAT), hex(SUBTYPE_LITTLEFS)}
+VALID_FS_SUBTYPES = {
+    "spiffs", "fat", "littlefs",
+    hex(SUBTYPE_SPIFFS), hex(SUBTYPE_FAT), hex(SUBTYPE_LITTLEFS),
+    str(SUBTYPE_SPIFFS), str(SUBTYPE_FAT), str(SUBTYPE_LITTLEFS)
+}
 
 
 def load_board_script(env):
