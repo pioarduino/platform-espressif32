@@ -342,6 +342,9 @@ if flag_custom_sdkconfig:
 
     build_unflags = " ".join(env['BUILD_UNFLAGS'])
 
+    # -Wl,--wrap=log_printf: remove always. Diagnostics is not supported with HybridCompile
+    build_unflags += " -Wl,--wrap=log_printf"
+
     # -mdisable-hardware-atomics: always for solo1, or when PSRAM is NOT configured
     if has_unicore_flags() or not has_psram_config():
         build_unflags += " -mdisable-hardware-atomics"
