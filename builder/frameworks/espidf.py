@@ -157,6 +157,39 @@ def create_silent_action(action_func):
     silent_action.strfunction = lambda target, source, env: ''
     return silent_action
 
+
+def get_requested_cli_targets():
+    """Return requested PlatformIO targets, with sys.argv fallback for IDE runs."""
+    targets = [str(t).strip() for t in COMMAND_LINE_TARGETS if str(t).strip()]
+    if targets:
+        return targets
+
+    # In some IDE-triggered invocations (e.g. VS Code), COMMAND_LINE_TARGETS
+    # can be empty during script loading, so parse raw argv as a fallback.
+    argv = [str(arg) for arg in sys.argv]
+    parsed_targets = []
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg in ("-t", "--target"):
+            if i + 1 < len(argv):
+                parsed_targets.append(argv[i + 1])
+                i += 1
+        elif arg.startswith("--target="):
+            parsed_targets.append(arg.split("=", 1)[1])
+        elif arg.startswith("-t") and arg != "-t":
+            parsed_targets.append(arg[2:])
+        i += 1
+
+    normalized = []
+    seen = set()
+    for target in parsed_targets:
+        cleaned = str(target).strip().strip('"\'')
+        if cleaned and cleaned not in seen:
+            seen.add(cleaned)
+            normalized.append(cleaned)
+    return normalized
+
 if "arduino" in env.subst("$PIOFRAMEWORK"):
     _arduino_pkg_dir = platform.get_package_dir("framework-arduinoespressif32")
     if not _arduino_pkg_dir or not os.path.isdir(_arduino_pkg_dir):
@@ -2993,12 +3026,18 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
         PYTHON_EXE = env.subst("$PYTHONEXE")
         pio_exe_path = str(Path(os.path.dirname(PYTHON_EXE)) / ("pio" + (".exe" if IS_WINDOWS else "")))
         pio_cmd = env["PIOENV"]
+        child_targets = [t for t in get_requested_cli_targets() if t != "checkprogsize"]
+        child_target_args = " ".join(f'-t "{target}"' for target in child_targets)
+        child_run_cmd = (
+            f'"{pio_exe_path}" run -e "{pio_cmd}" {child_target_args}'.strip()
+        )
+        if int(ARGUMENTS.get("PIOVERBOSE", 0)):
+            forwarded = ", ".join(child_targets) if child_targets else "(none)"
+            print(f"[HybridCompile] Forwarding child targets: {forwarded}")
+            print(f"[HybridCompile] Child command: {child_run_cmd}")
         child_rc = env.Execute(
             env.VerboseAction(
-                (
-                    '"%s" run -e ' % pio_exe_path
-                    + " ".join(['"%s"' % pio_cmd])
-                ),
+                child_run_cmd,
                 "*** Starting Arduino compile %s with custom libraries ***" % pio_cmd,
             )
         )
