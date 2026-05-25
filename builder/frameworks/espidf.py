@@ -2993,7 +2993,7 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
         PYTHON_EXE = env.subst("$PYTHONEXE")
         pio_exe_path = str(Path(os.path.dirname(PYTHON_EXE)) / ("pio" + (".exe" if IS_WINDOWS else "")))
         pio_cmd = env["PIOENV"]
-        env.Execute(
+        child_rc = env.Execute(
             env.VerboseAction(
                 (
                     '"%s" run -e ' % pio_exe_path
@@ -3012,6 +3012,11 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
             from component_manager import ComponentManager
             component_manager = ComponentManager(env)
             component_manager.restore_pioarduino_build_py()
+
+        # The child `pio run` already performs the full Arduino build in a
+        # fully configured environment. Stop here to avoid re-running binary
+        # post-actions in the outer, partially configured SCons environment.
+        env.Exit(child_rc if child_rc else 0)
     silent_action = create_silent_action(idf_lib_copy)
     env.AddPostAction("checkprogsize", silent_action)
 
