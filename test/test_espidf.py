@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 import ast
+import functools
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
 
+@functools.lru_cache(maxsize=1)
 def _load_copy_idf_component_archives():
     """Load the helper without importing espidf.py's SCons/PlatformIO side effects."""
     espidf_path = Path(__file__).resolve().parent.parent / "builder" / "frameworks" / "espidf.py"
@@ -19,6 +21,7 @@ def _load_copy_idf_component_archives():
     if function_def is None:
         raise AssertionError("copy_idf_component_archives not found in builder/frameworks/espidf.py")
     isolated_module = ast.Module(body=[function_def], type_ignores=[])
+    # Keep this namespace aligned with the helper's module-level dependencies.
     namespace = {"os": __import__("os"), "shutil": shutil, "Path": Path}
     exec(compile(isolated_module, filename=str(espidf_path), mode="exec"), namespace)
     return namespace["copy_idf_component_archives"]
