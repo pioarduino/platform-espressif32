@@ -2989,11 +2989,25 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
             Path(d).mkdir(parents=True, exist_ok=True)
         src = [str(Path(lib_src) / x) for x in os.listdir(lib_src)]
         src = [folder for folder in src if not os.path.isfile(folder)] # folders only
+        # Walk each component directory recursively so that nested archives
+        # (e.g. mbedtls vendored libraries in mbedtls/mbedtls/library/) are
+        # also copied back into the package.  When two archives share the same
+        # filename the duplicate is renamed with a numeric suffix (_2, _3, …),
+        # mirroring the rename logic used by esp32-arduino-lib-builder's
+        # copy-libs.sh so the package stays consistent.
+        copied_names = {}
         for folder in src:
-            files = [str(Path(folder) / x) for x in os.listdir(folder)]
-            for file in files:
-                if file.strip().endswith(".a"):
-                    shutil.copyfile(file, str(Path(lib_dst) / file.split(os.path.sep)[-1]))
+            for root, dirs, files in os.walk(folder):
+                for filename in files:
+                    if filename.endswith(".a"):
+                        src_file = str(Path(root) / filename)
+                        if filename not in copied_names:
+                            copied_names[filename] = 1
+                            dst_name = filename
+                        else:
+                            copied_names[filename] += 1
+                            dst_name = filename[:-2] + "_%d.a" % copied_names[filename]
+                        shutil.copyfile(src_file, str(Path(lib_dst) / dst_name))
 
         _replace_copy(str(Path(lib_dst) / "libspi_flash.a"), str(Path(mem_var) / "libspi_flash.a"))
         _replace_copy(str(Path(env_build) / "memory.ld"), str(Path(ld_dst) / "memory.ld"))
