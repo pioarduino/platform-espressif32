@@ -21,10 +21,9 @@ def copy_idf_component_archives(lib_src, lib_dst):
                     continue
 
                 copied_names[filename] = copied_names.get(filename, 0) + 1
-                basename = filename.rsplit(".a", 1)[0]
                 dst_name = (
                     filename
                     if copied_names[filename] == 1
-                    else "%s_%d.a" % (basename, copied_names[filename])
+                    else "%s_%d.a" % (filename[:-2], copied_names[filename])
                 )
                 shutil.copyfile(str(Path(root) / filename), str(Path(lib_dst) / dst_name))

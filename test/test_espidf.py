@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
-import os
+import importlib.util
 import shutil
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 
-builder_dir = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "builder"
+builder_dir = Path(__file__).resolve().parent.parent / "builder"
+espidf_libs_spec = importlib.util.spec_from_file_location(
+    "espidf_libs", builder_dir / "espidf_libs.py"
 )
-sys.path.insert(0, builder_dir)
-
-from espidf_libs import copy_idf_component_archives
+espidf_libs = importlib.util.module_from_spec(espidf_libs_spec)
+espidf_libs_spec.loader.exec_module(espidf_libs)
+copy_idf_component_archives = espidf_libs.copy_idf_component_archives
 
 
 class TestEspIdfArchiveCopy(unittest.TestCase):
