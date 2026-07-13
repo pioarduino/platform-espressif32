@@ -11,11 +11,13 @@ def _load_copy_idf_component_archives():
     """Load the helper without importing espidf.py's SCons/PlatformIO side effects."""
     espidf_path = Path(__file__).resolve().parent.parent / "builder" / "frameworks" / "espidf.py"
     module_ast = ast.parse(espidf_path.read_text(encoding="utf8"), filename=str(espidf_path))
-    function_def = next(
+    function_def = next((
         node
         for node in module_ast.body
         if isinstance(node, ast.FunctionDef) and node.name == "copy_idf_component_archives"
-    )
+    ), None)
+    if function_def is None:
+        raise AssertionError("copy_idf_component_archives not found in builder/frameworks/espidf.py")
     isolated_module = ast.Module(body=[function_def], type_ignores=[])
     namespace = {"os": __import__("os"), "shutil": shutil, "Path": Path}
     exec(compile(isolated_module, filename=str(espidf_path), mode="exec"), namespace)

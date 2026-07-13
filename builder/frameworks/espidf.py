@@ -177,6 +177,8 @@ def copy_idf_component_archives(lib_src, lib_dst):
         if not folder.is_dir():
             continue
 
+        # topdown=True lets the in-place dirs.sort() below control traversal
+        # order so duplicate suffix assignment stays deterministic.
         for root, dirs, files in os.walk(folder, topdown=True):
             dirs.sort()
             files.sort()
