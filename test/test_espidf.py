@@ -7,13 +7,17 @@ import unittest
 from pathlib import Path
 
 
-builder_dir = Path(__file__).resolve().parent.parent / "builder"
-espidf_libs_spec = importlib.util.spec_from_file_location(
-    "espidf_libs", builder_dir / "espidf_libs.py"
-)
-espidf_libs = importlib.util.module_from_spec(espidf_libs_spec)
-espidf_libs_spec.loader.exec_module(espidf_libs)
-copy_idf_component_archives = espidf_libs.copy_idf_component_archives
+def _load_copy_helper():
+    builder_dir = Path(__file__).resolve().parent.parent / "builder"
+    espidf_libs_spec = importlib.util.spec_from_file_location(
+        "espidf_libs", builder_dir / "espidf_libs.py"
+    )
+    espidf_libs = importlib.util.module_from_spec(espidf_libs_spec)
+    espidf_libs_spec.loader.exec_module(espidf_libs)
+    return espidf_libs.copy_idf_component_archives
+
+
+copy_idf_component_archives = _load_copy_helper()
 
 
 class TestEspIdfArchiveCopy(unittest.TestCase):
