@@ -8,6 +8,7 @@ from pathlib import Path
 
 
 def _load_copy_idf_component_archives():
+    """Load the helper without importing espidf.py's SCons/PlatformIO side effects."""
     espidf_path = Path(__file__).resolve().parent.parent / "builder" / "frameworks" / "espidf.py"
     module_ast = ast.parse(espidf_path.read_text(encoding="utf8"), filename=str(espidf_path))
     function_def = next(

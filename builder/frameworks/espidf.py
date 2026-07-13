@@ -159,7 +159,13 @@ def create_silent_action(action_func):
 
 
 def copy_idf_component_archives(lib_src, lib_dst):
-    """Copy all .a archives from IDF component directories into lib_dst."""
+    """Copy all .a archives from IDF component directories into lib_dst.
+
+    Archives are collected recursively so nested component sub-build outputs are
+    included. Duplicate archive basenames are kept with numeric suffixes
+    (for example, libfoo.a, libfoo_2.a, ...). Raises FileNotFoundError when
+    lib_src does not exist or is not a directory.
+    """
     lib_src = Path(lib_src)
     if not lib_src.is_dir():
         raise FileNotFoundError(
