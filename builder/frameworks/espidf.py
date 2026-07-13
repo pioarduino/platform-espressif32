@@ -48,6 +48,26 @@ from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
 
 
+def _copy_idf_component_archives(lib_src, lib_dst):
+    copied_names = {}
+    for folder in sorted(Path(lib_src).iterdir()):
+        if folder.is_file():
+            continue
+        for root, dirs, files in os.walk(folder):
+            dirs.sort()
+            files.sort()
+            for filename in files:
+                if not filename.endswith(".a"):
+                    continue
+                copied_names[filename] = copied_names.get(filename, 0) + 1
+                dst_name = (
+                    filename
+                    if copied_names[filename] == 1
+                    else "%s_%d.a" % (filename[:-2], copied_names[filename])
+                )
+                shutil.copyfile(str(Path(root) / filename), str(Path(lib_dst) / dst_name))
+
+
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
 platform = env.PioPlatform()
@@ -2987,27 +3007,13 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
         # Ensure destinations exist
         for d in (lib_dst, ld_dst, mem_var, str(Path(mem_var) / "include")):
             Path(d).mkdir(parents=True, exist_ok=True)
-        src = [str(Path(lib_src) / x) for x in os.listdir(lib_src)]
-        src = [folder for folder in src if not os.path.isfile(folder)] # folders only
         # Walk each component directory recursively so that nested archives
         # (e.g. mbedtls vendored libraries in mbedtls/mbedtls/library/) are
         # also copied back into the package.  When two archives share the same
         # filename the duplicate is renamed with a numeric suffix (_2, _3, …),
         # mirroring the rename logic used by esp32-arduino-lib-builder's
         # copy-libs.sh so the package stays consistent.
-        copied_names = {}
-        for folder in src:
-            for root, dirs, files in os.walk(folder):
-                for filename in files:
-                    if filename.endswith(".a"):
-                        src_file = str(Path(root) / filename)
-                        if filename not in copied_names:
-                            copied_names[filename] = 1
-                            dst_name = filename
-                        else:
-                            copied_names[filename] += 1
-                            dst_name = filename[:-2] + "_%d.a" % copied_names[filename]
-                        shutil.copyfile(src_file, str(Path(lib_dst) / dst_name))
+        _copy_idf_component_archives(lib_src, lib_dst)
 
         _replace_copy(str(Path(lib_dst) / "libspi_flash.a"), str(Path(mem_var) / "libspi_flash.a"))
         _replace_copy(str(Path(env_build) / "memory.ld"), str(Path(ld_dst) / "memory.ld"))
