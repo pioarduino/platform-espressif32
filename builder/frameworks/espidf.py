@@ -172,6 +172,10 @@ def copy_idf_component_archives(lib_src, lib_dst):
         raise FileNotFoundError(
             f"IDF library source directory does not exist or is not a directory: {lib_src}"
         )
+    if not lib_dst.is_dir():
+        raise FileNotFoundError(
+            f"IDF library destination directory does not exist or is not a directory: {lib_dst}"
+        )
 
     copied_names = {}
     for folder in sorted(lib_src.iterdir()):

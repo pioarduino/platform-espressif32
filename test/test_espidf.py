@@ -24,7 +24,9 @@ def _load_copy_idf_component_archives():
             "copy_idf_component_archives not found in builder/frameworks/espidf.py"
         ) from exc
     isolated_module = ast.Module(body=[function_def], type_ignores=[])
-    # Keep this namespace aligned with the helper's current os/shutil/Path imports.
+    # Keep this namespace synchronized with copy_idf_component_archives import
+    # requirements (currently os, shutil, and Path), or this isolated loader
+    # will fail when the helper gains new module-level dependencies.
     namespace = {"os": __import__("os"), "shutil": shutil, "Path": Path}
     exec(compile(isolated_module, filename=str(espidf_path), mode="exec"), namespace)
     return namespace["copy_idf_component_archives"]
@@ -80,6 +82,15 @@ class TestEspIdfArchiveCopy(unittest.TestCase):
             copy_idf_component_archives(str(missing_src), str(self.lib_dst))
 
         self.assertIn("does not exist or is not a directory", str(ctx.exception))
+
+    def test_raises_for_missing_destination_directory(self):
+        missing_dst = self.temp_dir / "missing-lib"
+        self._write_file("component/libtest.a", "test")
+
+        with self.assertRaises(FileNotFoundError) as ctx:
+            copy_idf_component_archives(str(self.lib_src), str(missing_dst))
+
+        self.assertIn("destination directory", str(ctx.exception))
 
 
 if __name__ == "__main__":
