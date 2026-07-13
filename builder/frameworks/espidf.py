@@ -52,12 +52,6 @@ env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
 platform = env.PioPlatform()
 
-_espidf_libs_file = Path(platform.get_dir()) / "builder" / "espidf_libs.py"
-_espidf_libs_spec = importlib.util.spec_from_file_location("espidf_libs", _espidf_libs_file)
-_espidf_libs = importlib.util.module_from_spec(_espidf_libs_spec)
-_espidf_libs_spec.loader.exec_module(_espidf_libs)
-copy_idf_component_archives = _espidf_libs.copy_idf_component_archives
-
 _component_manager_file = Path(platform.get_dir()) / "builder" / "frameworks" / "component_manager.py"
 _cm_spec = importlib.util.spec_from_file_location("component_manager", _component_manager_file)
 _component_manager = importlib.util.module_from_spec(_cm_spec)
@@ -162,6 +156,35 @@ def create_silent_action(action_func):
     silent_action = env.Action(action_func)
     silent_action.strfunction = lambda target, source, env: ''
     return silent_action
+
+
+def copy_idf_component_archives(lib_src, lib_dst):
+    """Copy all .a archives from IDF component directories into lib_dst."""
+    lib_src = Path(lib_src)
+    if not lib_src.is_dir():
+        raise FileNotFoundError(
+            f"IDF library source directory does not exist or is not a directory: {lib_src}"
+        )
+
+    copied_names = {}
+    for folder in sorted(lib_src.iterdir()):
+        if not folder.is_dir():
+            continue
+
+        for root, dirs, files in os.walk(folder, topdown=True):
+            dirs.sort()
+            files.sort()
+            for filename in files:
+                if not filename.endswith(".a"):
+                    continue
+
+                copied_names[filename] = copied_names.get(filename, 0) + 1
+                dst_name = (
+                    filename
+                    if copied_names[filename] == 1
+                    else f"{filename[:-2]}_{copied_names[filename]}.a"
+                )
+                shutil.copyfile(str(Path(root) / filename), str(Path(lib_dst) / dst_name))
 
 
 def get_requested_cli_targets():

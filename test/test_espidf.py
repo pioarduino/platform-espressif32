@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 
-import importlib.util
+import ast
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
 
-def _load_espidf_libs_module():
-    builder_dir = Path(__file__).resolve().parent.parent / "builder"
-    espidf_libs_spec = importlib.util.spec_from_file_location(
-        "espidf_libs", builder_dir / "espidf_libs.py"
+def _load_copy_idf_component_archives():
+    espidf_path = Path(__file__).resolve().parent.parent / "builder" / "frameworks" / "espidf.py"
+    module_ast = ast.parse(espidf_path.read_text(encoding="utf8"), filename=str(espidf_path))
+    function_def = next(
+        node
+        for node in module_ast.body
+        if isinstance(node, ast.FunctionDef) and node.name == "copy_idf_component_archives"
     )
-    espidf_libs = importlib.util.module_from_spec(espidf_libs_spec)
-    espidf_libs_spec.loader.exec_module(espidf_libs)
-    return espidf_libs
+    isolated_module = ast.Module(body=[function_def], type_ignores=[])
+    namespace = {"os": __import__("os"), "shutil": shutil, "Path": Path}
+    exec(compile(isolated_module, filename=str(espidf_path), mode="exec"), namespace)
+    return namespace["copy_idf_component_archives"]
 
 
-copy_idf_component_archives = _load_espidf_libs_module().copy_idf_component_archives
+copy_idf_component_archives = _load_copy_idf_component_archives()
 
 
 class TestEspIdfArchiveCopy(unittest.TestCase):
