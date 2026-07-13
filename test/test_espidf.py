@@ -12,10 +12,12 @@ def _load_copy_helper():
     repo_dir = Path(__file__).resolve().parent.parent
     espidf_path = repo_dir / "builder" / "frameworks" / "espidf.py"
     module = ast.parse(espidf_path.read_text())
-    helper = next(
+    helper = next((
         node for node in module.body
         if isinstance(node, ast.FunctionDef) and node.name == "_copy_idf_component_archives"
-    )
+    ), None)
+    if helper is None:
+        raise AssertionError("Could not find _copy_idf_component_archives in builder/frameworks/espidf.py")
     namespace = {"os": os, "shutil": shutil, "Path": Path}
     exec(compile(ast.Module(body=[helper], type_ignores=[]), str(espidf_path), "exec"), namespace)
     return namespace["_copy_idf_component_archives"]

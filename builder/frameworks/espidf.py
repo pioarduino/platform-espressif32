@@ -49,8 +49,11 @@ from platformio.package.version import get_original_version, pepver_to_semver
 
 
 def _copy_idf_component_archives(lib_src, lib_dst):
+    lib_src = Path(lib_src)
+    if not lib_src.is_dir():
+        raise FileNotFoundError("IDF library source directory does not exist: %s" % lib_src)
     copied_names = {}
-    for folder in sorted(Path(lib_src).iterdir()):
+    for folder in sorted(lib_src.iterdir()):
         if folder.is_file():
             continue
         for root, dirs, files in os.walk(folder):
