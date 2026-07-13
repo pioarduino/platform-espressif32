@@ -60,6 +60,14 @@ class TestEspIdfArchiveCopy(unittest.TestCase):
         self.assertEqual((self.lib_dst / "libsame.a").read_text(), "a")
         self.assertEqual((self.lib_dst / "libsame_2.a").read_text(), "z")
 
+    def test_raises_for_missing_source_directory(self):
+        missing_src = self.temp_dir / "missing"
+
+        with self.assertRaises(FileNotFoundError) as ctx:
+            copy_idf_component_archives(str(missing_src), str(self.lib_dst))
+
+        self.assertIn("does not exist or is not a directory", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

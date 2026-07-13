@@ -6,7 +6,9 @@ from pathlib import Path
 def copy_idf_component_archives(lib_src, lib_dst):
     lib_src = Path(lib_src)
     if not lib_src.is_dir():
-        raise FileNotFoundError(f"IDF library source directory does not exist: {lib_src}")
+        raise FileNotFoundError(
+            f"IDF library source directory does not exist or is not a directory: {lib_src}"
+        )
 
     copied_names = {}
     for folder in sorted(lib_src.iterdir()):
