@@ -192,7 +192,7 @@ def copy_idf_component_archives(lib_src, lib_dst):
                     if copied_names[filename] == 1
                     else f"{filename[:-2]}_{copied_names[filename]}.a"
                 )
-                shutil.copyfile(str(Path(root) / filename), str(Path(lib_dst) / dst_name))
+                shutil.copyfile(Path(root) / filename, Path(lib_dst) / dst_name)
 
 
 def get_requested_cli_targets():
