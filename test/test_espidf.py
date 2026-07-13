@@ -1,26 +1,19 @@
 #!/usr/bin/env python3
 
-import ast
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 
-def _load_copy_helper():
-    repo_dir = Path(__file__).resolve().parent.parent
-    espidf_path = repo_dir / "builder" / "frameworks" / "espidf.py"
-    module = ast.parse(espidf_path.read_text())
-    helper = next((
-        node for node in module.body
-        if isinstance(node, ast.FunctionDef) and node.name == "_copy_idf_component_archives"
-    ), None)
-    if helper is None:
-        raise AssertionError("Could not find _copy_idf_component_archives in builder/frameworks/espidf.py")
-    namespace = {"os": os, "shutil": shutil, "Path": Path}
-    exec(compile(ast.Module(body=[helper], type_ignores=[]), str(espidf_path), "exec"), namespace)
-    return namespace["_copy_idf_component_archives"]
+builder_dir = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "builder"
+)
+sys.path.insert(0, builder_dir)
+
+from espidf_libs import copy_idf_component_archives
 
 
 class TestEspIdfArchiveCopy(unittest.TestCase):
@@ -30,7 +23,6 @@ class TestEspIdfArchiveCopy(unittest.TestCase):
         self.lib_src = self.temp_dir / "esp-idf"
         self.lib_dst = self.temp_dir / "lib"
         self.lib_dst.mkdir()
-        self.copy_helper = _load_copy_helper()
 
     def tearDown(self):
         shutil.rmtree(self.temp_dir)
@@ -46,7 +38,7 @@ class TestEspIdfArchiveCopy(unittest.TestCase):
         self._write_file("mbedtls/mbedtls/3rdparty/p256-m/libp256m.a", "p256")
         self._write_file("mbedtls/readme.txt", "ignore")
 
-        self.copy_helper(str(self.lib_src), str(self.lib_dst))
+        copy_idf_component_archives(str(self.lib_src), str(self.lib_dst))
 
         self.assertEqual(
             sorted(path.name for path in self.lib_dst.iterdir()),
@@ -59,7 +51,7 @@ class TestEspIdfArchiveCopy(unittest.TestCase):
         self._write_file("z_component/libsame.a", "z")
         self._write_file("a_component/libsame.a", "a")
 
-        self.copy_helper(str(self.lib_src), str(self.lib_dst))
+        copy_idf_component_archives(str(self.lib_src), str(self.lib_dst))
 
         self.assertEqual((self.lib_dst / "libsame.a").read_text(), "a")
         self.assertEqual((self.lib_dst / "libsame_2.a").read_text(), "z")

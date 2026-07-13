@@ -48,32 +48,15 @@ from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
 
 
-def _copy_idf_component_archives(lib_src, lib_dst):
-    lib_src = Path(lib_src)
-    if not lib_src.is_dir():
-        raise FileNotFoundError("IDF library source directory does not exist: %s" % lib_src)
-    copied_names = {}
-    for folder in sorted(lib_src.iterdir()):
-        if folder.is_file():
-            continue
-        for root, dirs, files in os.walk(folder):
-            dirs.sort()
-            files.sort()
-            for filename in files:
-                if not filename.endswith(".a"):
-                    continue
-                copied_names[filename] = copied_names.get(filename, 0) + 1
-                dst_name = (
-                    filename
-                    if copied_names[filename] == 1
-                    else "%s_%d.a" % (filename[:-2], copied_names[filename])
-                )
-                shutil.copyfile(str(Path(root) / filename), str(Path(lib_dst) / dst_name))
-
-
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
 platform = env.PioPlatform()
+
+_espidf_libs_file = Path(platform.get_dir()) / "builder" / "espidf_libs.py"
+_espidf_libs_spec = importlib.util.spec_from_file_location("espidf_libs", _espidf_libs_file)
+_espidf_libs = importlib.util.module_from_spec(_espidf_libs_spec)
+_espidf_libs_spec.loader.exec_module(_espidf_libs)
+copy_idf_component_archives = _espidf_libs.copy_idf_component_archives
 
 _component_manager_file = Path(platform.get_dir()) / "builder" / "frameworks" / "component_manager.py"
 _cm_spec = importlib.util.spec_from_file_location("component_manager", _component_manager_file)
@@ -3016,7 +2999,7 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
         # filename the duplicate is renamed with a numeric suffix (_2, _3, …),
         # mirroring the rename logic used by esp32-arduino-lib-builder's
         # copy-libs.sh so the package stays consistent.
-        _copy_idf_component_archives(lib_src, lib_dst)
+        copy_idf_component_archives(lib_src, lib_dst)
 
         _replace_copy(str(Path(lib_dst) / "libspi_flash.a"), str(Path(mem_var) / "libspi_flash.a"))
         _replace_copy(str(Path(env_build) / "memory.ld"), str(Path(ld_dst) / "memory.ld"))
