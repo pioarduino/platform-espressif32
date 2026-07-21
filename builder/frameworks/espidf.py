@@ -308,6 +308,25 @@ def has_board_specific_config():
     
     return has_psram or has_special_memory
 
+def board_memory_fingerprint():
+    """PSRAM/memory settings from the board manifest that change the generated
+    sdkconfig but are not part of custom_sdkconfig. They must affect the checksum
+    too, otherwise a PSRAM board and a no-PSRAM board sharing the same
+    custom_sdkconfig would reuse each other's precompiled Arduino libs."""
+    extra_flags = board.get("build.extra_flags", [])
+    if not isinstance(extra_flags, str):
+        extra_flags = " ".join(str(flag) for flag in extra_flags)
+    build_section = board.get("build", {})
+    memory_type = (build_section.get("arduino", {}).get("memory_type", "")
+                   or build_section.get("memory_type", ""))
+    psram_type = build_section.get("psram_type", "")
+    try:
+        memory_type = env.GetProjectOption("board_build.memory_type", "") or memory_type
+        psram_type = env.GetProjectOption("board_build.psram_type", "") or psram_type
+    except Exception:
+        pass
+    return f"|{'PSRAM' in extra_flags}|{memory_type}|{psram_type}"
+
 def HandleArduinoIDFsettings(env):
     """
     Handles Arduino IDF settings configuration with custom sdkconfig support.
@@ -774,7 +793,8 @@ def HandleArduinoIDFsettings(env):
             env.Exit(1)
         
         # Generate checksum for validation (maintains original logic)
-        checksum = get_MD5_hash(checksum_source.strip() + mcu)
+        checksum = get_MD5_hash(checksum_source.strip() + mcu
+                                + board_memory_fingerprint())
         
         with open(sdkconfig_src, 'r', encoding='utf-8') as src, open(sdkconfig_dst, 'w', encoding='utf-8') as dst:
             # Write checksum header (critical for compilation decision logic)
