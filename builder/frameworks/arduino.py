@@ -23,7 +23,6 @@ http://arduino.cc/en/Reference/HomePage
 """
 
 import hashlib
-import importlib.util
 import os
 import shutil
 import sys
@@ -37,6 +36,8 @@ from SCons.Script import DefaultEnvironment, SConscript
 from platformio import fs
 from platformio.package.manager.tool import ToolPackageManager
 from platformio.compat import IS_WINDOWS
+
+from component_manager import board_memory_fingerprint
 
 # Constants for better performance
 UNICORE_FLAGS = {
@@ -250,13 +251,6 @@ pm = ToolPackageManager()
 platform = env.PioPlatform()
 config = env.GetProjectConfig()
 board = env.BoardConfig()
-
-_board_memory_file = Path(platform.get_dir()) / "builder" / "frameworks" / "board_memory.py"
-_bm_spec = importlib.util.spec_from_file_location("board_memory", _board_memory_file)
-_board_memory = importlib.util.module_from_spec(_bm_spec)
-_bm_spec.loader.exec_module(_board_memory)
-sys.modules["board_memory"] = _board_memory
-board_memory_fingerprint = _board_memory.board_memory_fingerprint
 
 # Cached values
 mcu = board.get("build.mcu", "esp32")

@@ -57,13 +57,7 @@ _cm_spec = importlib.util.spec_from_file_location("component_manager", _componen
 _component_manager = importlib.util.module_from_spec(_cm_spec)
 _cm_spec.loader.exec_module(_component_manager)
 sys.modules["component_manager"] = _component_manager
-
-_board_memory_file = Path(platform.get_dir()) / "builder" / "frameworks" / "board_memory.py"
-_bm_spec = importlib.util.spec_from_file_location("board_memory", _board_memory_file)
-_board_memory = importlib.util.module_from_spec(_bm_spec)
-_bm_spec.loader.exec_module(_board_memory)
-sys.modules["board_memory"] = _board_memory
-board_memory_fingerprint = _board_memory.board_memory_fingerprint
+board_memory_fingerprint = _component_manager.board_memory_fingerprint
 
 _penv_setup_file = str(Path(platform.get_dir()) / "builder" / "penv_setup.py")
 _spec = importlib.util.spec_from_file_location("penv_setup", _penv_setup_file)
