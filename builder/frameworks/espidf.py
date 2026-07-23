@@ -158,6 +158,48 @@ def create_silent_action(action_func):
     return silent_action
 
 
+def copy_idf_component_archives(lib_src, lib_dst):
+    """Copy all .a archives from IDF component directories into lib_dst.
+
+    Archives are collected recursively so nested component sub-build outputs are
+    included. Duplicate archive basenames are kept with numeric suffixes
+    (for example, libfoo.a, libfoo_2.a, ...). Raises FileNotFoundError when
+    lib_src does not exist or is not a directory.
+    """
+    lib_src = Path(lib_src)
+    lib_dst = Path(lib_dst)
+    if not lib_src.is_dir():
+        raise FileNotFoundError(
+            f"IDF library source directory does not exist or is not a directory: {lib_src}"
+        )
+    if not lib_dst.is_dir():
+        raise FileNotFoundError(
+            f"IDF library destination directory does not exist or is not a directory: {lib_dst}"
+        )
+
+    copied_names = {}
+    for folder in sorted(lib_src.iterdir()):
+        if not folder.is_dir():
+            continue
+
+        # topdown=True lets the in-place dirs.sort() below control traversal
+        # order so duplicate suffix assignment stays deterministic.
+        for root, dirs, files in os.walk(folder, topdown=True):
+            dirs.sort()
+            files.sort()
+            for filename in files:
+                if not filename.endswith(".a"):
+                    continue
+
+                copied_names[filename] = copied_names.get(filename, 0) + 1
+                dst_name = (
+                    filename
+                    if copied_names[filename] == 1
+                    else f"{filename[:-2]}_{copied_names[filename]}.a"
+                )
+                shutil.copyfile(Path(root) / filename, lib_dst / dst_name)
+
+
 def get_requested_cli_targets():
     """Return requested PlatformIO targets, with sys.argv fallback for IDE runs."""
     targets = [str(t).strip() for t in COMMAND_LINE_TARGETS if str(t).strip()]
@@ -2987,13 +3029,13 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
         # Ensure destinations exist
         for d in (lib_dst, ld_dst, mem_var, str(Path(mem_var) / "include")):
             Path(d).mkdir(parents=True, exist_ok=True)
-        src = [str(Path(lib_src) / x) for x in os.listdir(lib_src)]
-        src = [folder for folder in src if not os.path.isfile(folder)] # folders only
-        for folder in src:
-            files = [str(Path(folder) / x) for x in os.listdir(folder)]
-            for file in files:
-                if file.strip().endswith(".a"):
-                    shutil.copyfile(file, str(Path(lib_dst) / file.split(os.path.sep)[-1]))
+        # Walk each component directory recursively so that nested archives
+        # (e.g. mbedtls vendored libraries in mbedtls/mbedtls/library/) are
+        # also copied back into the package.  When two archives share the same
+        # filename the duplicate is renamed with a numeric suffix (_2, _3, …),
+        # mirroring the rename logic used by esp32-arduino-lib-builder's
+        # copy-libs.sh so the package stays consistent.
+        copy_idf_component_archives(lib_src, lib_dst)
 
         _replace_copy(str(Path(lib_dst) / "libspi_flash.a"), str(Path(mem_var) / "libspi_flash.a"))
         _replace_copy(str(Path(env_build) / "memory.ld"), str(Path(ld_dst) / "memory.ld"))
