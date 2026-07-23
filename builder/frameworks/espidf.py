@@ -58,6 +58,13 @@ _component_manager = importlib.util.module_from_spec(_cm_spec)
 _cm_spec.loader.exec_module(_component_manager)
 sys.modules["component_manager"] = _component_manager
 
+_board_memory_file = Path(platform.get_dir()) / "builder" / "frameworks" / "board_memory.py"
+_bm_spec = importlib.util.spec_from_file_location("board_memory", _board_memory_file)
+_board_memory = importlib.util.module_from_spec(_bm_spec)
+_bm_spec.loader.exec_module(_board_memory)
+sys.modules["board_memory"] = _board_memory
+board_memory_fingerprint = _board_memory.board_memory_fingerprint
+
 _penv_setup_file = str(Path(platform.get_dir()) / "builder" / "penv_setup.py")
 _spec = importlib.util.spec_from_file_location("penv_setup", _penv_setup_file)
 _penv_setup = importlib.util.module_from_spec(_spec)
@@ -307,25 +314,6 @@ def has_board_specific_config():
     has_special_memory = memory_type and ("opi" in memory_type.lower())
     
     return has_psram or has_special_memory
-
-def board_memory_fingerprint():
-    """PSRAM/memory settings from the board manifest that change the generated
-    sdkconfig but are not part of custom_sdkconfig. They must affect the checksum
-    too, otherwise a PSRAM board and a no-PSRAM board sharing the same
-    custom_sdkconfig would reuse each other's precompiled Arduino libs."""
-    extra_flags = board.get("build.extra_flags", [])
-    if not isinstance(extra_flags, str):
-        extra_flags = " ".join(str(flag) for flag in extra_flags)
-    build_section = board.get("build", {})
-    memory_type = (build_section.get("arduino", {}).get("memory_type", "")
-                   or build_section.get("memory_type", ""))
-    psram_type = build_section.get("psram_type", "")
-    try:
-        memory_type = env.GetProjectOption("board_build.memory_type", "") or memory_type
-        psram_type = env.GetProjectOption("board_build.psram_type", "") or psram_type
-    except Exception:
-        pass
-    return f"|{'PSRAM' in extra_flags}|{memory_type}|{psram_type}"
 
 def HandleArduinoIDFsettings(env):
     """
@@ -794,7 +782,7 @@ def HandleArduinoIDFsettings(env):
         
         # Generate checksum for validation (maintains original logic)
         checksum = get_MD5_hash(checksum_source.strip() + mcu
-                                + board_memory_fingerprint())
+                                + board_memory_fingerprint(env, board))
         
         with open(sdkconfig_src, 'r', encoding='utf-8') as src, open(sdkconfig_dst, 'w', encoding='utf-8') as dst:
             # Write checksum header (critical for compilation decision logic)

@@ -23,6 +23,7 @@ http://arduino.cc/en/Reference/HomePage
 """
 
 import hashlib
+import importlib.util
 import os
 import shutil
 import sys
@@ -250,6 +251,13 @@ platform = env.PioPlatform()
 config = env.GetProjectConfig()
 board = env.BoardConfig()
 
+_board_memory_file = Path(platform.get_dir()) / "builder" / "frameworks" / "board_memory.py"
+_bm_spec = importlib.util.spec_from_file_location("board_memory", _board_memory_file)
+_board_memory = importlib.util.module_from_spec(_bm_spec)
+_bm_spec.loader.exec_module(_board_memory)
+sys.modules["board_memory"] = _board_memory
+board_memory_fingerprint = _board_memory.board_memory_fingerprint
+
 # Cached values
 mcu = board.get("build.mcu", "esp32")
 chip_variant = env.BoardConfig().get("build.chip_variant", "").lower()
@@ -369,23 +377,6 @@ def get_MD5_hash(phrase):
     return hashlib.md5(phrase.encode('utf-8')).hexdigest()[:16]
 
 
-def board_memory_fingerprint():
-    """PSRAM/memory settings from the board manifest that change the generated
-    sdkconfig but are not part of custom_sdkconfig. They must affect the checksum
-    too, otherwise a PSRAM board and a no-PSRAM board sharing the same
-    custom_sdkconfig would reuse each other's precompiled Arduino libs."""
-    build_section = board.get("build", {})
-    memory_type = (build_section.get("arduino", {}).get("memory_type", "")
-                   or build_section.get("memory_type", ""))
-    psram_type = build_section.get("psram_type", "")
-    try:
-        memory_type = env.GetProjectOption("board_build.memory_type", "") or memory_type
-        psram_type = env.GetProjectOption("board_build.psram_type", "") or psram_type
-    except Exception:
-        pass
-    return f"|{'PSRAM' in extra_flags}|{memory_type}|{psram_type}"
-
-
 def matching_custom_sdkconfig():
     """Checks if current environment matches existing sdkconfig"""
     cust_sdk_is_present = False
@@ -407,7 +398,7 @@ def matching_custom_sdkconfig():
                 cust_sdk_is_present = True
                 custom_options = entry_custom_sdkconfig
                 expected_hash = get_MD5_hash(custom_options.strip() + mcu
-                                             + board_memory_fingerprint())
+                                             + board_memory_fingerprint(env, board))
                 if line.split("__")[1].strip() == expected_hash:
                     return True, cust_sdk_is_present
     except (IOError, IndexError):
