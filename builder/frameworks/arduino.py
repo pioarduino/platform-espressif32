@@ -37,6 +37,8 @@ from platformio import fs
 from platformio.package.manager.tool import ToolPackageManager
 from platformio.compat import IS_WINDOWS
 
+from component_manager import board_memory_fingerprint
+
 # Constants for better performance
 UNICORE_FLAGS = {
     "CORE32SOLO1",
@@ -389,7 +391,8 @@ def matching_custom_sdkconfig():
             if line.startswith("# TASMOTA__"):
                 cust_sdk_is_present = True
                 custom_options = entry_custom_sdkconfig
-                expected_hash = get_MD5_hash(custom_options.strip() + mcu)
+                expected_hash = get_MD5_hash(custom_options.strip() + mcu
+                                             + board_memory_fingerprint(env, board))
                 if line.split("__")[1].strip() == expected_hash:
                     return True, cust_sdk_is_present
     except (IOError, IndexError):

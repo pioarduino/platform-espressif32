@@ -57,6 +57,7 @@ _cm_spec = importlib.util.spec_from_file_location("component_manager", _componen
 _component_manager = importlib.util.module_from_spec(_cm_spec)
 _cm_spec.loader.exec_module(_component_manager)
 sys.modules["component_manager"] = _component_manager
+board_memory_fingerprint = _component_manager.board_memory_fingerprint
 
 _penv_setup_file = str(Path(platform.get_dir()) / "builder" / "penv_setup.py")
 _spec = importlib.util.spec_from_file_location("penv_setup", _penv_setup_file)
@@ -816,7 +817,8 @@ def HandleArduinoIDFsettings(env):
             env.Exit(1)
         
         # Generate checksum for validation (maintains original logic)
-        checksum = get_MD5_hash(checksum_source.strip() + mcu)
+        checksum = get_MD5_hash(checksum_source.strip() + mcu
+                                + board_memory_fingerprint(env, board))
         
         with open(sdkconfig_src, 'r', encoding='utf-8') as src, open(sdkconfig_dst, 'w', encoding='utf-8') as dst:
             # Write checksum header (critical for compilation decision logic)
