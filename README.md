@@ -6,7 +6,7 @@
 [![GitHub latest release](https://img.shields.io/github/downloads/pioarduino/platform-espressif32/total?label=Downloads)](https://github.com/pioarduino/platform-espressif32/releases/latest)
 [![Downloads latest release](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fespressif%2Farduino-esp32%2Freleases%2Flatest&query=%24.assets%5B0%5D.download_count&label=Downloads%20latest)](https://github.com/pioarduino/platform-espressif32/releases/latest)
 
-Espressif Systems is a privately held, fabless semiconductor company renowned for delivering cost-effective wireless communication microcontrollers. Their innovative solutions are widely adopted in mobile devices and Internet of Things (IoT) applications around the globe.
+Espressif Systems is a fabless semiconductor company renowned for delivering cost-effective wireless communication microcontrollers. Its innovative solutions are widely adopted in Internet of Things (IoT), consumer electronics, and embedded applications around the globe.
 
 ## General
 * Issues with boards (wrong / missing). All issues caused from boards will not be fixed from the maintainer(s). A PR needs to be provided against branch `develop` to solve.
@@ -76,7 +76,7 @@ pio run -t download_fatfs # Download and extract FatFS from device
 See the [arduino-fatfs example](examples/arduino-fatfs/) for a complete working example.
 
 ### Stable Arduino
-currently espressif Arduino 3.3.9 and IDF v5.5.4.
+currently espressif Arduino 3.3.11 and IDF v5.5.5.
 
 ```ini
 [env:stable]
