@@ -76,7 +76,7 @@ pio run -t download_fatfs # Download and extract FatFS from device
 See the [arduino-fatfs example](examples/arduino-fatfs/) for a complete working example.
 
 ### Stable Arduino
-currently espressif Arduino 3.3.8 and IDF v5.5.4.
+currently espressif Arduino 3.3.11 and IDF v5.5.5.
 
 ```ini
 [env:stable]
