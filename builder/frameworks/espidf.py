@@ -3165,7 +3165,7 @@ if ota_partition_params["size"] and ota_partition_params["offset"]:
     )
     extra_imgs = board.get("upload.arduino.flash_extra_images", [])
     if extra_imgs:
-        extra_img_dir = Path(env.subst("$PROJECT_DIR")) / "variants" / "tasmota"
+        extra_img_dir = Path(ARDUINO_FRAMEWORK_DIR)
         env.Append(
              FLASH_EXTRA_IMAGES=[(offset, str(extra_img_dir / img)) for offset, img in extra_imgs]
         )
