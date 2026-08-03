@@ -2085,6 +2085,29 @@ def build_bootloader(sdk_config):
             i += 1
     
     bootloader_env.Append(LINKFLAGS=processed_extra_flags)
+
+    # Deduplicate LINKFLAGS to prevent "linker script appears multiple times"
+    # error with binutils >= 2.40. The -T flags can arrive via both
+    # INTERFACE_LINK_LIBRARIES (merged at MergeFlags above) and
+    # processed_extra_flags (appended here).
+    # Note: -T and -u are two-token flags (-T <script>, -u <symbol>),
+    # so we must deduplicate them as pairs, not as individual tokens.
+    seen_pairs = set()
+    deduped = []
+    linkflags = list(bootloader_env["LINKFLAGS"])
+    i = 0
+    while i < len(linkflags):
+        if linkflags[i] in ("-T", "-u") and i + 1 < len(linkflags):
+            pair = (linkflags[i], linkflags[i + 1])
+            if pair not in seen_pairs:
+                seen_pairs.add(pair)
+                deduped.extend([linkflags[i], linkflags[i + 1]])
+            i += 2
+        else:
+            deduped.append(linkflags[i])
+            i += 1
+    bootloader_env.Replace(LINKFLAGS=deduped)
+
     bootloader_libs = find_lib_deps(components_map, elf_config, link_args)
 
     bootloader_env.Prepend(__RPATH="-Wl,--start-group ")
@@ -2896,6 +2919,28 @@ env.Prepend(
         ),
     ],
 )
+
+# Deduplicate LINKFLAGS to prevent "linker script appears multiple times"
+# error with binutils >= 2.40. The -T flags can arrive via both
+# INTERFACE_LINK_LIBRARIES (merged at MergeFlags above) and
+# extra_flags (prepended here).
+# Note: -T and -u are two-token flags (-T <script>, -u <symbol>),
+# so we must deduplicate them as pairs, not as individual tokens.
+seen_pairs = set()
+deduped = []
+linkflags = list(env["LINKFLAGS"])
+i = 0
+while i < len(linkflags):
+    if linkflags[i] in ("-T", "-u") and i + 1 < len(linkflags):
+        pair = (linkflags[i], linkflags[i + 1])
+        if pair not in seen_pairs:
+            seen_pairs.add(pair)
+            deduped.extend([linkflags[i], linkflags[i + 1]])
+        i += 2
+    else:
+        deduped.append(linkflags[i])
+        i += 1
+env.Replace(LINKFLAGS=deduped)
 
 #
 # Propagate Arduino defines to the main build environment
