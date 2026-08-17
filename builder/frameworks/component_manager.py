@@ -1463,6 +1463,9 @@ class ComponentManager:
             with open(build_py_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
+            if '"-flto=auto",' in content:
+                return True
+
             modified = False
 
             # Add -flto=auto to CCFLAGS right after the opening bracket
