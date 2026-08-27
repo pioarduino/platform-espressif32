@@ -2302,7 +2302,7 @@ def preprocess_linker_file(src_ld_script, target_ld_script, config_dir=None, ext
             env.VerboseAction(
                 " ".join([
                     f'"{CMAKE_DIR}"',
-                    f'-DCC="{fs.to_unix_path(str(Path(TOOLCHAIN_DIR) / "bin" / "$CC"))}"',
+                    '-DCC="$CC"',
                     f'-DSOURCE="{src_ld_script}"',
                     f'-DTARGET="{target_ld_script}"',
                     f'-DCFLAGS="{cflags_value}"',
@@ -2320,7 +2320,7 @@ def preprocess_linker_file(src_ld_script, target_ld_script, config_dir=None, ext
             env.VerboseAction(
                 " ".join([
                     f'"{CMAKE_DIR}"',
-                    f'-DCC="{str(Path(TOOLCHAIN_DIR) / "bin" / "$CC")}"',
+                    '-DCC="$CC"',
                     "-DSOURCE=$SOURCE",
                     "-DTARGET=$TARGET",
                     f'-DCONFIG_DIR="{config_dir}"',
