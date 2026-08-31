@@ -18,7 +18,7 @@
     "type": "git",
     "url": "https://github.com/pioarduino/platform-espressif32.git"
   },
-  "version": "60.04.00+develop",
+  "version": "61.04.00+develop",
   "frameworks": {
     "arduino": {
       "script": "builder/frameworks/arduino.py"
@@ -33,7 +33,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/archive/master.zip"
+      "version": "https://github.com/espressif/arduino-esp32/archive/idf-release/v6.1.zip"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
@@ -57,7 +57,7 @@
       "type": "framework",
       "optional": true,
       "owner": "pioarduino",
-      "version": "https://github.com/pioarduino/esp-idf/releases/download/v6.0.1/esp-idf-v6.0.1.tar.xz"
+      "version": "https://github.com/pioarduino/esp-idf/releases/download/v6.1.0/esp-idf-v6.1.0.tar.xz"
     },
     "toolchain-xtensa-esp-elf": {
       "type": "toolchain",
@@ -84,22 +84,22 @@
       "type": "debugger",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "16.3.0+20250913",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/xtensa-esp-gdb-16.3_20250913.zip"
+      "package-version": "17.1.0+20260402",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/xtensa-esp-gdb-17.1_20260402.zip"
     },
     "tool-riscv32-esp-elf-gdb": {
       "type": "debugger",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "16.3.0+20250913",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/riscv32-esp-gdb-16.3_20250913.zip"
+      "package-version": "17.1.0+20260402",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/riscv32-esp-gdb-17.1_20260402.zip"
     },
     "tool-esptoolpy": {
       "type": "uploader",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "5.2.0",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/esptoolpy-v5.2.0.zip"
+      "package-version": "5.3.1",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/esptoolpy-v5.3.1.zip"
     },
     "tool-esp_install": {
       "type": "tool",
@@ -125,8 +125,8 @@
       "type": "debugger",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "2.1200.20260424",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20260424.zip"
+      "package-version": "2.1200.20260703",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/openocd-v0.12.0-esp32-20260703.zip"
     },
     "tool-cppcheck": {
       "type": "tool",
@@ -149,13 +149,6 @@
       "package-version": "21.1.0",
       "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/clangtidy-v21.1.0.zip"
     },
-    "tool-pvs-studio": {
-      "type": "tool",
-      "optional": true,
-      "owner": "pioarduino",
-      "package-version": "7.36.91321",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/pvs-studio-v7.36.91321.zip"
-    },
     "tool-cmake": {
       "type": "tool",
       "optional": true,
@@ -167,8 +160,8 @@
       "type": "tool",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "2024.10.11",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/esp-rom-elfs-20241011.zip"
+      "package-version": "2026.05.28",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/esp-rom-elfs-20260528.zip"
     },
     "tool-ninja": {
       "type": "tool",
