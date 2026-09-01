@@ -78,7 +78,7 @@ tl_install_name = "tool-esp_install"
 
 # MCUs that support ESP-builtin debug
 ESP_BUILTIN_DEBUG_MCUS = frozenset([
-    "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32s3", "esp32h2", "esp32p4"
+    "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32s3", "esp32h2", "esp32p4", "esp32s31"
 ])
 
 # MCU configuration mapping
@@ -89,7 +89,7 @@ MCU_TOOLCHAIN_CONFIG = {
     },
     "riscv": {
         "mcus": frozenset([
-            "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32p4"
+            "esp32c2", "esp32c3", "esp32c5", "esp32c6", "esp32c61", "esp32h2", "esp32p4", "esp32s31"
         ]),
         "toolchains": ["toolchain-riscv32-esp", GDB_TOOL_PACKAGES["riscv"]]
     }

@@ -52,13 +52,13 @@ python_deps = {
     "zopfli": ">=0.2.2",
     "intelhex": ">=2.3.0",
     "rich": ">=14.0.0",
-    "cryptography": ">=45.0.3",
+    "cryptography": ">=46.0.7",
     "certifi": ">=2025.8.3",
     "ecdsa": ">=0.19.1",
     "bitstring": ">=4.3.1",
     "reedsolo": ">=1.5.3,<1.8",
-    "esp-idf-size": ">=2.0.0",
-    "esp-coredump": ">=1.14.0",
+    "esp-idf-size": ">=2.3.1",
+    "esp-coredump": ">=1.17.1",
     "pyelftools": ">=0.32"
 }
 

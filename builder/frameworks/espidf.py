@@ -2951,7 +2951,7 @@ env.Prepend(
         (
             board.get(
                 "upload.bootloader_offset",
-                "0x1000" if mcu in ["esp32", "esp32s2"] else ("0x2000" if mcu in ["esp32c5", "esp32p4"] else "0x0"),
+                "0x1000" if mcu in ["esp32", "esp32s2"] else ("0x2000" if mcu in ["esp32c5", "esp32p4", "esp32s31"] else "0x0"),
             ),
             str(Path("$BUILD_DIR") / "bootloader.bin"),
         ),
