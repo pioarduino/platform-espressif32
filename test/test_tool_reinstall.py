@@ -19,16 +19,30 @@ _handle_existing_tool():
 import importlib.util
 import os
 import sys
+import sysconfig
 import unittest
 from unittest import mock
 
-# Pre-cache the real stdlib "platform" module before loading platform.py by
-# path below. The repo root (which contains a file literally named
-# platform.py) ends up on sys.path when tests run via `python -m unittest`,
-# so anything that later does `import platform` (e.g. pyserial's miniterm,
-# imported transitively through platformio.public) would otherwise resolve
-# to this project's platform.py instead of the stdlib module.
-import platform  # noqa: F401
+
+def _load_real_stdlib_platform_module():
+    # The repo root (which contains a file literally named platform.py) ends
+    # up on sys.path when tests run via `python -m unittest`, ahead of the
+    # real standard library directory. A plain `import platform` here would
+    # therefore be order-dependent - it only resolves correctly if something
+    # else already imported the real module first. Load it deterministically
+    # by its known path instead, bypassing sys.path search entirely, so
+    # anything that later does `import platform` (e.g. pyserial's miniterm,
+    # imported transitively through platformio.public) gets the genuine
+    # standard library module regardless of import order.
+    stdlib_path = os.path.join(sysconfig.get_path("stdlib"), "platform.py")
+    spec = importlib.util.spec_from_file_location("platform", stdlib_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["platform"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_load_real_stdlib_platform_module()
 
 PLATFORM_PY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "platform.py")
 
