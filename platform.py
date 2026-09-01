@@ -620,8 +620,11 @@ class Espressif32Platform(PlatformBase):
         safe_remove_directory(paths['tool_path'])
 
         # Re-fetch the source package so tools.json is available again and
-        # install_tool() can take the idf_tools.py installation path.
-        if isinstance(source_spec, str) and source_spec.startswith(("http://", "https://")):
+        # install_tool() can take the idf_tools.py installation path. Only
+        # https:// is accepted, matching every source in platform.json today —
+        # this avoids ever fetching a package over plaintext http:// even if a
+        # future/custom platform.json entry specified one.
+        if isinstance(source_spec, str) and source_spec.startswith("https://"):
             try:
                 pm.install(source_spec)
             except Exception:
