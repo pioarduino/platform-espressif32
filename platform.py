@@ -269,6 +269,7 @@ class Espressif32Platform(PlatformBase):
         self._packages_dir = None
         self._tools_cache = {}
         self._mcu_config_cache = {}
+        self._tool_sources = {}
 
     @property
     def packages_dir(self) -> Path:
@@ -552,6 +553,15 @@ class Espressif32Platform(PlatformBase):
     def install_tool(self, tool_name: str) -> bool:
         """Install a tool."""
         self.packages[tool_name]["optional"] = False
+        # Remember platform.json's original source the first time this tool is
+        # seen. _handle_existing_tool()'s version-match branch later repoints
+        # self.packages[tool_name]["version"] at a local path; without this
+        # cache, a second install_tool() call for the same tool within this
+        # platform instance's lifetime (e.g. a package required by both
+        # _configure_mcu_toolchains() and _configure_rom_elfs_for_exception_decoder())
+        # would read that local path as its mismatch-recovery source instead
+        # of the real download URL.
+        self._tool_sources.setdefault(tool_name, self.packages[tool_name].get("version"))
         paths = self._get_tool_paths(tool_name)
         status = self._check_tool_status(tool_name)
 
@@ -566,6 +576,13 @@ class Espressif32Platform(PlatformBase):
         if (status['has_idf_tools'] and status['has_piopm'] and
                 not status['has_tools_json']):
             return self._handle_existing_tool(tool_name, paths)
+
+        if not status['tool_exists']:
+            logger.warning(
+                f"{tool_name} is not present in {self.packages_dir} and no local "
+                f"installation source is available (no tools.json, no .piopm); "
+                f"relying on PlatformIO to fetch it from platform.json"
+            )
 
         logger.debug(f"Tool {tool_name} already configured")
         return True
@@ -603,8 +620,32 @@ class Espressif32Platform(PlatformBase):
         # Version mismatch detected, reinstall tool (cleanup already performed)
         logger.info(f"Reinstalling {tool_name} due to version mismatch")
 
+        # Use the source cached on first sight by install_tool(), not
+        # self.packages[tool_name]["version"] directly — the match branch
+        # above may have already repointed that field at a local path on an
+        # earlier call for this same tool within this platform instance's
+        # lifetime. The directory removed below holds the only local copy of
+        # tools.json; without a real URL here, the install_tool() call at the
+        # end of this method matches no branch and returns success having
+        # installed nothing.
+        source_spec = self._tool_sources.get(tool_name)
+
         # Remove the main tool directory (if it still exists after cleanup)
         safe_remove_directory(paths['tool_path'])
+
+        # Re-fetch the source package so tools.json is available again and
+        # install_tool() can take the idf_tools.py installation path. Only
+        # https:// is accepted, matching every source in platform.json today —
+        # this avoids ever fetching a package over plaintext http:// even if a
+        # future/custom platform.json entry specified one.
+        if isinstance(source_spec, str) and source_spec.startswith("https://"):
+            try:
+                pm.install(source_spec)
+            except Exception:
+                logger.exception(
+                    f"Failed to re-fetch installation source for {tool_name}"
+                )
+                return False
 
         return self.install_tool(tool_name)
 
