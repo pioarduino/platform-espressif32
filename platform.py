@@ -567,6 +567,13 @@ class Espressif32Platform(PlatformBase):
                 not status['has_tools_json']):
             return self._handle_existing_tool(tool_name, paths)
 
+        if not status['tool_exists']:
+            logger.warning(
+                f"{tool_name} is not present in {self.packages_dir} and no local "
+                f"installation source is available (no tools.json, no .piopm); "
+                f"relying on PlatformIO to fetch it from platform.json"
+            )
+
         logger.debug(f"Tool {tool_name} already configured")
         return True
 
@@ -603,8 +610,25 @@ class Espressif32Platform(PlatformBase):
         # Version mismatch detected, reinstall tool (cleanup already performed)
         logger.info(f"Reinstalling {tool_name} due to version mismatch")
 
+        # Remember the installation source from platform.json before deleting
+        # anything. The directory removed below holds the only local copy of
+        # tools.json; without it the install_tool() call at the end of this
+        # method matches no branch and returns success having installed nothing.
+        source_spec = self.packages[tool_name].get("version")
+
         # Remove the main tool directory (if it still exists after cleanup)
         safe_remove_directory(paths['tool_path'])
+
+        # Re-fetch the source package so tools.json is available again and
+        # install_tool() can take the idf_tools.py installation path.
+        if isinstance(source_spec, str) and source_spec.startswith(("http://", "https://")):
+            try:
+                pm.install(source_spec)
+            except Exception:
+                logger.exception(
+                    f"Failed to re-fetch installation source for {tool_name}"
+                )
+                return False
 
         return self.install_tool(tool_name)
 
