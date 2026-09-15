@@ -945,7 +945,7 @@ env.Replace(
         "--flash-size",
         board.get("upload.flash_size", "4MB")
     ],
-    ELF2BINCMD="$ERASETOOL $ELF2BINFLAGS -o $TARGET $SOURCES",
+    ELF2BINCMD='"$ERASETOOL" $ELF2BINFLAGS -o $TARGET $SOURCES',
 
     ERASEFLAGS=["--chip", mcu, "--port", '"$UPLOAD_PORT"'],
     ERASETOOL=uploader_path,
