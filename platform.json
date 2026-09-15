@@ -12,7 +12,7 @@
     "RISC-V"
   ],
   "engines": {
-    "platformio": ">=6.1.19"
+    "platformio": ">=6.2.0"
   },
   "repository": {
     "type": "git",
@@ -149,13 +149,6 @@
       "package-version": "21.1.0",
       "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/clangtidy-v21.1.0.zip"
     },
-    "tool-pvs-studio": {
-      "type": "tool",
-      "optional": true,
-      "owner": "pioarduino",
-      "package-version": "7.36.91321",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/pvs-studio-v7.36.91321.zip"
-    },
     "tool-cmake": {
       "type": "tool",
       "optional": true,
@@ -181,8 +174,8 @@
       "type": "tool",
       "optional": true,
       "owner": "pioarduino",
-      "package-version": "4.40801.0",
-      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/scons-4.8.1.zip"
+      "package-version": "4.41101.0",
+      "version": "https://github.com/pioarduino/registry/releases/download/0.0.1/scons-4.11.1.zip"
     }
   }
 }
