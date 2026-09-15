@@ -933,6 +933,20 @@ env.Replace(
     SIZEDATAREGEXP=r"^(?:\.dram0\.data|\.dram0\.bss|\.noinit)\s+([0-9]+).*",
     SIZECHECKCMD="$SIZETOOL -A -d $SOURCES",
     SIZEPRINTCMD="$SIZETOOL -B -d $SOURCES",
+
+    ELF2BINFLAGS=[
+        "--chip",
+        mcu,
+        "elf2image",
+        "--flash_mode",
+        "${__get_board_flash_mode(__env__)}",
+        "--flash_freq",
+        "${__get_board_f_image(__env__)}",
+        "--flash_size",
+        board.get("upload.flash_size", "4MB")
+    ],
+    ELF2BINCMD="$ERASETOOL $ELF2BINFLAGS -o $TARGET $SOURCES",
+
     ERASEFLAGS=["--chip", mcu, "--port", '"$UPLOAD_PORT"'],
     ERASETOOL=uploader_path,
     ERASECMD='$ERASETOOL $ERASEFLAGS erase-flash',
@@ -961,26 +975,7 @@ if env.get("PROGNAME", "program") == "program":
 env.Append(
     BUILDERS=dict(
         ElfToBin=Builder(
-            action=env.VerboseAction(
-                " ".join(
-                    [
-                        "$ERASETOOL",
-                        "--chip",
-                        mcu,
-                        "elf2image",
-                        "--flash-mode",
-                        "${__get_board_flash_mode(__env__)}",
-                        "--flash-freq",
-                        "${__get_board_f_image(__env__)}",
-                        "--flash-size",
-                        board.get("upload.flash_size", "4MB"),
-                        "-o",
-                        "\"$TARGET\"",
-                        "\"$SOURCES\"",
-                    ]
-                ),
-                "Building $TARGET",
-            ),
+            action=env.VerboseAction("$ELF2BINCMD", "Building $TARGET"),
             suffix=".bin",
         ),
         DataToBin=Builder(
