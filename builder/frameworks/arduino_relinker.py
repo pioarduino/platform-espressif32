@@ -107,8 +107,14 @@ def setup_arduino_relinker(env, platform, mcu, chip_variant):
     # would otherwise have used.
     board = env.BoardConfig()
     memory_type = board.get(
-        "build.arduino.memory_type",
-        board.get("build.flash_mode", "dio") + "_qspi",
+        "build.memory_type",
+        board.get(
+            "build.arduino.memory_type",
+            "%s_%s" % (
+                board.get("build.flash_mode", "dio"),
+                board.get("build.psram_type", "qspi"),
+            ),
+        ),
     )
     candidates = [
         Path(framework_lib_dir) / chip_variant / "ld" / "sections.ld",
