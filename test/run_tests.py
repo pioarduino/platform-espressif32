@@ -37,6 +37,15 @@ def run_all_tests():
         sys.exit(1)
     
     try:
+        import test_espidf
+        espidf_tests = loader.loadTestsFromModule(test_espidf)
+        suite.addTests(espidf_tests)
+        print(f"  ✓ Loaded {espidf_tests.countTestCases()} tests from test_espidf")
+    except Exception as e:
+        print(f"  ✗ Failed to load test_espidf: {e}")
+        sys.exit(1)
+
+    try:
         import test_relinker
         relinker_tests = loader.loadTestsFromModule(test_relinker)
         suite.addTests(relinker_tests)
