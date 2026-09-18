@@ -3006,16 +3006,24 @@ if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "es
 if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PIOFRAMEWORK")):
     def idf_lib_copy(source, target, env):
         def _replace_copy(src, dst):
+            """Copy src over dst. True when dst now holds it, False when not."""
             dst_p = Path(dst)
             dst_p.parent.mkdir(parents=True, exist_ok=True)
             try:
                 shutil.copy2(src, dst)
-            except (OSError, IOError):
-                # Gracefully handle missing source files (e.g., PSRAM libs in non-PSRAM builds)
-                # This is expected when copying variant-specific libraries
-                pass
+                return True
+            except FileNotFoundError:
+                # A missing source is routine: a variant-specific library this
+                # build does not produce, such as the PSRAM ones in a non-PSRAM
+                # build. False says dst was left alone, so a caller moving a
+                # file keeps the copy it has rather than dropping both.
+                return False
             except Exception as e:
+                # Anything else -- permissions, a full disk -- leaves the
+                # package half converted, so say so rather than let the next
+                # build link whatever survived.
                 print(f"Warning: Failed to copy {src} to {dst}: {e}")
+                return False
         env_build = str(Path(env["PROJECT_BUILD_DIR"]) / env["PIOENV"])
         sdkconfig_h_path = str(Path(env_build) / "config" / "sdkconfig.h")
         arduino_libs = str(Path(ARDUINO_FRMWRK_LIB_DIR))
@@ -3026,6 +3034,12 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
         # Ensure destinations exist
         for d in (lib_dst, ld_dst, mem_var, str(Path(mem_var) / "include")):
             Path(d).mkdir(parents=True, exist_ok=True)
+        # Names the package keeps per memory type rather than in the shared
+        # lib/ and ld/; the set differs per chip. LIBPATH searches lib/ and ld/
+        # ahead of <memory_type>, so one of these in a shared directory shadows
+        # the copy every other memory type links. Read before this build writes
+        # there, so the set describes the package and not the run.
+        per_memory_type = {p.name for p in Path(mem_var).iterdir() if p.is_file()}
         # Walk each component directory recursively so that nested archives
         # (e.g. mbedtls vendored libraries in mbedtls/mbedtls/library/) are
         # also copied back into the package.  When two archives share the same
@@ -3034,16 +3048,19 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
         # copy-libs.sh so the package stays consistent.
         copy_idf_component_archives(lib_src, lib_dst)
 
-        _replace_copy(str(Path(lib_dst) / "libspi_flash.a"), str(Path(mem_var) / "libspi_flash.a"))
         _replace_copy(str(Path(env_build) / "memory.ld"), str(Path(ld_dst) / "memory.ld"))
         _replace_copy(str(Path(env_build) / "sections.ld"), str(Path(ld_dst) / "sections.ld"))
-        if sdk_config.get("CONFIG_SOC_PSRAM_DMA_CAPABLE", False):
-            _replace_copy(str(Path(lib_dst) / "libesp_psram.a"), str(Path(mem_var) / "libesp_psram.a"))
-            _replace_copy(str(Path(lib_dst) / "libesp_system.a"), str(Path(mem_var) / "libesp_system.a"))
-            _replace_copy(str(Path(lib_dst) / "libfreertos.a"), str(Path(mem_var) / "libfreertos.a"))
-            _replace_copy(str(Path(lib_dst) / "libbootloader_support.a"), str(Path(mem_var) / "libbootloader_support.a"))
-            _replace_copy(str(Path(lib_dst) / "libesp_hw_support.a"), str(Path(mem_var) / "libesp_hw_support.a"))
-            _replace_copy(str(Path(lib_dst) / "libesp_lcd.a"), str(Path(mem_var) / "libesp_lcd.a"))
+
+        # Move the rebuilt per-memory-type files to <memory_type>/, where the
+        # package keeps them, clearing any shared copy whichever build put it
+        # there.
+        for shared_dst in (lib_dst, ld_dst):
+            for name in sorted(per_memory_type):
+                shared_file = Path(shared_dst) / name
+                if not shared_file.is_file():
+                    continue
+                if _replace_copy(str(shared_file), str(Path(mem_var) / name)):
+                    shared_file.unlink()
 
         shutil.copyfile(sdkconfig_h_path, str(Path(mem_var) / "include" / "sdkconfig.h"))
         if not bool(os.path.isfile(str(Path(arduino_libs) / chip_variant / "sdkconfig.orig"))):
