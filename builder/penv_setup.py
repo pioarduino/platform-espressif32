@@ -44,7 +44,7 @@ github_actions = bool(os.getenv("GITHUB_ACTIONS"))
 
 # Python dependencies required for ESP32 platform builds
 python_deps = {
-    "pioarduino": ">=6.1.19",
+    "pioarduino": ">=6.2.0",
     "littlefs-python": ">=0.16.0",
     "fatfs-ng": ">=0.1.14",
     "pyyaml": ">=6.0.2",
@@ -582,7 +582,8 @@ def install_esptool(env, platform, python_exe, uv_executable, uv_cache_dir=None)
 
     try:
         subprocess.check_call([
-            uv_executable, "pip", "install", "--quiet", "--force-reinstall",
+            uv_executable, "pip", "install", "--quiet",
+            "--reinstall-package", "esptool",
             f"--python={python_exe}",
             "-e", esptool_repo_path
         ], timeout=60, env=uv_env)
@@ -808,7 +809,8 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable, uv_cac
 
     try:
         subprocess.check_call([
-            uv_executable, "pip", "install", "--quiet", "--force-reinstall",
+            uv_executable, "pip", "install", "--quiet",
+            "--reinstall-package", "esptool",
             f"--python={python_exe}",
             "-e", esptool_repo_path
         ], timeout=60, env=uv_env)
