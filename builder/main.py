@@ -941,7 +941,7 @@ env.Replace(
         "--flash-freq", "${__get_board_f_image(__env__)}",
         "--flash-size", board.get("upload.flash_size", "4MB")
     ],
-    ELF2BINCMD='$OBJCOPY $ELF2BINFLAGS -o $TARGET $SOURCES',
+    ELF2BINCMD='$OBJCOPY $ELF2BINFLAGS -o "$TARGET" "$SOURCES"',
 
     ERASEFLAGS=["--chip", mcu, "--port", '"$UPLOAD_PORT"'],
     ERASECMD='$ERASETOOL $ERASEFLAGS erase-flash',
