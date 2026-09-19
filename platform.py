@@ -937,6 +937,7 @@ class Espressif32Platform(PlatformBase):
         if "tools" not in debug:
             debug["tools"] = {}
 
+        # Debug tool configuration
         for link in upload_protocols:
             if link in non_debug_protocols or link in debug["tools"]:
                 continue
