@@ -110,6 +110,14 @@ SUBTYPE_SPIFFS = 0x82
 SUBTYPE_LITTLEFS = 0x83
 KNOWN_FS_SUBTYPES = (SUBTYPE_FAT, SUBTYPE_SPIFFS, SUBTYPE_LITTLEFS)
 
+# String representations for partition type matching
+VALID_DATA_TYPES = {"data", "1", "0x01"}
+VALID_FS_SUBTYPES = {
+    "spiffs", "fat", "littlefs",
+    hex(SUBTYPE_SPIFFS), hex(SUBTYPE_FAT), hex(SUBTYPE_LITTLEFS),
+    str(SUBTYPE_SPIFFS), str(SUBTYPE_FAT), str(SUBTYPE_LITTLEFS)
+}
+
 
 def load_board_script(env):
     if not board_id:
@@ -420,18 +428,42 @@ def fetch_fs_size(env):
     """
     Extract filesystem size and offset information from partition table.
     Sets FS_START, FS_SIZE, FS_PAGE, and FS_BLOCK environment variables.
-    
+
     Args:
         env: SCons environment object
     """
     fs = None
-    for p in _parse_partitions(env):
-        if p["type"] == "data" and p["subtype"] in (
-            "spiffs",
-            "fat",
-            "littlefs",
-        ):
-            fs = p
+    custom_fs_partition = board.get("build.filesystem_partition", "")
+
+    partitions = _parse_partitions(env)
+
+    # User-specified partition name has priority
+    if custom_fs_partition:
+        for p in partitions:
+            p_type = str(p["type"]).strip().lower()
+            p_subtype = str(p["subtype"]).strip().lower()
+            if (
+                p["name"] == custom_fs_partition
+                and p_type in VALID_DATA_TYPES
+                and p_subtype in VALID_FS_SUBTYPES
+            ):
+                fs = p
+                break
+        if not fs:
+            print(
+                "Warning! Selected filesystem partition `%s` is not available in the "
+                "partition table! Falling back to last available filesystem partition."
+                % custom_fs_partition
+            )
+
+    # Fallback: use last FS partition (original behavior)
+    if not fs:
+        for p in partitions:
+            p_type = str(p["type"]).strip().lower()
+            p_subtype = str(p["subtype"]).strip().lower()
+            if p_type in VALID_DATA_TYPES and p_subtype in VALID_FS_SUBTYPES:
+                fs = p
+
     if not fs:
         sys.stderr.write(
             "Could not find the any filesystem section in the partitions "
@@ -439,7 +471,7 @@ def fetch_fs_size(env):
         )
         env.Exit(1)
         return
-    
+
     env["FS_START"] = _parse_size(fs["offset"])
     env["FS_SIZE"] = _parse_size(fs["size"])
     env["FS_PAGE"] = int("0x100", 16)
@@ -893,6 +925,7 @@ env.Replace(
         "%s-elf-gdb" % toolchain_arch,
     ),
     OBJCOPY=uploader_path,
+    ERASETOOL=uploader_path,
     RANLIB="%s-elf-gcc-ranlib" % toolchain_arch,
     SIZETOOL="%s-elf-size" % toolchain_arch,
     ARFLAGS=["rc"],
@@ -901,8 +934,16 @@ env.Replace(
     SIZEDATAREGEXP=r"^(?:\.dram0\.data|\.dram0\.bss|\.noinit)\s+([0-9]+).*",
     SIZECHECKCMD="$SIZETOOL -A -d $SOURCES",
     SIZEPRINTCMD="$SIZETOOL -B -d $SOURCES",
+
+    ELF2BINFLAGS=[
+        "--chip", mcu, "elf2image",
+        "--flash-mode", "${__get_board_flash_mode(__env__)}",
+        "--flash-freq", "${__get_board_f_image(__env__)}",
+        "--flash-size", board.get("upload.flash_size", "4MB")
+    ],
+    ELF2BINCMD='$OBJCOPY $ELF2BINFLAGS -o "$TARGET" "$SOURCES"',
+
     ERASEFLAGS=["--chip", mcu, "--port", '"$UPLOAD_PORT"'],
-    ERASETOOL=uploader_path,
     ERASECMD='$ERASETOOL $ERASEFLAGS erase-flash',
     ESP32_FS_IMAGE_NAME=env.get(
         "ESP32_FS_IMAGE_NAME",
@@ -929,26 +970,7 @@ if env.get("PROGNAME", "program") == "program":
 env.Append(
     BUILDERS=dict(
         ElfToBin=Builder(
-            action=env.VerboseAction(
-                " ".join(
-                    [
-                        "$ERASETOOL",
-                        "--chip",
-                        mcu,
-                        "elf2image",
-                        "--flash-mode",
-                        "${__get_board_flash_mode(__env__)}",
-                        "--flash-freq",
-                        "${__get_board_f_image(__env__)}",
-                        "--flash-size",
-                        board.get("upload.flash_size", "4MB"),
-                        "-o",
-                        "\"$TARGET\"",
-                        "\"$SOURCES\"",
-                    ]
-                ),
-                "Building $TARGET",
-            ),
+            action=env.VerboseAction("$ELF2BINCMD", "Building $TARGET"),
             suffix=".bin",
         ),
         DataToBin=Builder(
