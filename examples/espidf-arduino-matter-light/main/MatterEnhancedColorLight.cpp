@@ -3,7 +3,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
@@ -13,12 +13,25 @@
 // limitations under the License.
 
 // Matter Manager
+#include <Arduino.h>
 #include <Matter.h>
 #include <Preferences.h>
 
+// ESP32-C3/H2/C5: if the node never commissions (usual low-heap symptom), uncomment this.
+// The default 8 KB loop stack is reserved from the heap before setup();
+// 4 KB is enough for this sketch and frees 4 KB for CHIPoBLE + Wi-Fi.
+// SET_LOOP_TASK_STACK_SIZE(4 * 1024);
+
 // List of Matter Endpoints for this Node
-// Color Light Endpoint
+// Enhanced Color Light Endpoint
 MatterEnhancedColorLight EnhancedColorLight;
+
+// Wi-Fi credentials for this sketch. Fill these in when the board cannot
+// commission over BLE (Arduino prebuild on ESP32 / ESP32-S2): the sketch
+// joins the AP itself. When Matter commissions over BLE (CHIPoBLE), the
+// hub sends SSID and password — leave the placeholders; they are unused.
+#define WIFI_SSID     "your-ssid"
+#define WIFI_PASSWORD "your-password"
 
 // It will use HSV color to control all Matter Attribute Changes
 HsvColor_t currentHSVColor = {0, 0, 0};
@@ -32,21 +45,16 @@ const char *hsvColorPrefKey = "HSV";
 #ifdef RGB_BUILTIN
 const uint8_t ledPin = RGB_BUILTIN;
 #else
-const uint8_t ledPin = 2;  // Set your pin here if your board has not defined LED_BUILTIN
+const uint8_t ledPin = 2;  // Set your pin here if the board has no RGB_BUILTIN
 #warning "Do not forget to set the RGB LED pin"
 #endif
 
 // set your board USER BUTTON pin here
 const uint8_t buttonPin = BOOT_PIN;  // Set your pin here. Using BOOT Button.
-
-// Button control
-uint32_t button_time_stamp = 0;                // debouncing control
-bool button_state = false;                     // false = released | true = pressed
-const uint32_t debounceTime = 250;              // button debouncing time (ms)
-const uint32_t decommissioningTimeout = 5000;  // keep the button pressed for 5s, or longer, to decommission
+MatterButton button;
 
 // Set the RGB LED Light based on the current state of the Enhanced Color Light
-bool setLightState(bool state, espHsvColor_t colorHSV, uint8_t brightness, uint16_t temperature_Mireds) {
+bool setLightState(bool state, espHsvColor_t colorHSV, uint8_t brighteness, uint16_t temperature_Mireds) {
 
   if (state) {
 #ifdef RGB_BUILTIN
@@ -74,11 +82,16 @@ bool setLightState(bool state, espHsvColor_t colorHSV, uint8_t brightness, uint1
 
 void setup() {
   // Initialize the USER BUTTON (Boot button) GPIO that will act as a toggle switch
-  pinMode(buttonPin, INPUT_PULLUP);
+  button.begin(buttonPin);
   // Initialize the LED (light) GPIO and Matter End Point
   pinMode(ledPin, OUTPUT);
 
   Serial.begin(115200);
+
+// CONFIG_ENABLE_CHIPOBLE=n: sketch starts Wi-Fi here; with CHIPoBLE the hub delivers credentials.
+#if !CONFIG_ENABLE_CHIPOBLE
+  matterConnectWiFi(WIFI_SSID, WIFI_PASSWORD);
+#endif
 
   // Initialize Matter EndPoint
   matterPref.begin("MatterPrefs", false);
@@ -97,7 +110,7 @@ void setup() {
     return true;
   });
   EnhancedColorLight.onChangeColorTemperature([](uint16_t colorTemperature) {
-    Serial.printf("Light Color Temperature changed to %d\r\n", colorTemperature);
+    Serial.printf("Light Color Temperature changed to %u\r\n", colorTemperature);
     // get correspondent Hue and Saturation of the color temperature
     HsvColor_t hsvTemperature = espRgbColorToHsvColor(espCTToRgbColor(colorTemperature));
     // keep previous the brightness and just change the Hue and Saturation
@@ -106,13 +119,13 @@ void setup() {
     return true;
   });
   EnhancedColorLight.onChangeBrightness([](uint8_t brightness) {
-    Serial.printf("Light brightness changed to %d\r\n", brightness);
+    Serial.printf("Light brightness changed to %u\r\n", brightness);
     // change current brightness (HSV value)
     currentHSVColor.v = brightness;
     return true;
   });
   EnhancedColorLight.onChangeColorHSV([](HsvColor_t hsvColor) {
-    Serial.printf("Light HSV Color changed to (%d,%d,%d)\r\n", hsvColor.h, hsvColor.s, hsvColor.v);
+    Serial.printf("Light HSV Color changed to (%u,%u,%u)\r\n", hsvColor.h, hsvColor.s, hsvColor.v);
     // keep the current brightness and just change Hue and Saturation
     currentHSVColor.h = hsvColor.h;
     currentHSVColor.s = hsvColor.s;
@@ -121,66 +134,26 @@ void setup() {
 
   // Matter beginning - Last step, after all EndPoints are initialized
   Matter.begin();
-  // This may be a restart of a already commissioned Matter accessory
-  if (Matter.isDeviceCommissioned()) {
-    Serial.println("Matter Node is commissioned and connected to the network. Ready for use.");
-    Serial.printf(
-      "Initial state: %s | RGB Color: (%d,%d,%d) \r\n", EnhancedColorLight ? "ON" : "OFF", EnhancedColorLight.getColorRGB().r,
-      EnhancedColorLight.getColorRGB().g, EnhancedColorLight.getColorRGB().b
-    );
-    // configure the Light based on initial on-off state and its color
-    EnhancedColorLight.updateAccessory();
-  }
+  matterWaitUntilReady();
+  Serial.printf(
+    "Initial state: %s | RGB Color: (%u,%u,%u) \r\n", EnhancedColorLight ? "ON" : "OFF", EnhancedColorLight.getColorRGB().r, EnhancedColorLight.getColorRGB().g,
+    EnhancedColorLight.getColorRGB().b
+  );
+  EnhancedColorLight.updateAccessory();
 }
 
 void loop() {
-  // Check Matter Light Commissioning state, which may change during execution of loop()
-  if (!Matter.isDeviceCommissioned()) {
-    Serial.println("");
-    Serial.println("Matter Node is not commissioned yet.");
-    Serial.println("Initiate the device discovery in your Matter environment.");
-    Serial.println("Commission it to your Matter hub with the manual pairing code or QR code");
-    Serial.printf("Manual pairing code: %s\r\n", Matter.getManualPairingCode().c_str());
-    Serial.printf("QR code URL: %s\r\n", Matter.getOnboardingQRCodeUrl().c_str());
-    // waits for Matter Light Commissioning.
-    uint32_t timeCount = 0;
-    while (!Matter.isDeviceCommissioned()) {
-      delay(100);
-      if ((timeCount++ % 50) == 0) {  // 50*100ms = 5 sec
-        Serial.println("Matter Node not commissioned yet. Waiting for commissioning.");
-      }
+  matterRestartIfNoFabric();
+
+  matterButtonEvent_t ev;
+  while ((ev = button.poll()) != MATTER_BUTTON_NONE) {
+    if (ev == MATTER_BUTTON_CLICK) {
+      Serial.println("User button released. Toggling Light!");
+      EnhancedColorLight.toggle();
+    } else if (ev == MATTER_BUTTON_LONG_HOLD) {
+      Serial.println("Decommissioning the Light Matter Accessory. It shall be commissioned again.");
+      EnhancedColorLight = false;
+      Matter.decommission();
     }
-    Serial.printf(
-      "Initial state: %s | RGB Color: (%d,%d,%d) \r\n", EnhancedColorLight ? "ON" : "OFF", EnhancedColorLight.getColorRGB().r,
-      EnhancedColorLight.getColorRGB().g, EnhancedColorLight.getColorRGB().b
-    );
-    // configure the Light based on initial on-off state and its color
-    EnhancedColorLight.updateAccessory();
-    Serial.println("Matter Node is commissioned and connected to the network. Ready for use.");
-  }
-
-  // A button is also used to control the light
-  // Check if the button has been pressed
-  if (digitalRead(buttonPin) == LOW && !button_state) {
-    // deals with button debouncing
-    button_time_stamp = millis();  // record the time while the button is pressed.
-    button_state = true;           // pressed.
-  }
-
-  // Onboard User Button is used as a Light toggle switch or to decommission it
-  uint32_t time_diff = millis() - button_time_stamp;
-  if (button_state && time_diff > debounceTime && digitalRead(buttonPin) == HIGH) {
-    button_state = false;  // released
-    // Toggle button is released - toggle the light
-    Serial.println("User button released. Toggling Light!");
-    EnhancedColorLight.toggle();  // Matter Controller also can see the change
-  }
-
-  // Onboard User Button is kept pressed for longer than 5 seconds in order to decommission matter node
-  if (button_state && time_diff > decommissioningTimeout) {
-    Serial.println("Decommissioning the Light Matter Accessory. It shall be commissioned again.");
-    EnhancedColorLight = false;  // turn the light off
-    Matter.decommission();
-    button_time_stamp = millis();  // avoid running decommissining again, reboot takes a second or so
   }
 }

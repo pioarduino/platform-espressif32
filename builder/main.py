@@ -925,6 +925,7 @@ env.Replace(
         "%s-elf-gdb" % toolchain_arch,
     ),
     OBJCOPY=uploader_path,
+    ERASETOOL=uploader_path,
     RANLIB="%s-elf-gcc-ranlib" % toolchain_arch,
     SIZETOOL="%s-elf-size" % toolchain_arch,
     ARFLAGS=["rc"],
@@ -935,20 +936,14 @@ env.Replace(
     SIZEPRINTCMD="$SIZETOOL -B -d $SOURCES",
 
     ELF2BINFLAGS=[
-        "--chip",
-        mcu,
-        "elf2image",
-        "--flash-mode",
-        "${__get_board_flash_mode(__env__)}",
-        "--flash-freq",
-        "${__get_board_f_image(__env__)}",
-        "--flash-size",
-        board.get("upload.flash_size", "4MB")
+        "--chip", mcu, "elf2image",
+        "--flash-mode", "${__get_board_flash_mode(__env__)}",
+        "--flash-freq", "${__get_board_f_image(__env__)}",
+        "--flash-size", board.get("upload.flash_size", "4MB")
     ],
-    ELF2BINCMD='$ERASETOOL $ELF2BINFLAGS -o $TARGET $SOURCES',
+    ELF2BINCMD='$OBJCOPY $ELF2BINFLAGS -o $TARGET $SOURCES',
 
     ERASEFLAGS=["--chip", mcu, "--port", '"$UPLOAD_PORT"'],
-    ERASETOOL=uploader_path,
     ERASECMD='$ERASETOOL $ERASEFLAGS erase-flash',
     ESP32_FS_IMAGE_NAME=env.get(
         "ESP32_FS_IMAGE_NAME",
