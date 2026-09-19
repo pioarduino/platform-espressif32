@@ -3048,8 +3048,7 @@ if sdk_config.get("SOC_MMU_PAGE_SIZE_CONFIGURABLE", False):
     elif board_flash_size == "1MB":
         mmu_page_size = "16KB"
 
-if mmu_page_size != "64KB":
-    extra_elf2bin_flags.extend([" --flash-mmu-page-size", mmu_page_size])
+extra_elf2bin_flags.extend(["--flash-mmu-page-size", mmu_page_size])
 
 env.Append(ELF2BINFLAGS=extra_elf2bin_flags)
 
