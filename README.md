@@ -71,8 +71,7 @@ board_build.filesystem = fatfs
 ```
 
 
-## Experimental Arduino 4.0 based on IDF 6.0
-pioarduino Arduino repo branch `release/v4.0.x`, used to compile Arduino libs with IDF 6.0
+## Experimental Arduino 4.0 based on IDF 6.1
 
 ```ini
 [env:experimental]
