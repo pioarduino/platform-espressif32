@@ -1724,43 +1724,75 @@ def _fix_component_relative_include(config, build_flags, source_index):
     return build_flags
 
 # C++ Flag Leak Workaround
-_CPP_ONLY_FLAGS = {'-fpermissive', '-fvisibility-inlines-hidden', '-Weffc++'}
+_CPP_ONLY_FLAGS = {"-fpermissive", "-fvisibility-inlines-hidden", "-Weffc++"}
+_C_ONLY_FLAGS = set()
 
-_f_flags = [
-    'elide-constructors', 'rtti', 'exceptions', 'strict-enums',
-    'use-cxa-atexit', 'threadsafe-statics', 'implicit-templates',
-    'sized-deallocation'
+_f_cpp_flags = [
+    "elide-constructors", "rtti", "exceptions", "strict-enums",
+    "use-cxa-atexit", "threadsafe-statics", "implicit-templates",
+    "sized-deallocation"
 ]
 
-_w_flags = [
-    'non-virtual-dtor', 'delete-non-virtual-dtor', 'overloaded-virtual',
-    'old-style-cast', 'useless-cast', 'sign-promo', 'reorder',
-    'ctor-dtor-privacy', 'noexcept', 'strict-null-sentinel',
-    'zero-as-null-pointer-constant', 'catch-value', 'conditionally-supported',
-    'multiple-inheritance', 'virtual-inheritance', 'templates'
+_w_cpp_flags = [
+    "non-virtual-dtor", "delete-non-virtual-dtor", "overloaded-virtual",
+    "old-style-cast", "useless-cast", "sign-promo", "reorder",
+    "ctor-dtor-privacy", "noexcept", "strict-null-sentinel",
+    "zero-as-null-pointer-constant", "catch-value", "conditionally-supported",
+    "multiple-inheritance", "virtual-inheritance", "templates"
+]
+
+# Standard C-only warning flags that throw errors if passed to g++
+_w_c_flags = [
+    "strict-prototypes", "missing-prototypes", "implicit-function-declaration",
+    "error-implicit-function-declaration", "implicit-int", "declaration-after-statement",
+    "pointer-sign", "old-style-definition", "nested-externs", "traditional", 
+    "traditional-conversion", "jump-misses-init", "override-init",
+    "c90-c99-compat", "c99-c11-compat", "old-style-declaration"
 ]
 
 # Generate all permutations (-f vs -fno-, and -W vs -Wno- vs -Werror=)
-for f in _f_flags:
-    _CPP_ONLY_FLAGS.add(f'-f{f}')
-    _CPP_ONLY_FLAGS.add(f'-fno-{f}')
+for f in _f_cpp_flags:
+    _CPP_ONLY_FLAGS.add(f"-f{f}")
+    _CPP_ONLY_FLAGS.add(f"-fno-{f}")
 
-for w in _w_flags:
-    _CPP_ONLY_FLAGS.add(f'-W{w}')
-    _CPP_ONLY_FLAGS.add(f'-Wno-{w}')
-    _CPP_ONLY_FLAGS.add(f'-Werror={w}')
+for w in _w_cpp_flags:
+    _CPP_ONLY_FLAGS.add(f"-W{w}")
+    _CPP_ONLY_FLAGS.add(f"-Wno-{w}")
+    _CPP_ONLY_FLAGS.add(f"-Werror={w}")
+
+for w in _w_c_flags:
+    _C_ONLY_FLAGS.add(f"-W{w}")
+    _C_ONLY_FLAGS.add(f"-Wno-{w}")
+    _C_ONLY_FLAGS.add(f"-Werror={w}")
 
 
 def _is_cpp_only(flag):
+    if isinstance(flag, (list, tuple)):
+        flag = flag[0]
+    
     if flag in _CPP_ONLY_FLAGS:
         return True
 
-    # Fast prefix checks for dynamic flags (like -Wc++11-compat)
+    # Fast prefix checks for dynamic flags (like -Wc++11-compat or -std=c++11)
     if (
         flag.startswith("-Wc++")
         or flag.startswith("-Wno-c++")
         or flag.startswith("-Werror=c++")
     ):
+        return True
+        
+    return False
+
+
+def _is_c_only(flag):
+    if isinstance(flag, (list, tuple)):
+        flag = flag[0]
+        
+    if flag in _C_ONLY_FLAGS:
+        return True
+        
+    # Catch C standards (e.g., -std=c99, -std=gnu11) but avoid C++ standards (-std=c++11)
+    if flag.startswith("-std=") and "++" not in flag:
         return True
 
     return False
@@ -1769,21 +1801,27 @@ def _is_cpp_only(flag):
 def parse_flag_extended(env, build_flags):
     parsed = env.ParseFlags(build_flags)
 
-    old_ccflags = parsed.get("CCFLAGS", [])
+    new_cflags = parsed.get("CFLAGS", [])
     new_cxxflags = parsed.get("CXXFLAGS", [])
     new_ccflags = []
-    # Rebuilding the list is significantly faster
-    for flag in old_ccflags:
+
+    # Rebuilding the lists is significantly faster
+    for flag in parsed.get("CCFLAGS", []):
         if _is_cpp_only(flag):
             # It's a C++ flag, route it to CXXFLAGS if not already there
             if flag not in new_cxxflags:
                 new_cxxflags.append(flag)
+        elif _is_c_only(flag):
+            # It's a C-only flag, route it to CFLAGS
+            if flag not in new_cflags:
+                new_cflags.append(flag)
         else:
-            # It's safe for C, keep it in CCFLAGS
+            # It's safe for BOTH C and C++ (e.g., -O2, -g, -Wall), keep it in CCFLAGS
             new_ccflags.append(flag)
 
     parsed["CCFLAGS"] = new_ccflags
     parsed["CXXFLAGS"] = new_cxxflags
+    parsed["CFLAGS"] = new_cflags
     return parsed
 
 
@@ -2507,12 +2545,8 @@ def _get_python_deps():
         "cryptography": "~=46.0.0",
         "pyparsing": ">=3.1.0,<4",
         "idf-component-manager": "~=3.1.0",
-        "esp-idf-kconfig": "~=3.7.0"
+        "esp-idf-kconfig": "~=3.13.0"
     }
-
-    if IS_WINDOWS:
-        deps["windows-curses"] = ">=2.4.2"
-
     return deps
 
 
@@ -3015,7 +3049,7 @@ env.Prepend(
         (
             board.get(
                 "upload.bootloader_offset",
-                "0x1000" if mcu in ["esp32", "esp32s2"] else ("0x2000" if mcu in ["esp32c5", "esp32p4"] else "0x0"),
+                "0x1000" if mcu in ["esp32", "esp32s2"] else ("0x2000" if mcu in ["esp32c5", "esp32p4", "esp32s31"] else "0x0"),
             ),
             str(Path("$BUILD_DIR") / "bootloader.bin"),
         ),
