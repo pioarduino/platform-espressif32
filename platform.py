@@ -796,6 +796,95 @@ class Espressif32Platform(PlatformBase):
         if uploader == "dfu":
             self.install_tool("tool-dfuutil-arduino")
 
+    def _patch_arduino_framework(self) -> None:
+        """
+        Patch pioarduino-build.py in the installed framework to fix a SCons
+        deepcopy bug that crashes verbose builds.
+
+        Root cause: deepcopy() of a SCons CommandAction creates a new _Null
+        instance for the cmdstr sentinel instead of preserving the singleton,
+        breaking the identity check 'self.cmdstr is not _null' and causing
+        'TypeError: unsupported operand type(s) for +: _Null and str' when
+        SCons tries to print the expanded command in verbose mode.
+
+        Fix: replace the deepcopy + reassign pattern with a direct in-place
+        mutation of cmd_list, which is a plain string and needs no copy.
+
+        Affected version: framework-arduinoespressif32 3.x.12 (e.g. 3.3.12).
+        The check is intentionally broad (any 3.x.12) so it covers future
+        3.y.12 releases that may ship the same bug.
+        """
+        import re
+
+        framework_dir = self.get_package_dir("framework-arduinoespressif32")
+        if not framework_dir:
+            return
+
+        # Read the installed version from package.json
+        package_json = Path(framework_dir) / "package.json"
+        if not package_json.exists():
+            return
+
+        try:
+            with open(package_json, "r", encoding="utf-8") as f:
+                pkg_data = json.load(f)
+            version = pkg_data.get("version", "")
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"Could not read framework package.json: {e}")
+            return
+
+        # Match any 3.x.12 release (e.g. 3.3.12, 3.4.12, ...)
+        if not re.match(r"^3\.\d+\.12$", version):
+            return
+
+        build_script = Path(framework_dir) / "tools" / "pioarduino-build.py"
+        if not build_script.exists():
+            return
+
+        try:
+            original = build_script.read_text(encoding="utf-8")
+        except OSError as e:
+            logger.warning(f"Could not read pioarduino-build.py: {e}")
+            return
+
+        # The buggy pattern (three lines)
+        buggy = (
+            'action = deepcopy(env["BUILDERS"]["ElfToBin"].action)\n'
+            'action.cmd_list = env["BUILDERS"]["ElfToBin"].action.cmd_list.replace("-o", "--elf-sha256-offset 0xb0 -o")\n'
+            'env["BUILDERS"]["ElfToBin"].action = action'
+        )
+        # The fixed single-line replacement
+        fixed = (
+            'env["BUILDERS"]["ElfToBin"].action.cmd_list = '
+            'env["BUILDERS"]["ElfToBin"].action.cmd_list.replace("-o", "--elf-sha256-offset 0xb0 -o")'
+        )
+
+        if fixed in original:
+            # Already patched — nothing to do
+            logger.debug("pioarduino-build.py already patched, skipping")
+            return
+
+        if buggy not in original:
+            logger.warning(
+                "pioarduino-build.py: expected deepcopy pattern not found "
+                f"(version {version}), skipping patch"
+            )
+            return
+
+        patched = original.replace(buggy, fixed)
+
+        # Also remove the now-unused 'from copy import deepcopy' import if present
+        patched = re.sub(r"^from copy import deepcopy\n", "", patched, flags=re.MULTILINE)
+
+        try:
+            build_script.write_text(patched, encoding="utf-8")
+            logger.info(
+                f"Patched pioarduino-build.py in framework-arduinoespressif32 {version}: "
+                "removed deepcopy SCons verbose-build crash"
+            )
+        except OSError as e:
+            logger.warning(f"Could not write patched pioarduino-build.py: {e}")
+
     def setup_python_env(self, env):
         """Configure SCons environment with centrally managed Python executable paths."""
         # Python environment is centrally managed in configure_default_packages
@@ -856,7 +945,13 @@ class Espressif32Platform(PlatformBase):
             logger.error(f"Error in package configuration: {type(e).__name__}: {e}")
             # Don't re-raise to maintain compatibility
 
-        return super().configure_default_packages(variables, targets)
+        result = super().configure_default_packages(variables, targets)
+
+        # Patch framework-arduinoespressif32 if affected version is installed
+        if "arduino" in frameworks:
+            self._patch_arduino_framework()
+
+        return result
 
     def get_boards(self, id_=None):
         """Get board configuration with dynamic options."""
