@@ -818,7 +818,15 @@ class Espressif32Platform(PlatformBase):
 
         framework_dir = self.get_package_dir("framework-arduinoespressif32")
         if not framework_dir:
-            return
+            # Framework not yet on disk (clean install) — install it now so we
+            # can patch it before the build script runs.
+            try:
+                pkg = self.install_package("framework-arduinoespressif32")
+                framework_dir = pkg.path if pkg else None
+            except Exception as e:
+                logger.warning(f"Could not install framework-arduinoespressif32 for patching: {e}")
+            if not framework_dir:
+                return
 
         # Read the installed version from package.json
         package_json = Path(framework_dir) / "package.json"
