@@ -44,6 +44,10 @@ projectconfig = env.GetProjectConfig()
 terminal_cp = locale.getpreferredencoding().lower()
 platform_dir = Path(env.PioPlatform().get_dir())
 framework_dir = platform.get_package_dir("framework-arduinoespressif32")
+
+# Patch framework if affected version is installed (runs once, idempotent)
+if framework_dir and "arduino" in env.get("PIOFRAMEWORK", []):
+    platform._patch_arduino_framework()
 core_dir = projectconfig.get("platformio", "core_dir")
 build_dir = Path(projectconfig.get("platformio", "build_dir"))
 
