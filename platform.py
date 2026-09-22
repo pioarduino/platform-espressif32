@@ -818,15 +818,7 @@ class Espressif32Platform(PlatformBase):
 
         framework_dir = self.get_package_dir("framework-arduinoespressif32")
         if not framework_dir:
-            # Framework not yet on disk (clean install) — install it now so we
-            # can patch it before the build script runs.
-            try:
-                pkg = self.install_package("framework-arduinoespressif32")
-                framework_dir = pkg.path if pkg else None
-            except Exception as e:
-                logger.warning(f"Could not install framework-arduinoespressif32 for patching: {e}")
-            if not framework_dir:
-                return
+            return
 
         # Read the installed version from package.json
         package_json = Path(framework_dir) / "package.json"
@@ -953,13 +945,7 @@ class Espressif32Platform(PlatformBase):
             logger.error(f"Error in package configuration: {type(e).__name__}: {e}")
             # Don't re-raise to maintain compatibility
 
-        result = super().configure_default_packages(variables, targets)
-
-        # Patch framework-arduinoespressif32 if affected version is installed
-        if "arduino" in frameworks:
-            self._patch_arduino_framework()
-
-        return result
+        return super().configure_default_packages(variables, targets)
 
     def get_boards(self, id_=None):
         """Get board configuration with dynamic options."""
