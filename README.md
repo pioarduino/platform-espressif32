@@ -71,10 +71,10 @@ board_build.filesystem = fatfs
 ```
 
 
-## Experimental Arduino 4.0 based on IDF 6.1
+## Arduino 4.0.0-RC1 based on IDF 6.1
 
 ```ini
-[env:experimental]
+[env:arduino_4]
 platform = https://github.com/pioarduino/platform-espressif32.git#prep_IDF6
 board = ...
 ...
