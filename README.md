@@ -9,11 +9,11 @@
 Espressif Systems is a privately held, fabless semiconductor company renowned for delivering cost-effective wireless communication microcontrollers. Their innovative solutions are widely adopted in mobile devices and Internet of Things (IoT) applications around the globe.
 
 ## General
-* **Do not open issues with this experimental build**
+* **Do not open issues with this build**
 - Feedback in Discord to fix bugs is welcome.
 - **NO** questions how to use and when something is not working as expected
 
-**You walk alone using this experimental setup!**
+**You walk alone using this Release Candidate setup!**
 
 Prerequisites:
 -	Python (3.10, 3.11, 3.12, 3.13 or 3.14) and git is required for pioarduino to function properly.
@@ -75,7 +75,7 @@ board_build.filesystem = fatfs
 
 ```ini
 [env:arduino_4]
-platform = https://github.com/pioarduino/platform-espressif32.git#prep_IDF6
+platform = https://github.com/pioarduino/platform-espressif32/releases/download/61.04.00-RC1/platform-espressif32.zip
 board = ...
 ...
 ```
