@@ -1,4 +1,4 @@
-// Copyright 2024 Espressif Systems (Shanghai) PTE LTD
+// Copyright 2026 Espressif Systems (Shanghai) PTE LTD
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
  * Created by Jan Procházka (https://github.com/P-R-O-C-H-Y/)
  */
 
+#include <Arduino.h>
 #ifndef ZIGBEE_MODE_ZCZR
 #error "Zigbee coordinator mode is not selected in Tools->Zigbee mode"
 #endif
@@ -66,12 +67,41 @@ static SwitchData buttonFunctionPair[] = {{GPIO_INPUT_IO_TOGGLE_SWITCH, SWITCH_O
 
 ZigbeeSwitch zbSwitch = ZigbeeSwitch(SWITCH_ENDPOINT_NUMBER);
 
+static bool light_state = false;
+
 /********************* Zigbee functions **************************/
 static void onZbButton(SwitchData *button_func_pair) {
   if (button_func_pair->func == SWITCH_ONOFF_TOGGLE_CONTROL) {
     // Send toggle command to the light
     Serial.println("Toggling light");
     zbSwitch.lightToggle();
+  }
+}
+
+static void onLightStateChange(bool state) {
+  if (state != light_state) {
+    light_state = state;
+    Serial.printf("Light state changed to %d\r\n", state);
+  }
+}
+
+/********************* Periodic task ***************************/
+void periodicTask(void *arg) {
+  while (true) {
+    // print the bound lights every 10 seconds
+    static uint32_t lastPrint = 0;
+    if (millis() - lastPrint > 10000) {
+      lastPrint = millis();
+      zbSwitch.printBoundDevices(Serial);
+    }
+
+    // Poll light state every second
+    static uint32_t lastPoll = 0;
+    if (millis() - lastPoll > 1000) {
+      lastPoll = millis();
+      zbSwitch.getLightState();
+    }
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 }
 
@@ -96,19 +126,6 @@ static void enableGpioInterrupt(bool enabled) {
 void setup() {
   Serial.begin(115200);
 
-  //Optional: set Zigbee device name and model
-  zbSwitch.setManufacturerAndModel("Espressif", "ZigbeeSwitch");
-
-  //Optional to allow multiple light to bind to the switch
-  zbSwitch.allowMultipleBinding(true);
-
-  //Add endpoint to Zigbee Core
-  Serial.println("Adding ZigbeeSwitch endpoint to Zigbee Core");
-  Zigbee.addEndpoint(&zbSwitch);
-
-  //Open network for 180 seconds after boot
-  Zigbee.setRebootOpenNetwork(180);
-
   // Init button switch
   for (int i = 0; i < PAIR_SIZE(buttonFunctionPair); i++) {
     pinMode(buttonFunctionPair[i].pin, INPUT_PULLUP);
@@ -121,11 +138,37 @@ void setup() {
     attachInterruptArg(buttonFunctionPair[i].pin, onGpioInterrupt, (void *)(buttonFunctionPair + i), FALLING);
   }
 
-  // When all EPs are registered, start Zigbee with ZIGBEE_COORDINATOR mode
-  if (!Zigbee.begin(ZIGBEE_COORDINATOR)) {
+  // Initialize Zigbee stack as coordinator
+  if (!Zigbee.role(ZIGBEE_COORDINATOR)) {
+    Serial.println("Zigbee failed to init!");
+    Serial.println("Rebooting...");
+    delay(1000);
+    ESP.restart();
+  }
+
+  //Optional: set Zigbee device name and model
+  zbSwitch.setManufacturerAndModel("Espressif", "ZigbeeSwitch");
+
+  //Optional to allow multiple light to bind to the switch
+  zbSwitch.allowMultipleBinding(true);
+
+  // Set callback function for light state change
+  zbSwitch.onLightStateChange(onLightStateChange);
+
+  // Add endpoints to Zigbee Core
+  Zigbee.addEndpoint(&zbSwitch);
+
+  // Optional: set reboot open network time to 180 seconds
+  Zigbee.setRebootOpenNetwork(180);
+
+  Serial.println("Starting Zigbee...");
+  // When all EPs are registered, start Zigbee
+  if (!Zigbee.begin()) {
     Serial.println("Zigbee failed to start!");
     Serial.println("Rebooting...");
     ESP.restart();
+  } else {
+    Serial.println("Zigbee started successfully!");
   }
 
   Serial.println("Waiting for Light to bound to the switch");
@@ -138,16 +181,24 @@ void setup() {
   // Optional: List all bound devices and read manufacturer and model name
   std::list<zb_device_params_t *> boundLights = zbSwitch.getBoundDevices();
   for (const auto &device : boundLights) {
-    Serial.printf("Device on endpoint %d, short address: 0x%x\r\n", device->endpoint, device->short_addr);
+    Serial.printf("Device on endpoint %u, short address: 0x%x\r\n", device->endpoint, device->short_addr);
     Serial.printf(
       "IEEE Address: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\r\n", device->ieee_addr[7], device->ieee_addr[6], device->ieee_addr[5], device->ieee_addr[4],
       device->ieee_addr[3], device->ieee_addr[2], device->ieee_addr[1], device->ieee_addr[0]
     );
-    Serial.printf("Light manufacturer: %s\r\n", zbSwitch.readManufacturer(device->endpoint, device->short_addr, device->ieee_addr));
-    Serial.printf("Light model: %s\r\n", zbSwitch.readModel(device->endpoint, device->short_addr, device->ieee_addr));
+    char *manufacturer = zbSwitch.readManufacturer(device->endpoint, device->short_addr, device->ieee_addr);
+    char *model = zbSwitch.readModel(device->endpoint, device->short_addr, device->ieee_addr);
+    if (manufacturer != nullptr) {
+      Serial.printf("Light manufacturer: %s\r\n", manufacturer);
+    }
+    if (model != nullptr) {
+      Serial.printf("Light model: %s\r\n", model);
+    }
   }
 
   Serial.println();
+
+  xTaskCreate(periodicTask, "periodicTask", 1024 * 4, NULL, 10, NULL);
 }
 
 void loop() {
@@ -181,12 +232,5 @@ void loop() {
       break;
     }
     vTaskDelay(10 / portTICK_PERIOD_MS);
-  }
-
-  // print the bound lights every 10 seconds
-  static uint32_t lastPrint = 0;
-  if (millis() - lastPrint > 10000) {
-    lastPrint = millis();
-    zbSwitch.printBoundDevices(Serial);
   }
 }
