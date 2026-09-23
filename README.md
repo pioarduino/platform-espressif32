@@ -80,13 +80,4 @@ board = ...
 ...
 ```
 
-## Removed
-- Matter
-- Rainmaker
-- Speech recognition
-
-## Known limitations / bugs
-- Ethernet PHY (wired Ethernet) is not implemented in Arduino
-
-
 Looking for sponsor button? There is none. If you want to donate, please spend a litte to a charity organization.
