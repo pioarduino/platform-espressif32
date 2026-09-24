@@ -1008,6 +1008,7 @@ if flag_custom_sdkonfig == True and "arduino" in env.subst("$PIOFRAMEWORK") and 
         BUILD_FLAGS="",
         BUILD_UNFLAGS="",
         LINKFLAGS="",
+        SRC_FILTER="-<*>",
         PIOFRAMEWORK="arduino",
         ARDUINO_LIB_COMPILE_FLAG="Build",
     )
