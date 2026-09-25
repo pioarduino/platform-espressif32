@@ -2795,7 +2795,7 @@ if not os.path.isdir(PROJECT_SRC_DIR):
     )
     env.Exit(1)
 
-if env.subst("$SRC_FILTER"):
+if env.subst("$SRC_FILTER") and not flag_custom_sdkonfig:
     print(
         (
             "Warning: the 'src_filter' option cannot be used with ESP-IDF. Select source "
