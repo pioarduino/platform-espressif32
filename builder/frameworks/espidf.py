@@ -1008,6 +1008,7 @@ if flag_custom_sdkonfig == True and "arduino" in env.subst("$PIOFRAMEWORK") and 
         BUILD_FLAGS="",
         BUILD_UNFLAGS="",
         LINKFLAGS="",
+        SRC_FILTER="-<*>",
         PIOFRAMEWORK="arduino",
         ARDUINO_LIB_COMPILE_FLAG="Build",
     )
@@ -2790,7 +2791,7 @@ if not os.path.isdir(PROJECT_SRC_DIR):
     )
     env.Exit(1)
 
-if env.subst("$SRC_FILTER"):
+if env.subst("$SRC_FILTER") and not flag_custom_sdkonfig:
     print(
         (
             "Warning: the 'src_filter' option cannot be used with ESP-IDF. Select source "
