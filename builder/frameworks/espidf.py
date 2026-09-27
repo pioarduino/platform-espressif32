@@ -159,74 +159,79 @@ def create_silent_action(action_func):
     return silent_action
 
 
-def read_link_library_names(build_script):
-    """Return the archive base names referenced by a libs package build script.
+def resolve_link_library_name(base_name, link_names, used_names):
+    """Return the destination name for an archive, consulting the link line.
 
-    Names come from the quoted ``-l<name>`` entries of a package's
-    pioarduino-build.py, which is the list the linker actually resolves. An
-    empty set is returned when build_script is unset, missing or unreadable, so
-    callers fall back to the plain IDF archive names.
+    copy-libs.sh derives destination names from the linker command: every
+    absolute ``.a`` path in ``LINK_LIBRARIES`` / ``link.txt`` is collected
+    into ``LD_LIB_FILES`` and copied under the name the linker already expects.
+    Collisions within that set are resolved by a ``for i in {2..9}`` loop that
+    renames the duplicate file on disk before copying.
+
+    Here we walk the build tree instead of reading the link command, so we ask
+    the installed ``pioarduino-build.py`` what names are on the link line and
+    use those as the authority.  The lookup order mirrors the renaming steps
+    copy-libs.sh applies:
+
+    1. Plain ``base_name`` — most archives land here.
+    2. ``base_name_2`` — copy-libs.sh's first collision suffix.
+    3. ``base_name`` with the ``espressif__`` prefix stripped — the lib-builder
+       drops that prefix for components it ships locally (e.g.
+       ``espressif__rmaker_common`` → ``rmaker_common``).
+    4. Stripped name + ``_2`` — both rewrites can compose.
+
+    Each candidate is only used when it appears on the link line AND has not
+    been handed out yet.  When none of the candidates is on the link line the
+    plain name (or the next free ``_N`` suffix) is kept so the archive still
+    lands in ``lib_dst`` and does not silently disappear.
     """
-    if not build_script:
-        return set()
-    try:
-        source = Path(build_script).read_text(encoding="utf8")
-    except (OSError, UnicodeDecodeError):
-        return set()
-    return set(re.findall(r'"-l([A-Za-z0-9_.+-]+)"', source))
+    candidates = [base_name, f"{base_name}_2"]
+    if base_name.startswith("espressif__"):
+        stripped = base_name[len("espressif__"):]
+        candidates.extend([stripped, f"{stripped}_2"])
 
+    for candidate in candidates:
+        if candidate in link_names and candidate not in used_names:
+            return candidate
 
-def resolve_link_library_name(base_name, occurrence, link_names, used_names):
-    """Return the base name an archive has to carry to reach the link line.
-
-    base_name is the archive name without its ``lib`` prefix and ``.a`` suffix,
-    occurrence counts how many archives of that name have been seen so far. The
-    plain name (``foo`` first, ``foo_2``, ``foo_3``, ... for duplicates) wins
-    whenever the link line carries it. Otherwise the rewrites that
-    esp32-arduino-lib-builder's copy-libs.sh applies are tried: a ``_2`` suffix
-    from its substring collision check, and the ``espressif__`` prefix it drops
-    for components that are local to it. The two compose, so a component local
-    and collided there is also tried stripped and suffixed. Every candidate is
-    taken from the link line, never assumed; the plain name is kept when none
-    of them is on it.
-
-    A name is handed out once. An archive whose candidates are all spoken for
-    takes the next free ``_N`` suffix, so two archives competing for one name
-    both reach lib_dst instead of one replacing the other.
-    """
-    plain_name = base_name if occurrence == 1 else f"{base_name}_{occurrence}"
-    if plain_name in link_names and plain_name not in used_names:
-        return plain_name
-
-    alternatives = [f"{plain_name}_2"]
-    if plain_name.startswith("espressif__"):
-        stripped_name = plain_name[len("espressif__"):]
-        alternatives.extend([stripped_name, f"{stripped_name}_2"])
-    for alternative in alternatives:
-        if alternative in link_names and alternative not in used_names:
-            return alternative
-
-    if plain_name not in used_names:
-        return plain_name
-
-    # No link name resolves this archive, so it is inert wherever it lands. A
-    # free suffix keeps it on disk without replacing another archive.
+    # No candidate matched the link line — fall back to plain name with
+    # a free collision suffix so the archive is still preserved on disk.
+    if base_name not in used_names:
+        return base_name
     suffix = 2
     while f"{base_name}_{suffix}" in used_names:
         suffix += 1
     return f"{base_name}_{suffix}"
 
 
-def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
-    """Copy all .a archives from IDF component directories into lib_dst.
+# Archives that copy-libs.sh explicitly skips via the
+# ``lname != "main" && lname != "arduino"`` guard.
+_COPY_LIBS_EXCLUDE = frozenset({"main", "arduino"})
 
-    Archives are collected recursively so nested component sub-build outputs are
-    included. Duplicate archive basenames are kept with numeric suffixes
-    (for example, libfoo.a, libfoo_2.a, ...). build_script is the libs package's
-    pioarduino-build.py for the chip variant; the names it links are what the
-    copies are given, so rebuilt archives replace the stock ones instead of
-    landing beside them. Raises FileNotFoundError when lib_src does not exist or
-    is not a directory.
+
+def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
+    """Copy .a archives from IDF component build directories into lib_dst.
+
+    Mirrors the naming and filtering rules of esp32-arduino-lib-builder's
+    copy-libs.sh:
+
+    * Archives whose size is <= 8 bytes are skipped (empty/stub files that
+      ESP-IDF components sometimes produce alongside the real archive, e.g.
+      when WiFi is disabled and wpa_supplicant registers only headers).
+    * ``libmain.a`` and ``libarduino.a`` are skipped, matching copy-libs.sh's
+      ``lname != "main" && lname != "arduino"`` guard.
+    * Destination names are resolved against the link line in ``build_script``
+      (the chip variant's ``pioarduino-build.py``) so that archives whose
+      names were rewritten by the lib-builder (e.g.
+      ``libespressif__rmaker_common.a`` → ``libespressif__rmaker_common_2.a``)
+      land under the name the linker already expects.  When ``build_script``
+      is absent or unreadable the plain filename-collision scheme is used as
+      a fallback.
+
+    Archives are collected recursively so nested component sub-build outputs
+    (e.g. the vendored ``mbedtls/library/libmbedtls.a``) are included.
+    Raises ``FileNotFoundError`` when ``lib_src`` does not exist or is not a
+    directory.
     """
     lib_src = Path(lib_src)
     lib_dst = Path(lib_dst)
@@ -240,7 +245,6 @@ def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
         )
 
     link_names = read_link_library_names(build_script)
-    copied_names = {}
     used_names = set()
     for folder in sorted(lib_src.iterdir()):
         if not folder.is_dir():
@@ -255,14 +259,33 @@ def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
                 if not filename.endswith(".a"):
                     continue
 
-                copied_names[filename] = copied_names.get(filename, 0) + 1
+                src_path = Path(root) / filename
+
+                # Mirror copy-libs.sh: skip archives that are <= 8 bytes.
+                # An IDF component registered with INCLUDE_DIRS only (no SRCS)
+                # produces an archive containing just the ``!<arch>\n`` magic
+                # header — exactly 8 bytes.  Copying that stub over the real
+                # prebuilt archive in the package silently corrupts the library.
+                if src_path.stat().st_size <= 8:
+                    print(f"Skipping {filename}: archive too small "
+                          f"({src_path.stat().st_size} bytes), likely a stub")
+                    continue
+
+                # Strip "lib" prefix and ".a" suffix to get the bare link name,
+                # matching copy-libs.sh: lname="${lname:3:${#lname}-5}"
                 prefix = "lib" if filename.startswith("lib") else ""
                 base_name = filename[len(prefix):-2]
-                link_name = resolve_link_library_name(
-                    base_name, copied_names[filename], link_names, used_names
-                )
+
+                # Mirror copy-libs.sh: skip "main" and "arduino".
+                if base_name in _COPY_LIBS_EXCLUDE:
+                    continue
+
+                # Resolve the destination name using the link line so that
+                # lib-builder renames (e.g. espressif__rmaker_common → _2)
+                # are reproduced correctly.
+                link_name = resolve_link_library_name(base_name, link_names, used_names)
                 used_names.add(link_name)
-                shutil.copyfile(Path(root) / filename, lib_dst / f"{prefix}{link_name}.a")
+                shutil.copyfile(src_path, lib_dst / f"{prefix}{link_name}.a")
 
 
 def get_requested_cli_targets():
@@ -3209,7 +3232,10 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
         # filename the duplicate is renamed with a numeric suffix (_2, _3, …),
         # mirroring the rename logic used by esp32-arduino-lib-builder's
         # copy-libs.sh so the package stays consistent.
-        copy_idf_component_archives(lib_src, lib_dst)
+        copy_idf_component_archives(
+            lib_src, lib_dst,
+            build_script=str(Path(arduino_libs) / chip_variant / "pioarduino-build.py"),
+        )
 
         _replace_copy(str(Path(env_build) / "memory.ld"), str(Path(ld_dst) / "memory.ld"))
         _replace_copy(str(Path(env_build) / "sections.ld"), str(Path(ld_dst) / "sections.ld"))
