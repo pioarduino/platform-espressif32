@@ -159,6 +159,23 @@ def create_silent_action(action_func):
     return silent_action
 
 
+def read_link_library_names(build_script):
+    """Return the archive base names referenced by a libs package build script.
+
+    Names come from the quoted ``-l<name>`` entries of a chip variant's
+    ``pioarduino-build.py``, which is the list the linker actually resolves.
+    An empty set is returned when ``build_script`` is unset, missing, or
+    unreadable, so callers fall back to the plain filename-collision scheme.
+    """
+    if not build_script:
+        return set()
+    try:
+        source = Path(build_script).read_text(encoding="utf8")
+    except (OSError, UnicodeDecodeError):
+        return set()
+    return set(re.findall(r'"-l([A-Za-z0-9_.+-]+)"', source))
+
+
 def resolve_link_library_name(base_name, link_names, used_names):
     """Return the destination name for an archive, consulting the link line.
 
