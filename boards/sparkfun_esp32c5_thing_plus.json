@@ -7,7 +7,9 @@
     "core": "esp32",
     "extra_flags": [
       "-DARDUINO_ESP32C5_THING_PLUS",
-      "-DBOARD_HAS_PSRAM"
+      "-DBOARD_HAS_PSRAM",
+      "-DARDUINO_USB_CDC_ON_BOOT=1",
+      "-DARDUINO_USB_MODE=1"
     ],    
     "f_cpu": "240000000L",
     "f_flash": "80000000L",
