@@ -223,7 +223,7 @@ def resolve_link_library_name(base_name, link_names, used_names):
 
 # Archives that copy-libs.sh explicitly skips via the
 # ``lname != "main" && lname != "arduino"`` guard.
-_COPY_LIBS_EXCLUDE = frozenset({"main", "arduino"})
+_COPY_LIBS_EXCLUDE = frozenset({"main", "arduino", "framework-arduinoespressif32"})
 
 
 def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
