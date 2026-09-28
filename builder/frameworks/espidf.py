@@ -162,10 +162,10 @@ def create_silent_action(action_func):
 def read_link_library_names(build_script):
     """Return the archive base names referenced by a libs package build script.
 
-    Names come from the quoted ``-l<name>`` entries of a package's
-    pioarduino-build.py, which is the list the linker actually resolves. An
-    empty set is returned when build_script is unset, missing or unreadable, so
-    callers fall back to the plain IDF archive names.
+    Names come from the quoted ``-l<name>`` entries of a chip variant's
+    ``pioarduino-build.py``, which is the list the linker actually resolves.
+    An empty set is returned when ``build_script`` is unset, missing, or
+    unreadable, so callers fall back to the plain filename-collision scheme.
     """
     if not build_script:
         return set()
@@ -176,57 +176,79 @@ def read_link_library_names(build_script):
     return set(re.findall(r'"-l([A-Za-z0-9_.+-]+)"', source))
 
 
-def resolve_link_library_name(base_name, occurrence, link_names, used_names):
-    """Return the base name an archive has to carry to reach the link line.
+def resolve_link_library_name(base_name, link_names, used_names):
+    """Return the destination name for an archive, consulting the link line.
 
-    base_name is the archive name without its ``lib`` prefix and ``.a`` suffix,
-    occurrence counts how many archives of that name have been seen so far. The
-    plain name (``foo`` first, ``foo_2``, ``foo_3``, ... for duplicates) wins
-    whenever the link line carries it. Otherwise the rewrites that
-    esp32-arduino-lib-builder's copy-libs.sh applies are tried: a ``_2`` suffix
-    from its substring collision check, and the ``espressif__`` prefix it drops
-    for components that are local to it. The two compose, so a component local
-    and collided there is also tried stripped and suffixed. Every candidate is
-    taken from the link line, never assumed; the plain name is kept when none
-    of them is on it.
+    copy-libs.sh derives destination names from the linker command: every
+    absolute ``.a`` path in ``LINK_LIBRARIES`` / ``link.txt`` is collected
+    into ``LD_LIB_FILES`` and copied under the name the linker already expects.
+    Collisions within that set are resolved by a ``for i in {2..9}`` loop that
+    renames the duplicate file on disk before copying.
 
-    A name is handed out once. An archive whose candidates are all spoken for
-    takes the next free ``_N`` suffix, so two archives competing for one name
-    both reach lib_dst instead of one replacing the other.
+    Here we walk the build tree instead of reading the link command, so we ask
+    the installed ``pioarduino-build.py`` what names are on the link line and
+    use those as the authority.  The lookup order mirrors the renaming steps
+    copy-libs.sh applies:
+
+    1. Plain ``base_name`` — most archives land here.
+    2. ``base_name_2`` — copy-libs.sh's first collision suffix.
+    3. ``base_name`` with the ``espressif__`` prefix stripped — the lib-builder
+       drops that prefix for components it ships locally (e.g.
+       ``espressif__rmaker_common`` → ``rmaker_common``).
+    4. Stripped name + ``_2`` — both rewrites can compose.
+
+    Each candidate is only used when it appears on the link line AND has not
+    been handed out yet.  When none of the candidates is on the link line the
+    plain name (or the next free ``_N`` suffix) is kept so the archive still
+    lands in ``lib_dst`` and does not silently disappear.
     """
-    plain_name = base_name if occurrence == 1 else f"{base_name}_{occurrence}"
-    if plain_name in link_names and plain_name not in used_names:
-        return plain_name
+    candidates = [base_name, f"{base_name}_2"]
+    if base_name.startswith("espressif__"):
+        stripped = base_name[len("espressif__"):]
+        candidates.extend([stripped, f"{stripped}_2"])
 
-    alternatives = [f"{plain_name}_2"]
-    if plain_name.startswith("espressif__"):
-        stripped_name = plain_name[len("espressif__"):]
-        alternatives.extend([stripped_name, f"{stripped_name}_2"])
-    for alternative in alternatives:
-        if alternative in link_names and alternative not in used_names:
-            return alternative
+    for candidate in candidates:
+        if candidate in link_names and candidate not in used_names:
+            return candidate
 
-    if plain_name not in used_names:
-        return plain_name
-
-    # No link name resolves this archive, so it is inert wherever it lands. A
-    # free suffix keeps it on disk without replacing another archive.
+    # No candidate matched the link line — fall back to plain name with
+    # a free collision suffix so the archive is still preserved on disk.
+    if base_name not in used_names:
+        return base_name
     suffix = 2
     while f"{base_name}_{suffix}" in used_names:
         suffix += 1
     return f"{base_name}_{suffix}"
 
 
-def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
-    """Copy all .a archives from IDF component directories into lib_dst.
+# Archives that copy-libs.sh explicitly skips via the
+# ``lname != "main" && lname != "arduino"`` guard.
+_COPY_LIBS_EXCLUDE = frozenset({"main", "arduino"})
 
-    Archives are collected recursively so nested component sub-build outputs are
-    included. Duplicate archive basenames are kept with numeric suffixes
-    (for example, libfoo.a, libfoo_2.a, ...). build_script is the libs package's
-    pioarduino-build.py for the chip variant; the names it links are what the
-    copies are given, so rebuilt archives replace the stock ones instead of
-    landing beside them. Raises FileNotFoundError when lib_src does not exist or
-    is not a directory.
+
+def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
+    """Copy .a archives from IDF component build directories into lib_dst.
+
+    Mirrors the naming and filtering rules of esp32-arduino-lib-builder's
+    copy-libs.sh:
+
+    * Archives whose size is <= 8 bytes are skipped (empty/stub files that
+      ESP-IDF components sometimes produce alongside the real archive, e.g.
+      when WiFi is disabled and wpa_supplicant registers only headers).
+    * ``libmain.a`` and ``libarduino.a`` are skipped, matching copy-libs.sh's
+      ``lname != "main" && lname != "arduino"`` guard.
+    * Destination names are resolved against the link line in ``build_script``
+      (the chip variant's ``pioarduino-build.py``) so that archives whose
+      names were rewritten by the lib-builder (e.g.
+      ``libespressif__rmaker_common.a`` → ``libespressif__rmaker_common_2.a``)
+      land under the name the linker already expects.  When ``build_script``
+      is absent or unreadable the plain filename-collision scheme is used as
+      a fallback.
+
+    Archives are collected recursively so nested component sub-build outputs
+    (e.g. the vendored ``mbedtls/library/libmbedtls.a``) are included.
+    Raises ``FileNotFoundError`` when ``lib_src`` does not exist or is not a
+    directory.
     """
     lib_src = Path(lib_src)
     lib_dst = Path(lib_dst)
@@ -240,7 +262,6 @@ def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
         )
 
     link_names = read_link_library_names(build_script)
-    copied_names = {}
     used_names = set()
     for folder in sorted(lib_src.iterdir()):
         if not folder.is_dir():
@@ -255,14 +276,33 @@ def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
                 if not filename.endswith(".a"):
                     continue
 
-                copied_names[filename] = copied_names.get(filename, 0) + 1
+                src_path = Path(root) / filename
+
+                # Mirror copy-libs.sh: skip archives that are <= 8 bytes.
+                # An IDF component registered with INCLUDE_DIRS only (no SRCS)
+                # produces an archive containing just the ``!<arch>\n`` magic
+                # header — exactly 8 bytes.  Copying that stub over the real
+                # prebuilt archive in the package silently corrupts the library.
+                if src_path.stat().st_size <= 8:
+                    print(f"Skipping {filename}: archive too small "
+                          f"({src_path.stat().st_size} bytes), likely a stub")
+                    continue
+
+                # Strip "lib" prefix and ".a" suffix to get the bare link name,
+                # matching copy-libs.sh: lname="${lname:3:${#lname}-5}"
                 prefix = "lib" if filename.startswith("lib") else ""
                 base_name = filename[len(prefix):-2]
-                link_name = resolve_link_library_name(
-                    base_name, copied_names[filename], link_names, used_names
-                )
+
+                # Mirror copy-libs.sh: skip "main" and "arduino".
+                if base_name in _COPY_LIBS_EXCLUDE:
+                    continue
+
+                # Resolve the destination name using the link line so that
+                # lib-builder renames (e.g. espressif__rmaker_common → _2)
+                # are reproduced correctly.
+                link_name = resolve_link_library_name(base_name, link_names, used_names)
                 used_names.add(link_name)
-                shutil.copyfile(Path(root) / filename, lib_dst / f"{prefix}{link_name}.a")
+                shutil.copyfile(src_path, lib_dst / f"{prefix}{link_name}.a")
 
 
 def get_requested_cli_targets():
@@ -3169,44 +3209,64 @@ if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "es
 if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PIOFRAMEWORK")):
     def idf_lib_copy(source, target, env):
         def _replace_copy(src, dst):
+            """Copy src over dst. True when dst now holds it, False when not."""
             dst_p = Path(dst)
             dst_p.parent.mkdir(parents=True, exist_ok=True)
             try:
                 shutil.copy2(src, dst)
-            except (OSError, IOError):
-                # Gracefully handle missing source files (e.g., PSRAM libs in non-PSRAM builds)
-                # This is expected when copying variant-specific libraries
-                pass
+                return True
+            except FileNotFoundError:
+                # A missing source is routine: a variant-specific library this
+                # build does not produce, such as the PSRAM ones in a non-PSRAM
+                # build. False says dst was left alone, so a caller moving a
+                # file keeps the copy it has rather than dropping both.
+                return False
             except Exception as e:
+                # Anything else -- permissions, a full disk -- leaves the
+                # package half converted, so say so rather than let the next
+                # build link whatever survived.
                 print(f"Warning: Failed to copy {src} to {dst}: {e}")
+                return False
         env_build = str(Path(env["PROJECT_BUILD_DIR"]) / env["PIOENV"])
         sdkconfig_h_path = str(Path(env_build) / "config" / "sdkconfig.h")
         arduino_libs = str(Path(ARDUINO_FRMWRK_LIB_DIR))
         lib_src = str(Path(env_build) / "esp-idf")
         lib_dst = str(Path(arduino_libs) / chip_variant / "lib")
-        build_script = str(Path(arduino_libs) / chip_variant / "pioarduino-build.py")
         ld_dst = str(Path(arduino_libs) / chip_variant / "ld")
         mem_var = str(Path(arduino_libs) / chip_variant / board.get("build.arduino.memory_type", (board.get("build.flash_mode", "dio") + "_qspi")))
         # Ensure destinations exist
         for d in (lib_dst, ld_dst, mem_var, str(Path(mem_var) / "include")):
             Path(d).mkdir(parents=True, exist_ok=True)
+        # Names the package keeps per memory type rather than in the shared
+        # lib/ and ld/; the set differs per chip. LIBPATH searches lib/ and ld/
+        # ahead of <memory_type>, so one of these in a shared directory shadows
+        # the copy every other memory type links. Read before this build writes
+        # there, so the set describes the package and not the run.
+        per_memory_type = {p.name for p in Path(mem_var).iterdir() if p.is_file()}
         # Walk each component directory recursively so that nested archives
         # (e.g. mbedtls vendored libraries in mbedtls/mbedtls/library/) are
-        # also copied back into the package.  The variant's pioarduino-build.py
-        # supplies the names the link line resolves, so each rebuilt archive
-        # overwrites the stock one it stands in for.
-        copy_idf_component_archives(lib_src, lib_dst, build_script)
+        # also copied back into the package.  When two archives share the same
+        # filename the duplicate is renamed with a numeric suffix (_2, _3, …),
+        # mirroring the rename logic used by esp32-arduino-lib-builder's
+        # copy-libs.sh so the package stays consistent.
+        copy_idf_component_archives(
+            lib_src, lib_dst,
+            build_script=str(Path(arduino_libs) / chip_variant / "pioarduino-build.py"),
+        )
 
-        _replace_copy(str(Path(lib_dst) / "libspi_flash.a"), str(Path(mem_var) / "libspi_flash.a"))
         _replace_copy(str(Path(env_build) / "memory.ld"), str(Path(ld_dst) / "memory.ld"))
         _replace_copy(str(Path(env_build) / "sections.ld"), str(Path(ld_dst) / "sections.ld"))
-        if sdk_config.get("SOC_PSRAM_DMA_CAPABLE", False):
-            _replace_copy(str(Path(lib_dst) / "libesp_psram.a"), str(Path(mem_var) / "libesp_psram.a"))
-            _replace_copy(str(Path(lib_dst) / "libesp_system.a"), str(Path(mem_var) / "libesp_system.a"))
-            _replace_copy(str(Path(lib_dst) / "libfreertos.a"), str(Path(mem_var) / "libfreertos.a"))
-            _replace_copy(str(Path(lib_dst) / "libbootloader_support.a"), str(Path(mem_var) / "libbootloader_support.a"))
-            _replace_copy(str(Path(lib_dst) / "libesp_hw_support.a"), str(Path(mem_var) / "libesp_hw_support.a"))
-            _replace_copy(str(Path(lib_dst) / "libesp_lcd.a"), str(Path(mem_var) / "libesp_lcd.a"))
+
+        # Move the rebuilt per-memory-type files to <memory_type>/, where the
+        # package keeps them, clearing any shared copy whichever build put it
+        # there.
+        for shared_dst in (lib_dst, ld_dst):
+            for name in sorted(per_memory_type):
+                shared_file = Path(shared_dst) / name
+                if not shared_file.is_file():
+                    continue
+                if _replace_copy(str(shared_file), str(Path(mem_var) / name)):
+                    shared_file.unlink()
 
         shutil.copyfile(sdkconfig_h_path, str(Path(mem_var) / "include" / "sdkconfig.h"))
         if not bool(os.path.isfile(str(Path(arduino_libs) / chip_variant / "sdkconfig.orig"))):
