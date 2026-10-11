@@ -1,6 +1,7 @@
 {
   "build": {
     "core": "esp32", 
+    "extra_flags": "-DBOARD_HAS_PSRAM",
     "f_cpu": "160000000L",
     "f_flash": "80000000L",
     "flash_mode": "qio",
@@ -18,7 +19,7 @@
     "arduino",
     "espidf"
   ],
-  "name": "Espressif ESP32-C61-DevKitC-1 (4 MB Flash)",
+  "name": "Espressif ESP32-C61-DevKitC-1 (4 MB Flash + 2 MB PSRAM)",
   "upload": {
     "flash_size": "4MB",
     "maximum_ram_size": 327680,
