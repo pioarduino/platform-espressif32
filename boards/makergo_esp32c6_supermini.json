@@ -31,7 +31,7 @@
     "arduino",
     "espidf"
   ],
-  "name": "ESP32-C6 SuperMini",
+  "name": "MakerGo ESP32-C6 SuperMini",
   "upload": {
     "flash_size": "4MB",
     "maximum_ram_size": 327680,
@@ -40,5 +40,5 @@
     "speed": 460800
   },
   "url": "https://mischianti.org/esp32-c6-supermini-high-resolution-pinout-datasheet-schema-and-specs/",
-  "vendor": "Generic"
+  "vendor": "MakerGo"
 }
