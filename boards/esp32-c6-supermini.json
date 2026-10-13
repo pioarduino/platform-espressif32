@@ -16,7 +16,7 @@
       ]
     ],
     "mcu": "esp32c6",
-    "variant": "esp32c6"
+    "variant": "makergo_c6_supermini"
   },
   "connectivity": [
     "wifi",
