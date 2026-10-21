@@ -28,6 +28,9 @@ from platformio.package.version import pepver_to_semver
 from platformio.compat import IS_WINDOWS
 
 WINDOWS_ARM64 = IS_WINDOWS and sysconfig.get_platform().lower() == "win-arm64"
+VCPKG_RELEASE_TAG = "2026.10.16"
+VCPKG_RELEASE_COMMIT = "9eec002df1cd109f8f104cd966a763daf9751489"
+VCPKG_REPOSITORY = "https://github.com/microsoft/vcpkg.git"
 
 GDB_TOOL_PACKAGES = {
     "xtensa": "tool-xtensa-esp-elf-gdb",
@@ -356,6 +359,147 @@ def get_packages_to_install(deps, installed_packages):
                 yield package
 
 
+def _has_windows_arm64_openssl():
+    env = os.environ
+    openssl_dirs = [
+        env.get("AARCH64_PC_WINDOWS_MSVC_OPENSSL_DIR"),
+        env.get("OPENSSL_DIR"),
+    ]
+    vcpkg_root = env.get("VCPKG_ROOT")
+    if vcpkg_root:
+        openssl_dirs.extend(
+            str(Path(vcpkg_root) / "installed" / triplet)
+            for triplet in ("arm64-windows", "arm64-windows-static")
+        )
+
+    openssl_paths = [
+        (
+            Path(env.get("AARCH64_PC_WINDOWS_MSVC_OPENSSL_INCLUDE_DIR") or env.get("OPENSSL_INCLUDE_DIR", "")),
+            Path(env.get("AARCH64_PC_WINDOWS_MSVC_OPENSSL_LIB_DIR") or env.get("OPENSSL_LIB_DIR", "")),
+        )
+    ]
+    openssl_paths.extend(
+        (Path(openssl_dir) / "include", Path(openssl_dir) / "lib")
+        for openssl_dir in openssl_dirs
+        if openssl_dir
+    )
+
+    for include_dir, lib_dir in openssl_paths:
+        if not (include_dir / "openssl" / "ssl.h").is_file():
+            continue
+        if all(
+            any((lib_dir / name).is_file() for name in names)
+            for names in (("libcrypto.lib", "crypto.lib"), ("libssl.lib", "ssl.lib"))
+        ):
+            return True
+
+    return False
+
+
+def _ensure_windows_arm64_openssl(platformio_dir):
+    if _has_windows_arm64_openssl():
+        return True
+    if not has_network:
+        sys.stderr.write(
+            "Error: OpenSSL ARM64 is missing and cannot be installed without an internet connection.\n"
+        )
+        return False
+
+    configured_root = os.getenv("VCPKG_ROOT")
+    system_vcpkg = shutil.which("vcpkg") if not configured_root else None
+    if configured_root:
+        vcpkg_root = Path(configured_root)
+    elif system_vcpkg:
+        vcpkg_root = Path(system_vcpkg).parent
+    else:
+        vcpkg_root = Path(platformio_dir) / ".cache" / f"vcpkg-{VCPKG_RELEASE_TAG}"
+
+    vcpkg_executable = vcpkg_root / "vcpkg.exe"
+    vcpkg_env = dict(os.environ)
+    vcpkg_env["VCPKG_ROOT"] = str(vcpkg_root)
+    vcpkg_env["VCPKG_DISABLE_METRICS"] = "1"
+    os.environ["VCPKG_ROOT"] = str(vcpkg_root)
+
+    step = "preparing vcpkg"
+    try:
+        if not vcpkg_executable.is_file():
+            if configured_root or system_vcpkg:
+                sys.stderr.write(
+                    f"Error: vcpkg.exe was not found in VCPKG_ROOT: {vcpkg_root}\n"
+                )
+                return False
+
+            bootstrap_script = vcpkg_root / "bootstrap-vcpkg.bat"
+            if not bootstrap_script.is_file():
+                if vcpkg_root.exists() and any(vcpkg_root.iterdir()):
+                    sys.stderr.write(
+                        f"Error: The cached vcpkg directory is incomplete: {vcpkg_root}\n"
+                    )
+                    return False
+                vcpkg_root.parent.mkdir(parents=True, exist_ok=True)
+                step = "cloning pinned vcpkg release"
+                subprocess.check_call(
+                    [
+                        "git", "clone", "--depth", "1", "--branch",
+                        VCPKG_RELEASE_TAG, VCPKG_REPOSITORY, str(vcpkg_root),
+                    ],
+                    timeout=300,
+                    env=vcpkg_env,
+                )
+                revision = subprocess.check_output(
+                    ["git", "-C", str(vcpkg_root), "rev-parse", "HEAD"],
+                    text=True,
+                    timeout=30,
+                ).strip()
+                if revision != VCPKG_RELEASE_COMMIT:
+                    sys.stderr.write(
+                        f"Error: Unexpected vcpkg revision {revision}; "
+                        f"expected {VCPKG_RELEASE_COMMIT}\n"
+                    )
+                    return False
+
+            step = "bootstrapping vcpkg"
+            subprocess.check_call(
+                [
+                    os.getenv("COMSPEC", "cmd.exe"), "/d", "/c",
+                    "bootstrap-vcpkg.bat", "-disableMetrics",
+                ],
+                cwd=str(vcpkg_root),
+                timeout=600,
+                env=vcpkg_env,
+            )
+            if not vcpkg_executable.is_file():
+                sys.stderr.write(
+                    f"Error: vcpkg bootstrap did not create {vcpkg_executable}\n"
+                )
+                return False
+
+        step = "installing OpenSSL for the arm64-windows triplet"
+        subprocess.check_call(
+            [str(vcpkg_executable), "install", "openssl:arm64-windows"],
+            cwd=str(vcpkg_root),
+            timeout=1800,
+            env=vcpkg_env,
+        )
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(f"Error: Failed while {step} (exit code {e.returncode})\n")
+        return False
+    except subprocess.TimeoutExpired:
+        sys.stderr.write(f"Error: Timed out while {step}\n")
+        return False
+    except FileNotFoundError as e:
+        sys.stderr.write(f"Error: Required command for {step} was not found: {e}\n")
+        return False
+
+    if not _has_windows_arm64_openssl():
+        sys.stderr.write(
+            "Error: vcpkg completed but OpenSSL ARM64 headers and libraries were not found.\n"
+        )
+        return False
+
+    return True
+
+
 def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None, additional_deps=None):
     """
     Ensure uv package manager is available in penv and install required Python dependencies.
@@ -490,6 +634,15 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None, a
     packages_to_install = list(get_packages_to_install(all_deps, installed_packages))
 
     if packages_to_install:
+        if WINDOWS_ARM64 and any(
+            package.lower() == "cryptography" for package in packages_to_install
+        ):
+            if not _ensure_windows_arm64_openssl(Path(penv_dir).parent):
+                return False
+            if uv_env is not None:
+                uv_env["VCPKG_ROOT"] = os.environ["VCPKG_ROOT"]
+                uv_env["VCPKG_DISABLE_METRICS"] = "1"
+
         packages_list = []
         for p in packages_to_install:
             spec = all_deps[p]
@@ -523,11 +676,6 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None, a
 
         except subprocess.CalledProcessError as e:
             print(f"Error: Failed to install Python dependencies (exit code: {e.returncode})")
-            if WINDOWS_ARM64:
-                print(
-                    "Building cryptography from source on Windows ARM64 requires "
-                    "Rust and the MSVC C++ build tools."
-                )
             return False
         except subprocess.TimeoutExpired:
             print("Error: Python dependencies installation timed out")
