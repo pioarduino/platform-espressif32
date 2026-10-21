@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-15]
+        os: [ubuntu-24.04-arm, windows-latest, windows-11-arm]
         example:
           - "examples/arduino-blink"
           - "examples/arduino-fatfs"
