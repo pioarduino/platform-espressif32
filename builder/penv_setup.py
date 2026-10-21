@@ -56,7 +56,7 @@ python_deps = {
     "intelhex": ">=2.3.0",
     "rich": ">=14.0.0",
     # update Windows ARM64 cryptography when there is a wheel again in actual version
-    "cryptography": ">=46.0.7" if not WINDOWS_ARM64 else "==46.0.3",
+    "cryptography": ">=46.0.7,<47.0.0" if not WINDOWS_ARM64 else "==46.0.3",
     "certifi": ">=2025.8.3",
     "ecdsa": ">=0.19.1",
     "bitstring": ">=4.3.1",
