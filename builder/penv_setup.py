@@ -20,11 +20,14 @@ import site
 import socket
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from urllib.parse import urlparse
 
 from platformio.package.version import pepver_to_semver
 from platformio.compat import IS_WINDOWS
+
+WINDOWS_ARM64 = IS_WINDOWS and sysconfig.get_platform().lower() == "win-arm64"
 
 GDB_TOOL_PACKAGES = {
     "xtensa": "tool-xtensa-esp-elf-gdb",
@@ -498,20 +501,33 @@ def install_python_deps(python_exe, external_uv_executable, uv_cache_dir=None, a
         cmd = [
             penv_uv_executable, "pip", "install",
             f"--python={python_exe}",
-            "--quiet", "--upgrade"
-        ] + packages_list
+            "--upgrade"
+        ]
+        if WINDOWS_ARM64:
+            cmd.extend(["--no-binary", "cryptography"])
+        else:
+            cmd.append("--quiet")
+        cmd.extend(packages_list)
 
         try:
-            subprocess.check_call(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.STDOUT,
-                timeout=300,
-                env=uv_env
-            )
+            if WINDOWS_ARM64:
+                subprocess.check_call(cmd, timeout=300, env=uv_env)
+            else:
+                subprocess.check_call(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.STDOUT,
+                    timeout=300,
+                    env=uv_env
+                )
 
         except subprocess.CalledProcessError as e:
             print(f"Error: Failed to install Python dependencies (exit code: {e.returncode})")
+            if WINDOWS_ARM64:
+                print(
+                    "Building cryptography from source on Windows ARM64 requires "
+                    "Rust and the MSVC C++ build tools."
+                )
             return False
         except subprocess.TimeoutExpired:
             print("Error: Python dependencies installation timed out")
