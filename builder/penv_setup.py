@@ -586,7 +586,8 @@ def install_esptool(env, platform, python_exe, uv_executable, uv_cache_dir=None)
 
     try:
         subprocess.check_call([
-            uv_executable, "pip", "install", "--quiet", "--force-reinstall",
+            uv_executable, "pip", "install", "--quiet",
+            "--reinstall-package", "esptool",
             f"--python={python_exe}",
             "-e", esptool_repo_path,
             f"cryptography{python_deps['cryptography']}",
@@ -813,7 +814,8 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable, uv_cac
 
     try:
         subprocess.check_call([
-            uv_executable, "pip", "install", "--quiet", "--force-reinstall",
+            uv_executable, "pip", "install", "--quiet",
+            "--reinstall-package", "esptool",
             f"--python={python_exe}",
             "-e", esptool_repo_path,
             f"cryptography{python_deps['cryptography']}",
