@@ -42,14 +42,6 @@ jobs:
           - "examples/espidf-ulp-lp"
         exclude:
           - os: windows-latest
-            example: "examples/espidf-ulp"
-          - os: windows-latest
-            example: "examples/espidf-ulp-lp"
-          - os: windows-latest
-            example: "examples/espidf-ulp-riscv"
-          - os: windows-latest
-            example: "examples/espidf-arduino-C6-ULP-blink"
-          - os: windows-latest
             example: "examples/espidf-arduino-matter-light"
     runs-on: ${{ matrix.os }}
     steps:
