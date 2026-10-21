@@ -588,7 +588,8 @@ def install_esptool(env, platform, python_exe, uv_executable, uv_cache_dir=None)
         subprocess.check_call([
             uv_executable, "pip", "install", "--quiet", "--force-reinstall",
             f"--python={python_exe}",
-            "-e", esptool_repo_path
+            "-e", esptool_repo_path,
+            f"cryptography{python_deps['cryptography']}",
         ], timeout=60, env=uv_env)
 
     except subprocess.CalledProcessError as e:
@@ -814,7 +815,8 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable, uv_cac
         subprocess.check_call([
             uv_executable, "pip", "install", "--quiet", "--force-reinstall",
             f"--python={python_exe}",
-            "-e", esptool_repo_path
+            "-e", esptool_repo_path,
+            f"cryptography{python_deps['cryptography']}",
         ], timeout=60, env=uv_env)
         print(f"Installed esptool from tl-install path: {esptool_repo_path}")
 
