@@ -20,11 +20,14 @@ import site
 import socket
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from urllib.parse import urlparse
 
 from platformio.package.version import pepver_to_semver
 from platformio.compat import IS_WINDOWS
+
+WINDOWS_ARM64 = IS_WINDOWS and sysconfig.get_platform().lower() == "win-arm64"
 
 GDB_TOOL_PACKAGES = {
     "xtensa": "tool-xtensa-esp-elf-gdb",
@@ -52,13 +55,14 @@ python_deps = {
     "zopfli": ">=0.2.2",
     "intelhex": ">=2.3.0",
     "rich": ">=14.0.0",
-    "cryptography": ">=45.0.3",
+    # update Windows ARM64 cryptography when there is a wheel again in actual version
+    "cryptography": ">=46.0.7,<47.0.0" if not WINDOWS_ARM64 else "==46.0.3",
     "certifi": ">=2025.8.3",
     "ecdsa": ">=0.19.1",
     "bitstring": ">=4.3.1",
     "reedsolo": ">=1.5.3,<1.8",
-    "esp-idf-size": ">=2.0.0",
-    "esp-coredump": ">=1.14.0",
+    "esp-idf-size": ">=2.3.1",
+    "esp-coredump": ">=1.17.1",
     "pyelftools": ">=0.32"
 }
 
@@ -585,7 +589,8 @@ def install_esptool(env, platform, python_exe, uv_executable, uv_cache_dir=None)
             uv_executable, "pip", "install", "--quiet",
             "--reinstall-package", "esptool",
             f"--python={python_exe}",
-            "-e", esptool_repo_path
+            "-e", esptool_repo_path,
+            f"cryptography{python_deps['cryptography']}",
         ], timeout=60, env=uv_env)
 
     except subprocess.CalledProcessError as e:
@@ -812,7 +817,8 @@ def _install_esptool_from_tl_install(platform, python_exe, uv_executable, uv_cac
             uv_executable, "pip", "install", "--quiet",
             "--reinstall-package", "esptool",
             f"--python={python_exe}",
-            "-e", esptool_repo_path
+            "-e", esptool_repo_path,
+            f"cryptography{python_deps['cryptography']}",
         ], timeout=60, env=uv_env)
         print(f"Installed esptool from tl-install path: {esptool_repo_path}")
 
