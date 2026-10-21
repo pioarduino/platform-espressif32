@@ -29,6 +29,7 @@ import requests
 import shutil
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from urllib.parse import urlsplit, unquote
 
@@ -47,6 +48,7 @@ from platformio.proc import exec_command
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
 
+WINDOWS_ARM64 = IS_WINDOWS and sysconfig.get_platform().lower() == "win-arm64"
 
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
@@ -2582,8 +2584,8 @@ def _get_uv_exe():
 def _get_python_deps():
     """Get the required Python dependencies for ESP-IDF"""
     deps = {
-        # https://github.com/platformio/platform-espressif32/issues/635
-        "cryptography": "~=46.0.0",
+        # update Windows ARM64 cryptography when there is a wheel again in actual version
+        "cryptography": ">=46.0.7,<47.0.0" if not WINDOWS_ARM64 else "==46.0.3",
         "pyparsing": ">=3.1.0,<4",
         "idf-component-manager": "~=3.1.0",
         "esp-idf-kconfig": "~=3.13.0"
