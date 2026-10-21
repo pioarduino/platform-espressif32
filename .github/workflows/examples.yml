@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04-arm, windows-latest, windows-11-arm]
+        os: [ubuntu-latest, windows-latest, macos-15]
         example:
           - "examples/arduino-blink"
           - "examples/arduino-fatfs"
@@ -37,15 +37,6 @@ jobs:
           - "examples/espidf-ulp"
           - "examples/espidf-ulp-riscv"
           - "examples/espidf-ulp-lp"
-        exclude:
-          - os: windows-latest
-            example: "examples/espidf-ulp"
-          - os: windows-latest
-            example: "examples/espidf-ulp-lp"
-          - os: windows-latest
-            example: "examples/espidf-ulp-riscv"
-          - os: windows-latest
-            example: "examples/espidf-arduino-C6-ULP-blink"
 
     runs-on: ${{ matrix.os }}
     steps:
