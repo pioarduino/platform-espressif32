@@ -22,7 +22,8 @@ jobs:
           - "examples/arduino-zigbee-light"
           - "examples/arduino-zigbee-switch"
           - "examples/arduino-NimBLE-SampleScan"
-#          - "examples/tasmota"
+          - "examples/arduino-matter-CHIPoBLEThread"
+          - "examples/espidf-arduino-matter-light"
           - "examples/espidf-arduino-blink"
           - "examples/espidf-arduino-littlefs"
           - "examples/espidf-arduino-C6-ULP-blink"
@@ -37,6 +38,9 @@ jobs:
           - "examples/espidf-ulp"
           - "examples/espidf-ulp-riscv"
           - "examples/espidf-ulp-lp"
+        exclude:
+          - os: windows-latest
+            example: "examples/espidf-arduino-matter-light"
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -54,11 +58,6 @@ jobs:
         run: |
           uv pip install --system pioarduino
           pio pkg install --global --platform file://.
-      - name: git clone Tasmota and add to examples
-        if: "matrix.example == 'examples/tasmota'"
-        run: |
-          git clone -b development --depth 1 https://github.com/arendst/Tasmota.git examples/tasmota
-          cp examples/tasmota_platformio_override.ini examples/tasmota/platformio_override.ini
       - name: Build examples
         env:
           PYTHONIOENCODING: utf-8
