@@ -24,7 +24,6 @@ jobs:
           - "examples/arduino-NimBLE-SampleScan"
           - "examples/arduino-matter-light"
           - "examples/arduino-matter-CHIPoBLEThread"
-          - "examples/tasmota"
           - "examples/espidf-arduino-matter-light"
           - "examples/espidf-arduino-blink"
           - "examples/espidf-arduino-littlefs"
@@ -59,11 +58,6 @@ jobs:
         run: |
           uv pip install --system pioarduino
           pio pkg install --global --platform file://.
-      - name: git clone Tasmota and add to examples
-        if: "matrix.example == 'examples/tasmota'"
-        run: |
-          git clone -b development --depth 1 https://github.com/arendst/Tasmota.git examples/tasmota
-          cp examples/tasmota_platformio_override.ini examples/tasmota/platformio_override.ini
       - name: Build examples
         env:
           PYTHONIOENCODING: utf-8
