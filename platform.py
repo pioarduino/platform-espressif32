@@ -108,6 +108,10 @@ CHECK_PACKAGES = [
     "tool-clangtidy"
 ]
 
+FORMAT_PACKAGES = [
+    "tool-clang-format"
+]
+
 # System-specific configuration
 # Set Platformio env var to use windows_amd64 for all windows architectures
 # only windows_amd64 native espressif toolchains are available
@@ -567,6 +571,17 @@ class Espressif32Platform(PlatformBase):
                 not status['has_tools_json']):
             return self._handle_existing_tool(tool_name, paths)
 
+        # Case 3: Package not yet downloaded - fetch skeleton then install
+        if status['has_idf_tools'] and not status['tool_exists']:
+            version = self.packages.get(tool_name, {}).get("version", "")
+            if version:
+                logger.info(f"Downloading {tool_name} ...")
+                pm.install(version)
+                # Re-check after download
+                status = self._check_tool_status(tool_name)
+                if status['has_tools_json']:
+                    return self._install_with_idf_tools(tool_name, paths, penv_python)
+
         logger.debug(f"Tool {tool_name} already configured")
         return True
 
@@ -587,6 +602,10 @@ class Espressif32Platform(PlatformBase):
 
         tl_path = f"file://{Path(IDF_TOOLS_PATH) / 'tools' / tool_name}"
         pm.install(tl_path)
+
+        # Record the installed location so get_package_dir() resolves immediately
+        # in this session, matching what _handle_existing_tool() does on later runs.
+        self.packages[tool_name]["version"] = paths['tool_path']
 
         logger.info(f"Tool {tool_name} successfully installed")
         return True
@@ -786,6 +805,23 @@ class Espressif32Platform(PlatformBase):
             logger.info("esp32_exception_decoder filter detected, installing tool-esp-rom-elfs")
             self.install_tool("tool-esp-rom-elfs")
 
+    def _configure_clang_format(self, variables: Dict, targets: List[str]) -> None:
+        """Install clang-format when enabled in platformio.ini or requested by its targets."""
+        value = variables.get("custom_clang_format", "")
+        if isinstance(value, bool):
+            enabled = value
+        elif isinstance(value, int):
+            enabled = bool(value)
+        else:
+            enabled = str(value).strip().lower() in ("1", "true", "yes", "on", "check", "write")
+        if not enabled:
+            enabled = any(
+                target in ("clangformat", "clangformat-write") for target in targets
+            )
+        if enabled:
+            for package in FORMAT_PACKAGES:
+                self.install_tool(package)
+
     def _configure_check_tools(self, variables: Dict) -> None:
         """Configure static analysis and check tools based on configuration."""
         check_tools = variables.get("check_tool", [])
@@ -867,6 +903,7 @@ class Espressif32Platform(PlatformBase):
                 self._install_common_idf_packages()
 
             self._configure_rom_elfs_for_exception_decoder(variables)
+            self._configure_clang_format(variables, targets)
             self._configure_check_tools(variables)
             self._configure_clangd_tool()
             self._handle_dfuutil_tool(variables)
