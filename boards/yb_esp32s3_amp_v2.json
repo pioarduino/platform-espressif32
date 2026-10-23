@@ -42,6 +42,6 @@
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://github.com/yellobyte/ESP32-DevBoards-Getting-Started/tree/main/boards/YB-ESP32-S3-AMP",
+  "url": "https://github.com/yellobyte/YB-ESP32-S3-AMP",
   "vendor": "YelloByte"
 }

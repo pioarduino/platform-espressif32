@@ -14,6 +14,9 @@
     "can",
     "ethernet"
   ],
+  "debug": {
+    "openocd_board": "esp-wroom-32.cfg"
+  },
   "frameworks": [
     "arduino",
     "espidf"

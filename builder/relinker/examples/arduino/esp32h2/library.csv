@@ -1,0 +1,12 @@
+library,path
+libfreertos.a,$ARDUINO_LIBS_DIR/libfreertos.a
+libheap.a,$ARDUINO_LIBS_DIR/libheap.a
+libnewlib.a,$ARDUINO_LIBS_DIR/libnewlib.a
+libesp_hw_support.a,$ARDUINO_LIBS_DIR/libesp_hw_support.a
+libesp_system.a,$ARDUINO_LIBS_DIR/libesp_system.a
+libesp_timer.a,$ARDUINO_LIBS_DIR/libesp_timer.a
+libspi_flash.a,$ARDUINO_LIBS_DIR/libspi_flash.a
+liblog.a,$ARDUINO_LIBS_DIR/liblog.a
+libhal.a,$ARDUINO_LIBS_DIR/libhal.a
+libsoc.a,$ARDUINO_LIBS_DIR/libsoc.a
+libriscv.a,$ARDUINO_LIBS_DIR/libriscv.a

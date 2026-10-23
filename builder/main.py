@@ -22,13 +22,6 @@ import subprocess
 import sys
 from os.path import isfile, join
 from pathlib import Path
-from littlefs import LittleFS
-from fatfs import Partition, RamDisk, create_extended_partition
-from fatfs import create_esp32_wl_image
-from fatfs import calculate_esp32_wl_overhead
-from fatfs import is_esp32_wl_image, extract_fat_from_esp32_wl
-from fatfs.partition_extended import PartitionExtended
-from fatfs.wrapper import pyf_mkfs, PY_FR_OK as FR_OK
 import importlib.util
 
 from SCons.Script import (
@@ -55,7 +48,18 @@ core_dir = projectconfig.get("platformio", "core_dir")
 build_dir = Path(projectconfig.get("platformio", "build_dir"))
 
 # Configure Python environment through centralized platform management
+# Must happen before importing penv-installed packages (fatfs, littlefs, etc.)
 PYTHON_EXE, esptool_binary_path = platform.setup_python_env(env)
+
+from littlefs import LittleFS
+from littlefs import lfs as _lfs
+_lfs.FILENAME_ENCODING = "utf-8"
+from fatfs import Partition, RamDisk, create_extended_partition
+from fatfs import create_esp32_wl_image
+from fatfs import calculate_esp32_wl_overhead
+from fatfs import is_esp32_wl_image, extract_fat_from_esp32_wl
+from fatfs.partition_extended import PartitionExtended
+from fatfs.wrapper import pyf_mkfs, PY_FR_OK as FR_OK
 
 # Load SPIFFS generator from local module
 spiffsgen_path = platform_dir / "builder" / "spiffsgen.py"
@@ -66,6 +70,30 @@ spec.loader.exec_module(spiffsgen)
 SpiffsFS = spiffsgen.SpiffsFS
 SpiffsBuildConfig = spiffsgen.SpiffsBuildConfig
 
+# Import GDB_TOOL_PACKAGES from penv_setup (already loaded into sys.modules by platform.py)
+from penv_setup import GDB_TOOL_PACKAGES
+
+# Automatically register pio-lock targets if custom_pio_lock is enabled
+env_name = env.subst("$PIOENV")
+if projectconfig.get(f"env:{env_name}", "custom_pio_lock", default="false").lower() in ("true", "yes", "1"):
+    try:
+        # Try to import pio_lock module from penv
+        import pio_lock
+        # Register custom targets with SCons
+        pio_lock.register_pio_targets(env)
+    except ImportError as exc:
+        sys.stderr.write(
+            f"Warning: custom_pio_lock=true but pio_lock could not be imported "
+            f"({exc}). Lock targets (lock-capture/lock-restore/lock-check) "
+            f"will not be available.\n"
+        )
+    except AttributeError as exc:
+        sys.stderr.write(
+            f"Warning: pio_lock is installed but does not expose "
+            f"register_pio_targets ({exc}). Update pio-lock to a compatible "
+            f"version.\n"
+        )
+
 # Load board configuration and determine MCU architecture
 board = env.BoardConfig()
 board_id = env.subst("$BOARD")
@@ -73,6 +101,22 @@ mcu = board.get("build.mcu", "esp32")
 is_xtensa = mcu in ("esp32", "esp32s2", "esp32s3")
 toolchain_arch = "xtensa-%s" % mcu
 filesystem = board.get("build.filesystem", "littlefs")
+
+# ESP-IDF partition table constants. Defined module-wide so the partition
+# downloader and the filesystem detector share a single source of truth.
+DATA_PARTITION_TYPE = 0x01
+SUBTYPE_FAT = 0x81
+SUBTYPE_SPIFFS = 0x82
+SUBTYPE_LITTLEFS = 0x83
+KNOWN_FS_SUBTYPES = (SUBTYPE_FAT, SUBTYPE_SPIFFS, SUBTYPE_LITTLEFS)
+
+# String representations for partition type matching
+VALID_DATA_TYPES = {"data", "1", "0x01"}
+VALID_FS_SUBTYPES = {
+    "spiffs", "fat", "littlefs",
+    hex(SUBTYPE_SPIFFS), hex(SUBTYPE_FAT), hex(SUBTYPE_LITTLEFS),
+    str(SUBTYPE_SPIFFS), str(SUBTYPE_FAT), str(SUBTYPE_LITTLEFS)
+}
 
 
 def load_board_script(env):
@@ -384,18 +428,42 @@ def fetch_fs_size(env):
     """
     Extract filesystem size and offset information from partition table.
     Sets FS_START, FS_SIZE, FS_PAGE, and FS_BLOCK environment variables.
-    
+
     Args:
         env: SCons environment object
     """
     fs = None
-    for p in _parse_partitions(env):
-        if p["type"] == "data" and p["subtype"] in (
-            "spiffs",
-            "fat",
-            "littlefs",
-        ):
-            fs = p
+    custom_fs_partition = board.get("build.filesystem_partition", "")
+
+    partitions = _parse_partitions(env)
+
+    # User-specified partition name has priority
+    if custom_fs_partition:
+        for p in partitions:
+            p_type = str(p["type"]).strip().lower()
+            p_subtype = str(p["subtype"]).strip().lower()
+            if (
+                p["name"] == custom_fs_partition
+                and p_type in VALID_DATA_TYPES
+                and p_subtype in VALID_FS_SUBTYPES
+            ):
+                fs = p
+                break
+        if not fs:
+            print(
+                "Warning! Selected filesystem partition `%s` is not available in the "
+                "partition table! Falling back to last available filesystem partition."
+                % custom_fs_partition
+            )
+
+    # Fallback: use last FS partition (original behavior)
+    if not fs:
+        for p in partitions:
+            p_type = str(p["type"]).strip().lower()
+            p_subtype = str(p["subtype"]).strip().lower()
+            if p_type in VALID_DATA_TYPES and p_subtype in VALID_FS_SUBTYPES:
+                fs = p
+
     if not fs:
         sys.stderr.write(
             "Could not find the any filesystem section in the partitions "
@@ -403,7 +471,7 @@ def fetch_fs_size(env):
         )
         env.Exit(1)
         return
-    
+
     env["FS_START"] = _parse_size(fs["offset"])
     env["FS_SIZE"] = _parse_size(fs["size"])
     env["FS_PAGE"] = int("0x100", 16)
@@ -471,7 +539,13 @@ def build_fs_image(target, source, env):
         disk_version = (2 << 16) | 1
 
     try:
-        # Create LittleFS instance with Arduino / IDF compatible parameters
+        # Create LittleFS instance with Arduino / IDF compatible parameters.
+        # Suppress the constructor's auto-mount: when the backing buffer is
+        # uninitialized, LittleFS(mount=True) calls lfs_mount() first, which
+        # mutates the internal lfs_t state before failing. The subsequent
+        # implicit format() then runs on a dirty struct and produces a
+        # superblock that some targets (e.g. ESP8684/XH-C2X) refuse to mount.
+        # An explicit format() + mount() on a fresh instance avoids this.
         fs = LittleFS(
             block_size=block_size,
             block_count=block_count,
@@ -482,8 +556,11 @@ def build_fs_image(target, source, env):
             block_cycles=500,         # Wear leveling cycles
             name_max=64,              # ESP-IDF default filename length
             disk_version=disk_version,
-            mount=True
+            mount=False
         )
+
+        fs.format()
+        fs.mount()
 
         # Add all files from source directory
         source_path = Path(source_dir)
@@ -840,15 +917,18 @@ env.Replace(
     CXX="%s-elf-g++" % toolchain_arch,
     GDB=join(
         platform.get_package_dir(
-            "tool-riscv32-esp-elf-gdb"
+            # risc-v GDB
+            GDB_TOOL_PACKAGES["riscv"]
             if not is_xtensa
-            else "tool-xtensa-esp-elf-gdb"
+            # xtensa GDB
+            else GDB_TOOL_PACKAGES["xtensa"]
         )
         or "",
         "bin",
         "%s-elf-gdb" % toolchain_arch,
     ),
     OBJCOPY=uploader_path,
+    ERASETOOL=uploader_path,
     RANLIB="%s-elf-gcc-ranlib" % toolchain_arch,
     SIZETOOL="%s-elf-size" % toolchain_arch,
     ARFLAGS=["rc"],
@@ -857,8 +937,16 @@ env.Replace(
     SIZEDATAREGEXP=r"^(?:\.dram0\.data|\.dram0\.bss|\.noinit)\s+([0-9]+).*",
     SIZECHECKCMD="$SIZETOOL -A -d $SOURCES",
     SIZEPRINTCMD="$SIZETOOL -B -d $SOURCES",
+
+    ELF2BINFLAGS=[
+        "--chip", mcu, "elf2image",
+        "--flash-mode", "${__get_board_flash_mode(__env__)}",
+        "--flash-freq", "${__get_board_f_image(__env__)}",
+        "--flash-size", board.get("upload.flash_size", "4MB")
+    ],
+    ELF2BINCMD='$OBJCOPY $ELF2BINFLAGS -o "$TARGET" "$SOURCES"',
+
     ERASEFLAGS=["--chip", mcu, "--port", '"$UPLOAD_PORT"'],
-    ERASETOOL=uploader_path,
     ERASECMD='$ERASETOOL $ERASEFLAGS erase-flash',
     ESP32_FS_IMAGE_NAME=env.get(
         "ESP32_FS_IMAGE_NAME",
@@ -885,26 +973,7 @@ if env.get("PROGNAME", "program") == "program":
 env.Append(
     BUILDERS=dict(
         ElfToBin=Builder(
-            action=env.VerboseAction(
-                " ".join(
-                    [
-                        "$ERASETOOL",
-                        "--chip",
-                        mcu,
-                        "elf2image",
-                        "--flash-mode",
-                        "${__get_board_flash_mode(__env__)}",
-                        "--flash-freq",
-                        "${__get_board_f_image(__env__)}",
-                        "--flash-size",
-                        board.get("upload.flash_size", "4MB"),
-                        "-o",
-                        "\"$TARGET\"",
-                        "\"$SOURCES\"",
-                    ]
-                ),
-                "Building $TARGET",
-            ),
+            action=env.VerboseAction("$ELF2BINCMD", "Building $TARGET"),
             suffix=".bin",
         ),
         DataToBin=Builder(
@@ -1164,11 +1233,17 @@ def _download_partition_image(env, fs_type_filter=None):
     Args:
         env: SCons environment object
         fs_type_filter: List of partition subtypes to look for (e.g., [0x82, 0x83] for LittleFS/SPIFFS)
-                       or [0x81] for FAT. If None, accepts any data partition.
+                       or [0x81] for FAT. If None, accepts any known filesystem
+                       partition (FAT/SPIFFS/LittleFS).
 
     Returns:
         tuple: (fs_file_path, fs_start, fs_size, fs_subtype) or (None, None, None, None) on error
     """
+    # KNOWN_FS_SUBTYPES (FAT/SPIFFS/LittleFS) and DATA_PARTITION_TYPE are
+    # defined at module scope. All other data subtypes (e.g. 0x00 ota,
+    # 0x01 phy, 0x02 nvs, 0x03 coredump, 0x04 nvs_keys, 0x05 efuse,
+    # 0x06 undefined) are excluded so that e.g. a coredump partition is
+    # not mistakenly treated as a filesystem partition.
     # Ensure upload port is set
     if not env.subst("$UPLOAD_PORT"):
         env.AutodetectUploadPort()
@@ -1208,35 +1283,104 @@ def _download_partition_image(env, fs_type_filter=None):
         partition_data = f.read()
 
     # Parse partition entries (format: 0xAA 0x50 followed by entry data)
-    entries = [e for e in partition_data.split(b'\xaaP') if len(e) > 0]
+    # split() removes the 0xAA 0x50 magic, so each valid entry body is 30 bytes
+    entries = [e for e in partition_data.split(b'\xaaP') if len(e) >= 30]
 
     fs_start = None
     fs_size = None
     fs_subtype = None
 
+    # Determine which subtypes are acceptable. When no explicit filter is
+    # provided, restrict to known filesystem subtypes (FAT/SPIFFS/LittleFS)
+    # so that auxiliary data partitions (nvs, phy, otadata, coredump, ...)
+    # are never picked up as a filesystem partition.
+    allowed_subtypes = (
+        tuple(fs_type_filter) if fs_type_filter is not None else KNOWN_FS_SUBTYPES
+    )
+
+    # Partition table entry layout (after the 0xAA 0x50 magic):
+    #   Byte 0     : Type     (0x00 = app, 0x01 = data)
+    #   Byte 1     : SubType  (0x81=FAT, 0x82=SPIFFS, 0x83=LittleFS,
+    #                          0x00=ota, 0x01=phy, 0x02=nvs, 0x03=coredump, ...)
+    #   Bytes 2-5  : Offset   (little-endian uint32)
+    #   Bytes 6-9  : Size     (little-endian uint32)
+    #   Bytes 10-25: Label    (16 bytes, NUL-padded)
+    #   Bytes 26-29: Flags    (little-endian uint32)
+    candidate = None
     for entry in entries:
-        if len(entry) < 32:
+        # Each ESP-IDF partition table entry is 32 bytes including the
+        # 2-byte 0xAA 0x50 magic; split() removes the magic so a valid
+        # entry chunk is 30 bytes (type, subtype, offset, size, label,
+        # flags). Anything shorter is truncated/garbage.
+        if len(entry) < 30:
             continue
 
-        # Byte 0: Type (0x01 for data partitions)
-        # Byte 1: SubType (0x81=FAT, 0x82=SPIFFS, 0x83=LittleFS)
-        # Bytes 2-5: Offset (4 bytes, little-endian)
-        # Bytes 6-9: Size (4 bytes, little-endian)
-
+        part_type = entry[0]
         part_subtype = entry[1]
 
-        # Check if this partition matches our filter
-        if fs_type_filter is None or part_subtype in fs_type_filter:
-            fs_start = int.from_bytes(entry[2:6], byteorder='little', signed=False)
-            fs_size = int.from_bytes(entry[6:10], byteorder='little', signed=False)
-            fs_subtype = part_subtype
-            break
+        # Only consider data partitions (type 0x01); skip app and others.
+        if part_type != DATA_PARTITION_TYPE:
+            continue
 
-    if fs_start is None or fs_size is None:
-        print("Error: No matching filesystem partition found in partition table")
+        # Skip subtypes that are not in the allowed list. This explicitly
+        # excludes coredump (0x03), nvs (0x02), phy (0x01), otadata (0x00),
+        # nvs_keys (0x04), efuse_em (0x05) and undefined (0x06).
+        if part_subtype not in allowed_subtypes:
+            continue
+
+        part_offset = int.from_bytes(entry[2:6], byteorder='little', signed=False)
+        part_size = int.from_bytes(entry[6:10], byteorder='little', signed=False)
+
+        # Sanity check offset/size: must be non-zero and 4 KB aligned.
+        if part_size == 0 or part_offset == 0:
+            continue
+        if (part_offset % 0x1000) != 0 or (part_size % 0x1000) != 0:
+            continue
+
+        # Try to extract a readable label for diagnostics.
+        try:
+            part_label = entry[10:26].split(b'\x00', 1)[0].decode('ascii', 'replace')
+        except Exception:
+            part_label = ""
+
+        # Defensive: if a partition is *labelled* coredump but somehow has a
+        # filesystem subtype, ignore it.
+        if part_label.strip().lower() == "coredump":
+            print(
+                f"  Skipping partition labelled 'coredump' "
+                f"(subtype 0x{part_subtype:02X})"
+            )
+            continue
+
+        # Prefer filesystem partitions in this order: LittleFS, SPIFFS, FAT.
+        # When the caller supplied an explicit filter, just take the first
+        # match.
+        priority = {
+            SUBTYPE_LITTLEFS: 0,
+            SUBTYPE_SPIFFS: 1,
+            SUBTYPE_FAT: 2,
+        }.get(part_subtype, 99)
+        if candidate is None or priority < candidate[0]:
+            candidate = (priority, part_offset, part_size, part_subtype, part_label)
+            if fs_type_filter is not None:
+                # Caller asked for specific subtypes; first match wins.
+                break
+
+    if candidate is None:
+        print(
+            "Error: No matching filesystem partition (FAT/SPIFFS/LittleFS) "
+            "found in partition table"
+        )
         return None, None, None, None
 
-    print(f"\nFound filesystem partition (subtype {hex(fs_subtype)}):")
+    _, fs_start, fs_size, fs_subtype, fs_label = candidate
+    if fs_label:
+        print(
+            f"\nFound filesystem partition '{fs_label}' "
+            f"(subtype {hex(fs_subtype)}):"
+        )
+    else:
+        print(f"\nFound filesystem partition (subtype {hex(fs_subtype)}):")
     print(f"  Start: {hex(fs_start)}")
     print(f"  Size: {hex(fs_size)} ({fs_size} bytes)")
 
@@ -1569,12 +1713,12 @@ def download_fs_action(target, source, env):
     
     # 3. Fall back to partition table subtype if no clear signature found
     if fs_type is None:
-        if fs_subtype == 0x81:
+        if fs_subtype == SUBTYPE_FAT:
             fs_type = "fatfs"
-        elif fs_subtype == 0x82:
+        elif fs_subtype == SUBTYPE_SPIFFS:
             # Subtype 0x82 can be either SPIFFS or LittleFS, default to SPIFFS
             fs_type = "spiffs"
-        elif fs_subtype == 0x83:
+        elif fs_subtype == SUBTYPE_LITTLEFS:
             fs_type = "littlefs"
         else:
             print(f"Warning: Unknown partition subtype 0x{fs_subtype:02X}, defaulting to SPIFFS")
@@ -1598,6 +1742,65 @@ def download_fs_action(target, source, env):
         return 1
 
 
+def esp32_create_combined_bin(source, target, env):
+    """
+    Post-build action: Combine all flash images into a single factory binary.
+    Uses esptool merge-bin to create a firmware.factory.bin that can be
+    flashed at offset 0.
+
+    Typical layout of the generated file:
+       Offset | File
+    -  0x0000 | bootloader.bin
+    -  0x8000 | partitions.bin
+    -  0xe000 | boot_app0.bin
+    - 0x10000 | firmware.bin
+    """
+    firmware_name = env.subst("$BUILD_DIR/${PROGNAME}.bin")
+    if not isfile(firmware_name):
+        return
+
+    factory_name = env.subst("$BUILD_DIR/${PROGNAME}.factory.bin")
+    flash_size = board.get("upload.flash_size", "4MB")
+    flash_mode = _get_board_flash_mode(env)
+    flash_freq = _get_board_f_image(env)
+    app_offset = env.subst("$ESP32_APP_OFFSET") or "0x10000"
+
+    cmd = [
+        "--chip", mcu,
+        "merge-bin",
+        "-o", factory_name,
+        "--flash-mode", flash_mode,
+        "--flash-freq", flash_freq,
+        "--flash-size", flash_size,
+    ]
+
+    print(f"Creating binary \"{os.path.basename(factory_name)}\" with:")
+    print("    Offset   | File")
+
+    for image in env.get("FLASH_EXTRA_IMAGES", []):
+        offset = image[0]
+        path = env.subst(image[1])
+        print(f" -  {str(offset).ljust(8)} | {os.path.basename(path)}")
+        cmd += [str(offset), path]
+
+    print(f" -  {app_offset.ljust(8)} | {os.path.basename(firmware_name)}")
+    cmd += [app_offset, firmware_name]
+
+    esptool = esptool_binary_path
+    try:
+        result = subprocess.run(
+            [esptool, *cmd], check=False, capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            print("Successfully created combined binary image.")
+        else:
+            print(f"esptool merge-bin failed (exit code {result.returncode})")
+            if result.stderr:
+                print(result.stderr)
+    except Exception as e:
+        print(f"Error creating factory binary: {e}")
+
+
 #
 # Target: Build executable and linkable firmware or FS image
 #
@@ -1613,7 +1816,7 @@ if "nobuild" in COMMAND_LINE_TARGETS:
 else:
     target_elf = env.BuildProgram()
     silent_action = env.Action(firmware_metrics)
-    # Hack to silence scons command output
+    # Silence scons command output
     silent_action.strfunction = lambda target, source, env: ""
     env.AddPostAction(target_elf, silent_action)
     if set(["buildfs", "uploadfs", "uploadfsota"]) & set(COMMAND_LINE_TARGETS):
@@ -1625,6 +1828,10 @@ else:
     else:
         target_firm = env.ElfToBin(str(Path("$BUILD_DIR") / "${PROGNAME}"), target_elf)
         env.Depends(target_firm, "checkprogsize")
+        silent_action = env.Action(esp32_create_combined_bin)
+        # Silence scons command output
+        silent_action.strfunction = lambda target, source, env: ""
+        env.AddPostAction(target_firm, silent_action)
 
 # Configure platform targets
 env.AddPlatformTarget(
@@ -1782,7 +1989,7 @@ elif upload_protocol in debug_tools:
             "-c",
             "adapter speed %s" % env.GetProjectOption("debug_speed", "5000"),
             "-c",
-            "program_esp {{$SOURCE}} %s verify"
+            "program_esp {$SOURCE} %s verify"
             % (
                 "$FS_START"
                 if "uploadfs" in COMMAND_LINE_TARGETS
@@ -1795,24 +2002,39 @@ elif upload_protocol in debug_tools:
             openocd_args.extend(
                 [
                     "-c",
-                    "program_esp {{%s}} %s verify"
+                    "program_esp {%s} %s verify"
                     % (_to_unix_slashes(image[1]), image[0]),
                 ]
             )
     openocd_args.extend(["-c", "reset run; shutdown"])
-    openocd_args = [
-        f.replace(
-            "$PACKAGE_DIR",
-            _to_unix_slashes(
-                platform.get_package_dir("tool-openocd-esp32") or ""
-            ),
-        )
-        for f in openocd_args
-    ]
+    openocd_pkg_dir = _to_unix_slashes(
+        platform.get_package_dir("tool-openocd-esp32") or ""
+    )
+    if openocd_pkg_dir:
+        openocd_args = [
+            f.replace("$PACKAGE_DIR", openocd_pkg_dir)
+            for f in openocd_args
+        ]
+        openocd_executable = str(Path(openocd_pkg_dir) / "bin" / "openocd")
+    else:
+        filtered = []
+        i = 0
+        while i < len(openocd_args):
+            if openocd_args[i] == "-s" and i + 1 < len(openocd_args) \
+                    and "$PACKAGE_DIR" in openocd_args[i + 1]:
+                i += 2
+                continue
+            if "$PACKAGE_DIR" in openocd_args[i]:
+                i += 1
+                continue
+            filtered.append(openocd_args[i])
+            i += 1
+        openocd_args = filtered
+        openocd_executable = "openocd"
     env.Replace(
-        UPLOADER="openocd",
+        UPLOADER=openocd_executable,
         UPLOADERFLAGS=openocd_args,
-        UPLOADCMD="$UPLOADER $UPLOADERFLAGS",
+        UPLOADCMD='"$UPLOADER" $UPLOADERFLAGS',
     )
     upload_actions = [env.VerboseAction("$UPLOADCMD", "Uploading $SOURCE")]
 

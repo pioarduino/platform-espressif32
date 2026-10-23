@@ -5,7 +5,8 @@ This module provides the ComponentManager class for handling IDF component
 addition/removal, library ignore processing, and build script modifications.
 It supports managing ESP-IDF components within Arduino framework projects,
 allowing developers to add or remove specific components and handle library
-dependencies efficiently.
+dependencies efficiently. It also provides the board memory fingerprint used
+by the Arduino HybridCompile checksum.
 """
 
 import os
@@ -15,6 +16,44 @@ import yaml
 from pathlib import Path
 from typing import Set, Optional, Dict, Any, List, Tuple, Pattern
 from yaml import SafeLoader
+from platformio.exception import PlatformioException
+
+
+def _project_option(env, name):
+    """Value of an optional project option, empty string when it is not set.
+
+    A failed lookup is reported rather than silently dropped, because omitting
+    an active override would make two different configurations share libs.
+    """
+    try:
+        return env.GetProjectOption(name, "") or ""
+    except PlatformioException as exc:
+        print(f"Warning: cannot read {name} for the Arduino libs checksum: {exc}")
+        return ""
+
+
+def board_memory_fingerprint(env, board):
+    """PSRAM/memory settings of the board, as a string for the checksum.
+
+    These settings end up in the generated sdkconfig but are not part of
+    "custom_sdkconfig", so they have to be folded into the checksum, otherwise
+    a board with PSRAM and a board without it that share the same
+    "custom_sdkconfig" reuse each other's precompiled Arduino libs. Used by
+    both the comparison path (arduino.py) and the generation path (espidf.py)
+    so that the two always agree.
+    """
+    extra_flags = board.get("build.extra_flags", [])
+    if not isinstance(extra_flags, str):
+        extra_flags = " ".join(str(flag) for flag in extra_flags)
+
+    build_section = board.get("build", {})
+    memory_type = (_project_option(env, "board_build.memory_type")
+                   or build_section.get("arduino", {}).get("memory_type", "")
+                   or build_section.get("memory_type", ""))
+    psram_type = (_project_option(env, "board_build.psram_type")
+                  or build_section.get("psram_type", ""))
+
+    return f"|{'PSRAM' in extra_flags}|{memory_type}|{psram_type}"
 
 
 class ComponentManagerConfig:
@@ -1311,6 +1350,99 @@ class ComponentManager:
             print(f"Error removing -fno-lto flags: {e}")
             return False
 
+    def apply_picolibc_flags(self) -> bool:
+        """
+        Apply picolibc-specific flags to pioarduino-build.py.
+
+        When CONFIG_LIBC_PICOLIBC is enabled in custom_sdkconfig:
+        - Removes all entries containing "newlib" from LINKFLAGS
+        - Removes all "-specs=..." entries from all flag sections
+        - Adds "-specs=picolibc.specs" to CFLAGS, CXXFLAGS, and LINKFLAGS
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        build_py_path = str(Path(self.config.arduino_libs_mcu) / "pioarduino-build.py")
+
+        if not os.path.exists(build_py_path):
+            print(f"Warning: pioarduino-build.py not found at {build_py_path}")
+            return False
+
+        try:
+            with open(build_py_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Idempotency guard: exit early if picolibc.specs is already present
+            if '-specs=picolibc.specs' in content:
+                return True
+
+            modified = False
+
+            # Step 1: Remove all entries containing "newlib" from LINKFLAGS
+            linkflags_pattern = r'(LINKFLAGS=\[)(.*?)(\])'
+            linkflags_match = re.search(linkflags_pattern, content, re.DOTALL)
+            if linkflags_match:
+                linkflags_content = linkflags_match.group(2)
+                # Remove lines containing "newlib"
+                linkflags_lines = linkflags_content.split('\n')
+                filtered_lines = [line for line in linkflags_lines if 'newlib' not in line]
+                # Only mark as modified if lines were actually removed
+                if len(filtered_lines) != len(linkflags_lines):
+                    new_linkflags_content = '\n'.join(filtered_lines)
+                    content = content[:linkflags_match.start(2)] + new_linkflags_content + content[linkflags_match.end(2):]
+                    modified = True
+
+            # Step 2: Remove all "-specs=..." entries from all sections
+            # Pattern matches "-specs=..." with optional quotes and comma
+            specs_pattern = r'["\']?-specs=[^"\']*["\']?,?\s*\n?\s*'
+            content, n_subs = re.subn(specs_pattern, '', content)
+            if n_subs > 0:
+                modified = True
+
+            # Step 3: Add "-specs=picolibc.specs" to CFLAGS, CXXFLAGS, and LINKFLAGS
+            # Add to CFLAGS
+            if 'CFLAGS=[' in content:
+                cflags_start = content.find('CFLAGS=[')
+                cflags_section_start = cflags_start + len('CFLAGS=[')
+                content = (content[:cflags_section_start] + 
+                          '\n        "-specs=picolibc.specs",' + 
+                          content[cflags_section_start:])
+                modified = True
+
+            # Add to CXXFLAGS
+            if 'CXXFLAGS=[' in content:
+                cxxflags_start = content.find('CXXFLAGS=[')
+                cxxflags_section_start = cxxflags_start + len('CXXFLAGS=[')
+                content = (content[:cxxflags_section_start] + 
+                          '\n        "-specs=picolibc.specs",' + 
+                          content[cxxflags_section_start:])
+                modified = True
+
+            # Add to LINKFLAGS
+            if 'LINKFLAGS=[' in content:
+                linkflags_start = content.find('LINKFLAGS=[')
+                linkflags_section_start = linkflags_start + len('LINKFLAGS=[')
+                content = (content[:linkflags_section_start] + 
+                          '\n        "-specs=picolibc.specs",' + 
+                          content[linkflags_section_start:])
+                modified = True
+
+            # Clean up any resulting formatting issues
+            content = re.sub(r',\s*,', ',', content)
+            content = re.sub(r'\[\s*,', '[', content)
+            content = re.sub(r',\s*\]', ']', content)
+
+            if modified:
+                with open(build_py_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+
+                print("*** Applied picolibc flags for Arduino compile ***")
+            return True
+
+        except (IOError, OSError) as e:
+            print(f"Error applying picolibc flags: {e}")
+            return False
+
     def add_lto_flags(self) -> bool:
         """
         Add LTO flags to pioarduino-build.py.
@@ -1330,6 +1462,9 @@ class ComponentManager:
         try:
             with open(build_py_path, 'r', encoding='utf-8') as f:
                 content = f.read()
+
+            if '"-flto=auto",' in content:
+                return True
 
             modified = False
 

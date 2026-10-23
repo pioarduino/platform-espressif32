@@ -1,0 +1,12 @@
+library,object,path
+libfreertos.a,tasks.c.obj,$ARDUINO_LIBS_DIR/libfreertos.a
+libfreertos.a,queue.c.obj,$ARDUINO_LIBS_DIR/libfreertos.a
+libfreertos.a,list.c.obj,$ARDUINO_LIBS_DIR/libfreertos.a
+libfreertos.a,port.c.obj,$ARDUINO_LIBS_DIR/libfreertos.a
+libheap.a,heap_caps.c.obj,$ARDUINO_LIBS_DIR/libheap.a
+libnewlib.a,locks.c.obj,$ARDUINO_LIBS_DIR/libnewlib.a
+libnewlib.a,heap.c.obj,$ARDUINO_LIBS_DIR/libnewlib.a
+libesp_system.a,cpu_start.c.obj,$ARDUINO_LIBS_DIR/libesp_system.a
+libesp_timer.a,esp_timer.c.obj,$ARDUINO_LIBS_DIR/libesp_timer.a
+libspi_flash.a,flash_ops.c.obj,$ARDUINO_LIBS_DIR/libspi_flash.a
+liblog.a,log.c.obj,$ARDUINO_LIBS_DIR/liblog.a
