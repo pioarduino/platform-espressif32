@@ -2095,7 +2095,8 @@ def _clang_format_run(target, source, env, force_mode=None):
 
     # Directories to scan
     scan_dirs_raw = env.GetProjectOption("custom_clang_format_dirs", "")
-    if scan_dirs_raw:
+    scan_dirs_configured = bool(scan_dirs_raw)
+    if scan_dirs_configured:
         # User-specified dirs: resolve relative paths against the project dir
         scan_dir_paths = [
             (project_dir / d.strip()) if not Path(d.strip()).is_absolute() else Path(d.strip())
@@ -2122,12 +2123,21 @@ def _clang_format_run(target, source, env, force_mode=None):
 
     # Collect source files (rglob includes all subdirectories recursively)
     source_files = []
+    missing_dirs = []
     for dir_path in scan_dir_paths:
         if not dir_path.is_dir():
+            if scan_dirs_configured:
+                missing_dirs.append(str(dir_path))
             continue
         for f in sorted(dir_path.rglob("*")):
             if f.is_file() and f.suffix in extensions:
                 source_files.append(str(f))
+
+    # A misspelled custom_clang_format_dirs entry must not make the check pass
+    if missing_dirs:
+        for missing_dir in missing_dirs:
+            print(f"Error: clang-format directory not found: {missing_dir}")
+        return 1
 
     if not source_files:
         print("No source files found for clang-format.")
