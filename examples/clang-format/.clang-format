@@ -1,0 +1,8 @@
+---
+# Style used by the clang-format example.
+# The clangformat targets automatically pass --style=file:<project>/.clang-format
+# when this file exists in the project root.
+BasedOnStyle: Google
+IndentWidth: 2
+ColumnLimit: 100
+...

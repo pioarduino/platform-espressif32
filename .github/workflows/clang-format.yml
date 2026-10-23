@@ -1,0 +1,53 @@
+name: CI clang-format
+
+on:
+  workflow_dispatch:      # Manually start a workflow
+  push:
+    paths:
+      - '.github/workflows/clang-format.yml'
+      - 'builder/main.py'
+      - 'platform.py'
+      - 'platform.json'
+      - 'examples/clang-format/**'
+  pull_request:
+    paths:
+      - '.github/workflows/clang-format.yml'
+      - 'builder/main.py'
+      - 'platform.py'
+      - 'platform.json'
+      - 'examples/clang-format/**'
+
+jobs:
+  clang-format-check:
+    name: Check example formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          enable-cache: false
+      - name: Install pioarduino and the development platform
+        run: |
+          uv pip install --system pioarduino
+          pio pkg install --global --platform file://.
+      - name: Check formatting
+        env:
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: '1'
+        run: pio run -d examples/clang-format -t clangformat
+      - name: Build example
+        env:
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: '1'
+        run: pio run -d examples/clang-format
