@@ -604,6 +604,10 @@ class Espressif32Platform(PlatformBase):
         tl_path = f"file://{Path(IDF_TOOLS_PATH) / 'tools' / tool_name}"
         pm.install(tl_path)
 
+        # Record the installed location so get_package_dir() resolves immediately
+        # in this session, matching what _handle_existing_tool() does on later runs.
+        self.packages[tool_name]["version"] = paths['tool_path']
+
         logger.info(f"Tool {tool_name} successfully installed")
         return True
 
@@ -802,8 +806,8 @@ class Espressif32Platform(PlatformBase):
             logger.info("esp32_exception_decoder filter detected, installing tool-esp-rom-elfs")
             self.install_tool("tool-esp-rom-elfs")
 
-    def _configure_clang_format(self, variables: Dict) -> None:
-        """Configure clang-format tool if enabled in platformio.ini."""
+    def _configure_clang_format(self, variables: Dict, targets: List[str]) -> None:
+        """Install clang-format when enabled in platformio.ini or requested by its targets."""
         value = variables.get("custom_clang_format", "")
         if isinstance(value, bool):
             enabled = value
@@ -811,6 +815,10 @@ class Espressif32Platform(PlatformBase):
             enabled = bool(value)
         else:
             enabled = str(value).strip().lower() in ("1", "true", "yes", "on", "check", "write")
+        if not enabled:
+            enabled = any(
+                target in ("clangformat", "clangformat-write") for target in targets
+            )
         if enabled:
             for package in FORMAT_PACKAGES:
                 self.install_tool(package)
@@ -896,7 +904,7 @@ class Espressif32Platform(PlatformBase):
                 self._install_common_idf_packages()
 
             self._configure_rom_elfs_for_exception_decoder(variables)
-            self._configure_clang_format(variables)
+            self._configure_clang_format(variables, targets)
             self._configure_check_tools(variables)
             self._configure_clangd_tool()
             self._handle_dfuutil_tool(variables)

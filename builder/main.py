@@ -2075,18 +2075,14 @@ def _clang_format_run(target, source, env, force_mode=None):
     """
     project_dir = Path(get_project_dir())
 
-    # Resolve clang-format executable from platform package - install on demand
-    clang_format_pkg = platform.packages_dir / "tool-clang-format"
-    if not clang_format_pkg.is_dir():
-        print("tool-clang-format not found, installing ...")
-        if not platform.install_tool("tool-clang-format"):
-            print("Error: tool-clang-format installation failed.")
-            return 1
-        if not clang_format_pkg.is_dir():
-            print("Error: tool-clang-format package directory not found after install.")
-            return 1
+    # Resolve clang-format executable from installed platform package
+    clang_format_pkg = platform.get_package_dir("tool-clang-format")
+    if not clang_format_pkg or not os.path.isdir(clang_format_pkg):
+        print("Error: tool-clang-format package not found.")
+        print("Make sure clang-format is enabled via 'custom_clang_format' in platformio.ini.")
+        return 1
 
-    clang_format_bin = clang_format_pkg / "clang-format"
+    clang_format_bin = Path(clang_format_pkg) / "clang-format"
     if IS_WINDOWS:
         clang_format_bin = clang_format_bin.with_suffix(".exe")
 
