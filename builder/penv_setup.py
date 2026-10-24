@@ -157,19 +157,6 @@ def _get_penv_python_version(penv_dir):
         except Exception:
             pass
 
-    # Fallback (POSIX only): inspect lib/pythonX.Y/ directories
-    if not IS_WINDOWS:
-        lib_dir = penv_path / "lib"
-        if lib_dir.is_dir():
-            for entry in sorted(lib_dir.iterdir(), reverse=True):
-                if entry.is_dir() and entry.name.startswith("python") and (entry / "site-packages").is_dir():
-                    ver_str = entry.name[len("python"):]
-                    try:
-                        major, minor = ver_str.split(".")
-                        return (int(major), int(minor))
-                    except (ValueError, TypeError):
-                        continue
-
     return None
 
 
