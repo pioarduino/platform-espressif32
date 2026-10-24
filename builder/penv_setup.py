@@ -129,13 +129,9 @@ def _get_penv_python_version(penv_dir):
     """
     Detect the Python version used to create an existing penv.
 
-    Reads the ``version`` key from ``pyvenv.cfg`` which is always
-    written by both ``python -m venv`` and ``uv venv``.  This avoids
-    spawning a subprocess (which can fail when the penv Python is
-    corrupted) and works identically on all platforms.
-
-    Falls back to inspecting ``lib/pythonX.Y/`` directories on POSIX
-    if ``pyvenv.cfg`` is missing or unparseable.
+    Reads only the ``version`` key from ``pyvenv.cfg``. Any penv without a
+    valid ``version`` key (including those with ``version_info``) is considered
+    invalid and returns None so that the penv will be recreated.
 
     Returns:
         tuple[int, int] | None: (major, minor) of the penv Python, or
@@ -157,19 +153,6 @@ def _get_penv_python_version(penv_dir):
         except Exception:
             pass
 
-    # Fallback (POSIX only): inspect lib/pythonX.Y/ directories
-    if not IS_WINDOWS:
-        lib_dir = penv_path / "lib"
-        if lib_dir.is_dir():
-            for entry in sorted(lib_dir.iterdir(), reverse=True):
-                if entry.is_dir() and entry.name.startswith("python") and (entry / "site-packages").is_dir():
-                    ver_str = entry.name[len("python"):]
-                    try:
-                        major, minor = ver_str.split(".")
-                        return (int(major), int(minor))
-                    except (ValueError, TypeError):
-                        continue
-
     return None
 
 
@@ -178,11 +161,12 @@ def _penv_version_matches(penv_dir):
     Check whether the existing penv was created with the same Python
     major.minor version as the currently running interpreter.
 
-    Returns True if versions match or if the penv does not exist yet.
+    Returns True if versions match, False otherwise (including when
+    the penv does not exist or its version cannot be determined).
     """
     penv_ver = _get_penv_python_version(penv_dir)
     if penv_ver is None:
-        return True  # no penv yet — nothing to mismatch
+        return False
     return penv_ver == (sys.version_info.major, sys.version_info.minor)
 
 
@@ -230,13 +214,14 @@ def setup_pipenv_in_package(env, penv_dir):
     Returns:
         str or None: Path to uv executable if uv was used, None if python -m venv was used
     """
-    # Recreate penv when Python version changed (e.g. Homebrew upgraded 3.13→3.14)
+    # Recreate penv when Python version changed or penv is invalid
     penv_python_path = get_executable_path(penv_dir, "python")
     if os.path.isfile(penv_python_path) and not _penv_version_matches(penv_dir):
         penv_ver = _get_penv_python_version(penv_dir)
         current_ver = (sys.version_info.major, sys.version_info.minor)
+        penv_ver_str = f"{penv_ver[0]}.{penv_ver[1]}" if penv_ver else "invalid"
         print(
-            f"Python version mismatch: penv has {penv_ver[0]}.{penv_ver[1]}, "
+            f"Python version mismatch: penv has {penv_ver_str}, "
             f"current interpreter is {current_ver[0]}.{current_ver[1]}. "
             f"Recreating penv..."
         )
@@ -697,13 +682,14 @@ def _setup_pipenv_minimal(penv_dir):
     Returns:
         str or None: Path to uv executable if uv was used, None if python -m venv was used
     """
-    # Recreate penv when Python version changed (e.g. Homebrew upgraded 3.13→3.14)
+    # Recreate penv when Python version changed or penv is invalid
     penv_python_path = get_executable_path(penv_dir, "python")
     if os.path.isfile(penv_python_path) and not _penv_version_matches(penv_dir):
         penv_ver = _get_penv_python_version(penv_dir)
         current_ver = (sys.version_info.major, sys.version_info.minor)
+        penv_ver_str = f"{penv_ver[0]}.{penv_ver[1]}" if penv_ver else "invalid"
         print(
-            f"Python version mismatch: penv has {penv_ver[0]}.{penv_ver[1]}, "
+            f"Python version mismatch: penv has {penv_ver_str}, "
             f"current interpreter is {current_ver[0]}.{current_ver[1]}. "
             f"Recreating penv..."
         )
