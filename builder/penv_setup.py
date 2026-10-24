@@ -129,9 +129,13 @@ def _get_penv_python_version(penv_dir):
     """
     Detect the Python version used to create an existing penv.
 
-    Reads only the ``version`` key from ``pyvenv.cfg``. Any penv without a
-    valid ``version`` key (including those with ``version_info``) is considered
-    invalid and returns None so that the penv will be recreated.
+    Reads the ``version`` or ``version_info`` key from ``pyvenv.cfg``
+    which is written by ``python -m venv`` and ``uv venv``.  This avoids
+    spawning a subprocess (which can fail when the penv Python is
+    corrupted) and works identically on all platforms.
+
+    Falls back to inspecting ``lib/pythonX.Y/`` directories on POSIX
+    if ``pyvenv.cfg`` is missing or unparseable.
 
     Returns:
         tuple[int, int] | None: (major, minor) of the penv Python, or
@@ -146,12 +150,25 @@ def _get_penv_python_version(penv_dir):
         try:
             for line in cfg_file.read_text(encoding="utf-8").splitlines():
                 key, _, value = line.partition("=")
-                if key.strip().lower() == "version":
+                if key.strip().lower() in ("version", "version_info"):
                     parts = value.strip().split(".")
                     if len(parts) >= 2:
                         return (int(parts[0]), int(parts[1]))
         except Exception:
             pass
+
+    # Fallback (POSIX only): inspect lib/pythonX.Y/ directories
+    if not IS_WINDOWS:
+        lib_dir = penv_path / "lib"
+        if lib_dir.is_dir():
+            for entry in sorted(lib_dir.iterdir(), reverse=True):
+                if entry.is_dir() and entry.name.startswith("python") and (entry / "site-packages").is_dir():
+                    ver_str = entry.name[len("python"):]
+                    try:
+                        major, minor = ver_str.split(".")
+                        return (int(major), int(minor))
+                    except (ValueError, TypeError):
+                        continue
 
     return None
 
