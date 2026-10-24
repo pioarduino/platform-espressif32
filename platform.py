@@ -822,12 +822,14 @@ class Espressif32Platform(PlatformBase):
             for package in FORMAT_PACKAGES:
                 self.install_tool(package)
 
-    def _configure_check_tools(self, variables: Dict) -> None:
+    def _configure_check_tools(self, variables: Dict, targets: List[str]) -> None:
         """Configure static analysis and check tools based on configuration."""
         check_tools = variables.get("check_tool", [])
         self.install_tool("contrib-piohome")
-        if not check_tools:
+        if "check" not in targets and "check" not in sys.argv:
             return
+        if not check_tools:
+            check_tools = ["cppcheck"]
 
         for package in CHECK_PACKAGES:
             if any(tool in package for tool in check_tools):
@@ -904,7 +906,7 @@ class Espressif32Platform(PlatformBase):
 
             self._configure_rom_elfs_for_exception_decoder(variables)
             self._configure_clang_format(variables, targets)
-            self._configure_check_tools(variables)
+            self._configure_check_tools(variables, targets)
             self._configure_clangd_tool()
             self._handle_dfuutil_tool(variables)
 
