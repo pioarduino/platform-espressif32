@@ -85,8 +85,28 @@ if not mcu:
     env.Exit(1)
 chip_variant = board.get("build.chip_variant", "").lower()
 chip_variant = chip_variant if chip_variant else mcu
-flash_speed = board.get("build.f_flash", "40000000L")
-flash_frequency = str(flash_speed.replace("000000L", ""))
+try:
+    configured_flash_speed = env.GetProjectOption("board_build.f_flash", None)
+except Exception:
+    configured_flash_speed = None
+if mcu == "esp32s3":
+    # S3 Arduino library variants include the boot frequency in their folder
+    # name, which can differ from the configured flash frequency.
+    flash_speed = (
+        board.get("build.f_boot", None)
+        or configured_flash_speed
+        or board.get("build.f_flash", None)
+        or "80000000L"
+    )
+else:
+    flash_speed = configured_flash_speed or board.get("build.f_flash", "40000000L")
+try:
+    flash_frequency = int(str(flash_speed).strip().rstrip("Ll"))
+    if flash_frequency >= 1_000_000:
+        flash_frequency //= 1_000_000
+    flash_frequency = str(flash_frequency)
+except (TypeError, ValueError):
+    flash_frequency = None
 flash_mode = board.get("build.flash_mode", None)
 boot_mode = board.get("build.boot", None)
 idf_variant = mcu.lower()
@@ -389,6 +409,52 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
             shutil.copytree(ARDUINO_C61_DIR, ARDUINO_FRMWRK_C61_LIB_DIR, dirs_exist_ok=True)
 
     arduino_libs_mcu = str(ARDUINO_FRMWRK_LIB_DIR_PATH / chip_variant)
+
+    memory_type = None
+    try:
+        memory_type = env.GetProjectOption("board_build.memory_type", None)
+    except Exception:
+        pass
+    if not memory_type:
+        build_settings = board.get("build", {})
+        arduino_settings = build_settings.get("arduino", {})
+        memory_type = (
+            arduino_settings.get("memory_type")
+            or build_settings.get("memory_type")
+            or ((build_settings.get("flash_mode") or "dio") + "_qspi")
+        )
+
+    if flash_frequency:
+        speed_variant = Path(arduino_libs_mcu) / f"{memory_type}_{flash_frequency}m"
+        if speed_variant.is_dir():
+            memory_type = speed_variant.name
+
+    arduino_mem_var = Path(arduino_libs_mcu) / memory_type
+
+
+def restore_arduino_sdkconfig_template():
+    """Restore the chip and selected memory-variant sdkconfig templates."""
+    sdkconfig_template = Path(arduino_libs_mcu) / "sdkconfig"
+    sdkconfig_orig = Path(arduino_libs_mcu) / "sdkconfig.orig"
+    if not sdkconfig_orig.is_file():
+        if sdkconfig_template.is_file():
+            shutil.copy2(sdkconfig_template, sdkconfig_orig)
+    if sdkconfig_orig.is_file():
+        shutil.copy2(sdkconfig_orig, sdkconfig_template)
+
+    arduino_mem_var.mkdir(parents=True, exist_ok=True)
+    variant_template = arduino_mem_var / "sdkconfig"
+    variant_orig = arduino_mem_var / "sdkconfig.orig"
+    if not variant_orig.is_file():
+        # Memory variants can have their own stock config (for example
+        # qio_opi_120m), so seed the backup from that template instead of the
+        # chip-wide sdkconfig.orig.
+        variant_source = variant_template if variant_template.is_file() else sdkconfig_orig
+        if not variant_source.is_file():
+            return False
+        shutil.copy2(variant_source, variant_orig)
+    shutil.copy2(variant_orig, variant_template)
+    return True
 
 BUILD_DIR = env.subst("$BUILD_DIR")
 PROJECT_DIR = env.subst("$PROJECT_DIR")
@@ -916,7 +982,7 @@ def HandleArduinoIDFsettings(env):
             print("Error: Arduino framework required for sdkconfig processing")
             return
         """Write the final sdkconfig.defaults file with checksum."""
-        sdkconfig_src = str(Path(arduino_libs_mcu) / "sdkconfig")
+        sdkconfig_src = str(arduino_mem_var / "sdkconfig")
         sdkconfig_dst = str(Path(PROJECT_DIR) / "sdkconfig.defaults")
         if not os.path.isfile(sdkconfig_src):
             sys.stderr.write(f"Error: Missing Arduino sdkconfig template at '{sdkconfig_src}'\n")
@@ -987,6 +1053,10 @@ def HandleArduinoIDFsettings(env):
         print("*** Apply board-specific settings to IDF sdkconfig.defaults ***")
     else:
         print("*** Add \"custom_sdkconfig\" settings to IDF sdkconfig.defaults ***")
+
+    # Preserve the package template on the first pass, then reset it before
+    # every merge so earlier custom builds cannot accumulate settings.
+    restore_arduino_sdkconfig_template()
     
     # Build complete configuration
     idf_config_flags = build_idf_config_flags()
@@ -3235,8 +3305,7 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
         lib_src = str(Path(env_build) / "esp-idf")
         lib_dst = str(Path(arduino_libs) / chip_variant / "lib")
         ld_dst = str(Path(arduino_libs) / chip_variant / "ld")
-        mem_var = str(Path(arduino_libs) / chip_variant / board.get("build.arduino.memory_type", (board.get("build.flash_mode", "dio") + "_qspi")))
-        # Ensure destinations exist
+        mem_var = str(arduino_mem_var)
         for d in (lib_dst, ld_dst, mem_var, str(Path(mem_var) / "include")):
             Path(d).mkdir(parents=True, exist_ok=True)
         # Names the package keeps per memory type rather than in the shared
@@ -3271,6 +3340,7 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
                     shared_file.unlink()
 
         shutil.copyfile(sdkconfig_h_path, str(Path(mem_var) / "include" / "sdkconfig.h"))
+        shutil.copyfile(str(Path(env.subst("$PROJECT_DIR")) / ("sdkconfig." + env["PIOENV"])), str(Path(mem_var) / "sdkconfig"))
         if not bool(os.path.isfile(str(Path(arduino_libs) / chip_variant / "sdkconfig.orig"))):
             shutil.move(str(Path(arduino_libs) / chip_variant / "sdkconfig"), str(Path(arduino_libs) / chip_variant / "sdkconfig.orig"))
         shutil.copyfile(str(Path(env.subst("$PROJECT_DIR")) / ("sdkconfig." + env["PIOENV"])), str(Path(arduino_libs) / chip_variant / "sdkconfig"))
@@ -3305,6 +3375,10 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
                 "*** Starting Arduino compile %s with custom libraries ***" % pio_cmd,
             )
         )
+        if flag_custom_sdkonfig:
+            # idf_lib_copy writes the generated config into the package so the
+            # child build can use it. Restore the stock template afterward.
+            restore_arduino_sdkconfig_template()
         if flag_custom_component_add == True or flag_custom_component_remove == True:
             try:
                 shutil.copy(str(Path(ARDUINO_FRAMEWORK_DIR) / "idf_component.yml.orig"), str(Path(ARDUINO_FRAMEWORK_DIR) / "idf_component.yml"))
