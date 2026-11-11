@@ -323,6 +323,7 @@ def get_packages_to_install(deps, installed_packages):
     Generator for Python packages that need to be installed.
     Compares package names case-insensitively.
     Handles both semantic version specs and direct URLs (git+, http, etc.).
+    Example: "pio-lock": "git+https://github.com/m-mcgowan/pio-lock.git@v0.2.0"
 
     Args:
         deps (dict): Dictionary of package names and version specifications
@@ -834,10 +835,8 @@ def install_pio_lock(platform, uv_executable, penv_executable, uv_cache_dir=None
         return
 
     # Define pio-lock as additional dependency
-    # todo: Replace with official pio-lock package when available
-    # For now, use the git source from m-mcgowan without version and install check
     pio_lock_dep = {
-        "pio-lock": "git+https://github.com/m-mcgowan/pio-lock.git@v0.2.0"
+        "pio-lock": ">=0.3.0"
     }
 
     # Use the centralized installer
