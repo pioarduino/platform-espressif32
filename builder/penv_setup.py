@@ -836,7 +836,7 @@ def install_pio_lock(platform, uv_executable, penv_executable, uv_cache_dir=None
 
     # Define pio-lock as additional dependency
     pio_lock_dep = {
-        "pio-lock": ">=0.3.0"
+        "pio-lock": ">=0.4.3"
     }
 
     # Use the centralized installer
