@@ -39,7 +39,7 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": ""
+      "version": "https://github.com/espressif/esp32-arduino-lib-builder/releases/download/idf-release_v5.5/esp32-arduino-libs-idf-release_v5.5-a45de8cc-v1.zip"
     },
     "framework-arduino-c2-skeleton-lib": {
       "type": "framework",
