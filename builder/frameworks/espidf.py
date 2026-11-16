@@ -2658,12 +2658,8 @@ def _get_python_deps():
         "cryptography": ">=46.0.7,<47.0.0" if not WINDOWS_ARM64 else "==46.0.3",
         "pyparsing": ">=3.1.0,<4",
         "idf-component-manager": "~=3.1.0",
-        "esp-idf-kconfig": "~=3.7.0"
+        "esp-idf-kconfig": "~=3.11.0"
     }
-
-    if IS_WINDOWS:
-        deps["windows-curses"] = ">=2.4.2"
-
     return deps
 
 
