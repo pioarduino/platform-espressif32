@@ -17,8 +17,8 @@ import sys
 from platformio.compat import IS_WINDOWS
 
 pyver = sys.version_info
-allowed = (3, 10) <= pyver < (3, 15)
-supported = "3.10, 3.11, 3.12, 3.13, 3.14"
+allowed = (3, 10) <= pyver < (3, 16)
+supported = "3.10, 3.11, 3.12, 3.13, 3.14, 3.15"
 
 if not allowed:
     print(f"ERROR: Python version must be {supported}.", file=sys.stderr)
