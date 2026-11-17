@@ -15,7 +15,7 @@ Espressif Systems is a fabless semiconductor company renowned for delivering cos
 ## IDE Preparation
 Prerequisites:
 -	VSCode: git is required for pioarduino to function properly.
--	CLI: Python (v.3.10, v.3.11, 3.12, 3.13 or 3.14) is additionally needed
+-	CLI: Python (v.3.10, v.3.11, 3.12, 3.13, 3.14 or 3.15) is additionally needed
 
 ## Installation
 
@@ -76,7 +76,7 @@ pio run -t download_fatfs # Download and extract FatFS from device
 See the [arduino-fatfs example](examples/arduino-fatfs/) for a complete working example.
 
 ### Stable Arduino
-currently espressif Arduino 3.3.12 and IDF v5.5.5.
+currently espressif Arduino 3.3.13 and IDF v5.5.6.261115.
 
 ```ini
 [env:stable]
