@@ -101,34 +101,15 @@ def setup_arduino_relinker(env, platform, mcu, chip_variant):
         sys.stderr.write("Error: Arduino framework packages not found\n")
         env.Exit(1)
 
-    # The -libs package keeps sections.ld in <chip>/ld/ on most chips and per
-    # memory type on others, such as esp32s3. LIBPATH searches ld/ ahead of
-    # <memory_type>, so look in that order to relink the script the linker
-    # would otherwise have used.
-    board = env.BoardConfig()
-    memory_type = board.get(
-        "build.memory_type",
-        board.get(
-            "build.arduino.memory_type",
-            "%s_%s" % (
-                board.get("build.flash_mode", "dio"),
-                board.get("build.psram_type", "qspi"),
-            ),
-        ),
-    )
-    candidates = [
-        Path(framework_lib_dir) / chip_variant / "ld" / "sections.ld",
-        Path(framework_lib_dir) / chip_variant / memory_type / "sections.ld",
-    ]
-    original_sections_ld = next(
-        (str(path) for path in candidates if path.is_file()), ""
+    # sections.ld lives in the -libs package at <chip>/ld/sections.ld
+    original_sections_ld = str(
+        Path(framework_lib_dir) / chip_variant / "ld" / "sections.ld"
     )
 
-    if not original_sections_ld:
+    if not os.path.exists(original_sections_ld):
         sys.stderr.write(
-            "Error: sections.ld not found at any of:\n"
-            + "".join(f"  {path}\n" for path in candidates)
-            + f"Chip variant: {chip_variant}\n"
+            f"Error: sections.ld not found at {original_sections_ld}\n"
+            f"Chip variant: {chip_variant}\n"
         )
         env.Exit(1)
 
@@ -351,7 +332,7 @@ def _create_arduino_sdkconfig(sdkconfig_path, mcu):
 
     # MCU-specific options.
     # Single-core MCUs get CONFIG_FREERTOS_UNICORE=y;
-    # dual-core MCUs (esp32, esp32s3, esp32s31) omit the key entirely.
+    # dual-core MCUs (esp32, esp32s3) omit the key entirely.
     mcu_configs = {
         "esp32": ["CONFIG_IDF_TARGET_ESP32=y"],
         "esp32s2": [
@@ -359,7 +340,6 @@ def _create_arduino_sdkconfig(sdkconfig_path, mcu):
             "CONFIG_FREERTOS_UNICORE=y",
         ],
         "esp32s3": ["CONFIG_IDF_TARGET_ESP32S3=y"],
-        "esp32s31": ["CONFIG_IDF_TARGET_ESP32S31=y"],
         "esp32c2": [
             "CONFIG_IDF_TARGET_ESP32C2=y",
             "CONFIG_FREERTOS_UNICORE=y",
