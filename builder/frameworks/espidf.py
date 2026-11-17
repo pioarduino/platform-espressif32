@@ -29,6 +29,7 @@ import requests
 import shutil
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from urllib.parse import urlsplit, unquote
 
@@ -47,6 +48,7 @@ from platformio.proc import exec_command
 from platformio.builder.tools.piolib import ProjectAsLibBuilder
 from platformio.package.version import get_original_version, pepver_to_semver
 
+WINDOWS_ARM64 = IS_WINDOWS and sysconfig.get_platform().lower() == "win-arm64"
 
 env = DefaultEnvironment()
 env.SConscript("_embed_files.py", exports="env")
@@ -83,8 +85,28 @@ if not mcu:
     env.Exit(1)
 chip_variant = board.get("build.chip_variant", "").lower()
 chip_variant = chip_variant if chip_variant else mcu
-flash_speed = board.get("build.f_flash", "40000000L")
-flash_frequency = str(flash_speed.replace("000000L", ""))
+try:
+    configured_flash_speed = env.GetProjectOption("board_build.f_flash", None)
+except Exception:
+    configured_flash_speed = None
+if mcu == "esp32s3":
+    # S3 Arduino library variants include the boot frequency in their folder
+    # name, which can differ from the configured flash frequency.
+    flash_speed = (
+        board.get("build.f_boot", None)
+        or configured_flash_speed
+        or board.get("build.f_flash", None)
+        or "80000000L"
+    )
+else:
+    flash_speed = configured_flash_speed or board.get("build.f_flash", "40000000L")
+try:
+    flash_frequency = int(str(flash_speed).strip().rstrip("Ll"))
+    if flash_frequency >= 1_000_000:
+        flash_frequency //= 1_000_000
+    flash_frequency = str(flash_frequency)
+except (TypeError, ValueError):
+    flash_frequency = None
 flash_mode = board.get("build.flash_mode", None)
 boot_mode = board.get("build.boot", None)
 idf_variant = mcu.lower()
@@ -162,10 +184,10 @@ def create_silent_action(action_func):
 def read_link_library_names(build_script):
     """Return the archive base names referenced by a libs package build script.
 
-    Names come from the quoted ``-l<name>`` entries of a package's
-    pioarduino-build.py, which is the list the linker actually resolves. An
-    empty set is returned when build_script is unset, missing or unreadable, so
-    callers fall back to the plain IDF archive names.
+    Names come from the quoted ``-l<name>`` entries of a chip variant's
+    ``pioarduino-build.py``, which is the list the linker actually resolves.
+    An empty set is returned when ``build_script`` is unset, missing, or
+    unreadable, so callers fall back to the plain filename-collision scheme.
     """
     if not build_script:
         return set()
@@ -176,57 +198,79 @@ def read_link_library_names(build_script):
     return set(re.findall(r'"-l([A-Za-z0-9_.+-]+)"', source))
 
 
-def resolve_link_library_name(base_name, occurrence, link_names, used_names):
-    """Return the base name an archive has to carry to reach the link line.
+def resolve_link_library_name(base_name, link_names, used_names):
+    """Return the destination name for an archive, consulting the link line.
 
-    base_name is the archive name without its ``lib`` prefix and ``.a`` suffix,
-    occurrence counts how many archives of that name have been seen so far. The
-    plain name (``foo`` first, ``foo_2``, ``foo_3``, ... for duplicates) wins
-    whenever the link line carries it. Otherwise the rewrites that
-    esp32-arduino-lib-builder's copy-libs.sh applies are tried: a ``_2`` suffix
-    from its substring collision check, and the ``espressif__`` prefix it drops
-    for components that are local to it. The two compose, so a component local
-    and collided there is also tried stripped and suffixed. Every candidate is
-    taken from the link line, never assumed; the plain name is kept when none
-    of them is on it.
+    copy-libs.sh derives destination names from the linker command: every
+    absolute ``.a`` path in ``LINK_LIBRARIES`` / ``link.txt`` is collected
+    into ``LD_LIB_FILES`` and copied under the name the linker already expects.
+    Collisions within that set are resolved by a ``for i in {2..9}`` loop that
+    renames the duplicate file on disk before copying.
 
-    A name is handed out once. An archive whose candidates are all spoken for
-    takes the next free ``_N`` suffix, so two archives competing for one name
-    both reach lib_dst instead of one replacing the other.
+    Here we walk the build tree instead of reading the link command, so we ask
+    the installed ``pioarduino-build.py`` what names are on the link line and
+    use those as the authority.  The lookup order mirrors the renaming steps
+    copy-libs.sh applies:
+
+    1. Plain ``base_name`` — most archives land here.
+    2. ``base_name_2`` — copy-libs.sh's first collision suffix.
+    3. ``base_name`` with the ``espressif__`` prefix stripped — the lib-builder
+       drops that prefix for components it ships locally (e.g.
+       ``espressif__rmaker_common`` → ``rmaker_common``).
+    4. Stripped name + ``_2`` — both rewrites can compose.
+
+    Each candidate is only used when it appears on the link line AND has not
+    been handed out yet.  When none of the candidates is on the link line the
+    plain name (or the next free ``_N`` suffix) is kept so the archive still
+    lands in ``lib_dst`` and does not silently disappear.
     """
-    plain_name = base_name if occurrence == 1 else f"{base_name}_{occurrence}"
-    if plain_name in link_names and plain_name not in used_names:
-        return plain_name
+    candidates = [base_name, f"{base_name}_2"]
+    if base_name.startswith("espressif__"):
+        stripped = base_name[len("espressif__"):]
+        candidates.extend([stripped, f"{stripped}_2"])
 
-    alternatives = [f"{plain_name}_2"]
-    if plain_name.startswith("espressif__"):
-        stripped_name = plain_name[len("espressif__"):]
-        alternatives.extend([stripped_name, f"{stripped_name}_2"])
-    for alternative in alternatives:
-        if alternative in link_names and alternative not in used_names:
-            return alternative
+    for candidate in candidates:
+        if candidate in link_names and candidate not in used_names:
+            return candidate
 
-    if plain_name not in used_names:
-        return plain_name
-
-    # No link name resolves this archive, so it is inert wherever it lands. A
-    # free suffix keeps it on disk without replacing another archive.
+    # No candidate matched the link line — fall back to plain name with
+    # a free collision suffix so the archive is still preserved on disk.
+    if base_name not in used_names:
+        return base_name
     suffix = 2
     while f"{base_name}_{suffix}" in used_names:
         suffix += 1
     return f"{base_name}_{suffix}"
 
 
-def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
-    """Copy all .a archives from IDF component directories into lib_dst.
+# Archives that copy-libs.sh explicitly skips via the
+# ``lname != "main" && lname != "arduino"`` guard.
+_COPY_LIBS_EXCLUDE = frozenset({"main", "arduino", "framework-arduinoespressif32"})
 
-    Archives are collected recursively so nested component sub-build outputs are
-    included. Duplicate archive basenames are kept with numeric suffixes
-    (for example, libfoo.a, libfoo_2.a, ...). build_script is the libs package's
-    pioarduino-build.py for the chip variant; the names it links are what the
-    copies are given, so rebuilt archives replace the stock ones instead of
-    landing beside them. Raises FileNotFoundError when lib_src does not exist or
-    is not a directory.
+
+def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
+    """Copy .a archives from IDF component build directories into lib_dst.
+
+    Mirrors the naming and filtering rules of esp32-arduino-lib-builder's
+    copy-libs.sh:
+
+    * Archives whose size is <= 8 bytes are skipped (empty/stub files that
+      ESP-IDF components sometimes produce alongside the real archive, e.g.
+      when WiFi is disabled and wpa_supplicant registers only headers).
+    * ``libmain.a`` and ``libarduino.a`` are skipped, matching copy-libs.sh's
+      ``lname != "main" && lname != "arduino"`` guard.
+    * Destination names are resolved against the link line in ``build_script``
+      (the chip variant's ``pioarduino-build.py``) so that archives whose
+      names were rewritten by the lib-builder (e.g.
+      ``libespressif__rmaker_common.a`` → ``libespressif__rmaker_common_2.a``)
+      land under the name the linker already expects.  When ``build_script``
+      is absent or unreadable the plain filename-collision scheme is used as
+      a fallback.
+
+    Archives are collected recursively so nested component sub-build outputs
+    (e.g. the vendored ``mbedtls/library/libmbedtls.a``) are included.
+    Raises ``FileNotFoundError`` when ``lib_src`` does not exist or is not a
+    directory.
     """
     lib_src = Path(lib_src)
     lib_dst = Path(lib_dst)
@@ -240,7 +284,6 @@ def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
         )
 
     link_names = read_link_library_names(build_script)
-    copied_names = {}
     used_names = set()
     for folder in sorted(lib_src.iterdir()):
         if not folder.is_dir():
@@ -255,14 +298,33 @@ def copy_idf_component_archives(lib_src, lib_dst, build_script=None):
                 if not filename.endswith(".a"):
                     continue
 
-                copied_names[filename] = copied_names.get(filename, 0) + 1
+                src_path = Path(root) / filename
+
+                # Mirror copy-libs.sh: skip archives that are <= 8 bytes.
+                # An IDF component registered with INCLUDE_DIRS only (no SRCS)
+                # produces an archive containing just the ``!<arch>\n`` magic
+                # header — exactly 8 bytes.  Copying that stub over the real
+                # prebuilt archive in the package silently corrupts the library.
+                if src_path.stat().st_size <= 8:
+                    print(f"Skipping {filename}: archive too small "
+                          f"({src_path.stat().st_size} bytes), likely a stub")
+                    continue
+
+                # Strip "lib" prefix and ".a" suffix to get the bare link name,
+                # matching copy-libs.sh: lname="${lname:3:${#lname}-5}"
                 prefix = "lib" if filename.startswith("lib") else ""
                 base_name = filename[len(prefix):-2]
-                link_name = resolve_link_library_name(
-                    base_name, copied_names[filename], link_names, used_names
-                )
+
+                # Mirror copy-libs.sh: skip "main" and "arduino".
+                if base_name in _COPY_LIBS_EXCLUDE:
+                    continue
+
+                # Resolve the destination name using the link line so that
+                # lib-builder renames (e.g. espressif__rmaker_common → _2)
+                # are reproduced correctly.
+                link_name = resolve_link_library_name(base_name, link_names, used_names)
                 used_names.add(link_name)
-                shutil.copyfile(Path(root) / filename, lib_dst / f"{prefix}{link_name}.a")
+                shutil.copyfile(src_path, lib_dst / f"{prefix}{link_name}.a")
 
 
 def get_requested_cli_targets():
@@ -347,6 +409,52 @@ if "arduino" in env.subst("$PIOFRAMEWORK"):
             shutil.copytree(ARDUINO_C61_DIR, ARDUINO_FRMWRK_C61_LIB_DIR, dirs_exist_ok=True)
 
     arduino_libs_mcu = str(ARDUINO_FRMWRK_LIB_DIR_PATH / chip_variant)
+
+    memory_type = None
+    try:
+        memory_type = env.GetProjectOption("board_build.memory_type", None)
+    except Exception:
+        pass
+    if not memory_type:
+        build_settings = board.get("build", {})
+        arduino_settings = build_settings.get("arduino", {})
+        memory_type = (
+            arduino_settings.get("memory_type")
+            or build_settings.get("memory_type")
+            or ((build_settings.get("flash_mode") or "dio") + "_qspi")
+        )
+
+    if flash_frequency:
+        speed_variant = Path(arduino_libs_mcu) / f"{memory_type}_{flash_frequency}m"
+        if speed_variant.is_dir():
+            memory_type = speed_variant.name
+
+    arduino_mem_var = Path(arduino_libs_mcu) / memory_type
+
+
+def restore_arduino_sdkconfig_template():
+    """Restore the chip and selected memory-variant sdkconfig templates."""
+    sdkconfig_template = Path(arduino_libs_mcu) / "sdkconfig"
+    sdkconfig_orig = Path(arduino_libs_mcu) / "sdkconfig.orig"
+    if not sdkconfig_orig.is_file():
+        if sdkconfig_template.is_file():
+            shutil.copy2(sdkconfig_template, sdkconfig_orig)
+    if sdkconfig_orig.is_file():
+        shutil.copy2(sdkconfig_orig, sdkconfig_template)
+
+    arduino_mem_var.mkdir(parents=True, exist_ok=True)
+    variant_template = arduino_mem_var / "sdkconfig"
+    variant_orig = arduino_mem_var / "sdkconfig.orig"
+    if not variant_orig.is_file():
+        # Memory variants can have their own stock config (for example
+        # qio_opi_120m), so seed the backup from that template instead of the
+        # chip-wide sdkconfig.orig.
+        variant_source = variant_template if variant_template.is_file() else sdkconfig_orig
+        if not variant_source.is_file():
+            return False
+        shutil.copy2(variant_source, variant_orig)
+    shutil.copy2(variant_orig, variant_template)
+    return True
 
 BUILD_DIR = env.subst("$BUILD_DIR")
 PROJECT_DIR = env.subst("$PROJECT_DIR")
@@ -874,7 +982,7 @@ def HandleArduinoIDFsettings(env):
             print("Error: Arduino framework required for sdkconfig processing")
             return
         """Write the final sdkconfig.defaults file with checksum."""
-        sdkconfig_src = str(Path(arduino_libs_mcu) / "sdkconfig")
+        sdkconfig_src = str(arduino_mem_var / "sdkconfig")
         sdkconfig_dst = str(Path(PROJECT_DIR) / "sdkconfig.defaults")
         if not os.path.isfile(sdkconfig_src):
             sys.stderr.write(f"Error: Missing Arduino sdkconfig template at '{sdkconfig_src}'\n")
@@ -945,6 +1053,10 @@ def HandleArduinoIDFsettings(env):
         print("*** Apply board-specific settings to IDF sdkconfig.defaults ***")
     else:
         print("*** Add \"custom_sdkconfig\" settings to IDF sdkconfig.defaults ***")
+
+    # Preserve the package template on the first pass, then reset it before
+    # every merge so earlier custom builds cannot accumulate settings.
+    restore_arduino_sdkconfig_template()
     
     # Build complete configuration
     idf_config_flags = build_idf_config_flags()
@@ -1008,6 +1120,7 @@ if flag_custom_sdkonfig == True and "arduino" in env.subst("$PIOFRAMEWORK") and 
         BUILD_FLAGS="",
         BUILD_UNFLAGS="",
         LINKFLAGS="",
+        SRC_FILTER="-<*>",
         PIOFRAMEWORK="arduino",
         ARDUINO_LIB_COMPILE_FLAG="Build",
     )
@@ -1205,17 +1318,26 @@ def load_target_configurations(cmake_codemodel, cmake_api_reply_dir):
 
 
 def build_library(
-    default_env, lib_config, project_src_dir, prepend_dir=None, debug_allowed=True
+    default_env,
+    lib_config,
+    project_src_dir,
+    prepend_dir=None,
+    debug_allowed=True,
+    extra_obj_files=None
 ):
+    extra_obj_files = extra_obj_files or []
+
     lib_name = lib_config["nameOnDisk"]
     lib_path = lib_config["paths"]["build"]
+
     if prepend_dir:
         lib_path = str(Path(prepend_dir) / lib_path)
     lib_objects = compile_source_files(
         lib_config, default_env, project_src_dir, prepend_dir, debug_allowed
     )
     return default_env.Library(
-        target=str(Path("$BUILD_DIR") / lib_path / lib_name), source=lib_objects
+        target=str(Path("$BUILD_DIR") / lib_path / lib_name),
+        source=lib_objects + extra_obj_files,
     )
 
 
@@ -1590,9 +1712,13 @@ def generate_project_ld_script(sdk_config, ignore_targets=None):
 
     framework_version_list = [int(v) for v in get_framework_version().split(".")]
     if framework_version_list[:2] > [5, 2]:
-        initial_ld_script = preprocess_linker_file(
+        initial_ld_script = preprocess_linker_script(
             initial_ld_script,
             str(Path(BUILD_DIR) / "esp-idf" / "esp_system" / "ld" / linker_script_name),
+            [
+                str(Path(BUILD_DIR) / "config"),
+                str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld"),
+            ],
         )
 
     ld_script = env.Command(
@@ -1710,6 +1836,107 @@ def _fix_component_relative_include(config, build_flags, source_index):
     build_flags = build_flags.replace("..", os.path.dirname(source_file_path) + "/..")
     return build_flags
 
+# C++ Flag Leak Workaround
+_CPP_ONLY_FLAGS = {"-fpermissive", "-fvisibility-inlines-hidden", "-Weffc++"}
+_C_ONLY_FLAGS = set()
+
+_f_cpp_flags = [
+    "elide-constructors", "rtti", "exceptions", "strict-enums",
+    "use-cxa-atexit", "threadsafe-statics", "implicit-templates",
+    "sized-deallocation"
+]
+
+_w_cpp_flags = [
+    "non-virtual-dtor", "delete-non-virtual-dtor", "overloaded-virtual",
+    "old-style-cast", "useless-cast", "sign-promo", "reorder",
+    "ctor-dtor-privacy", "noexcept", "strict-null-sentinel",
+    "zero-as-null-pointer-constant", "catch-value", "conditionally-supported",
+    "multiple-inheritance", "virtual-inheritance", "templates"
+]
+
+# Standard C-only warning flags that throw errors if passed to g++
+_w_c_flags = [
+    "strict-prototypes", "missing-prototypes", "implicit-function-declaration",
+    "error-implicit-function-declaration", "implicit-int", "declaration-after-statement",
+    "pointer-sign", "old-style-definition", "nested-externs", "traditional", 
+    "traditional-conversion", "jump-misses-init", "override-init",
+    "c90-c99-compat", "c99-c11-compat", "old-style-declaration"
+]
+
+# Generate all permutations (-f vs -fno-, and -W vs -Wno- vs -Werror=)
+for f in _f_cpp_flags:
+    _CPP_ONLY_FLAGS.add(f"-f{f}")
+    _CPP_ONLY_FLAGS.add(f"-fno-{f}")
+
+for w in _w_cpp_flags:
+    _CPP_ONLY_FLAGS.add(f"-W{w}")
+    _CPP_ONLY_FLAGS.add(f"-Wno-{w}")
+    _CPP_ONLY_FLAGS.add(f"-Werror={w}")
+
+for w in _w_c_flags:
+    _C_ONLY_FLAGS.add(f"-W{w}")
+    _C_ONLY_FLAGS.add(f"-Wno-{w}")
+    _C_ONLY_FLAGS.add(f"-Werror={w}")
+
+
+def _is_cpp_only(flag):
+    if isinstance(flag, (list, tuple)):
+        flag = flag[0]
+    
+    if flag in _CPP_ONLY_FLAGS:
+        return True
+
+    # Fast prefix checks for dynamic flags (like -Wc++11-compat or -std=c++11)
+    if (
+        flag.startswith("-Wc++")
+        or flag.startswith("-Wno-c++")
+        or flag.startswith("-Werror=c++")
+    ):
+        return True
+        
+    return False
+
+
+def _is_c_only(flag):
+    if isinstance(flag, (list, tuple)):
+        flag = flag[0]
+        
+    if flag in _C_ONLY_FLAGS:
+        return True
+        
+    # Catch C standards (e.g., -std=c99, -std=gnu11) but avoid C++ standards (-std=c++11)
+    if flag.startswith("-std=") and "++" not in flag:
+        return True
+
+    return False
+
+
+def parse_flag_extended(env, build_flags):
+    parsed = env.ParseFlags(build_flags)
+
+    new_cflags = parsed.get("CFLAGS", [])
+    new_cxxflags = parsed.get("CXXFLAGS", [])
+    new_ccflags = []
+
+    # Rebuilding the lists is significantly faster
+    for flag in parsed.get("CCFLAGS", []):
+        if _is_cpp_only(flag):
+            # It's a C++ flag, route it to CXXFLAGS if not already there
+            if flag not in new_cxxflags:
+                new_cxxflags.append(flag)
+        elif _is_c_only(flag):
+            # It's a C-only flag, route it to CFLAGS
+            if flag not in new_cflags:
+                new_cflags.append(flag)
+        else:
+            # It's safe for BOTH C and C++ (e.g., -O2, -g, -Wall), keep it in CCFLAGS
+            new_ccflags.append(flag)
+
+    parsed["CCFLAGS"] = new_ccflags
+    parsed["CXXFLAGS"] = new_cxxflags
+    parsed["CFLAGS"] = new_cflags
+    return parsed
+
 
 def prepare_build_envs(config, default_env, debug_allowed=True):
     import shlex
@@ -1763,7 +1990,7 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
                     source_index = cg.get("sourceIndexes")[0]
                     build_flags = _fix_component_relative_include(
                         config, build_flags, source_index)
-                parsed_flags = build_env.ParseFlags(build_flags)
+                parsed_flags = parse_flag_extended(build_env, build_flags)
                 build_env.AppendUnique(**parsed_flags)
                 if cg.get("language", "") == "ASM":
                     build_env.AppendUnique(ASPPFLAGS=parsed_flags.get("CCFLAGS", []))
@@ -1986,8 +2213,9 @@ def get_lib_ignore_components():
         return []
 
 
-def find_lib_deps(components_map, elf_config, link_args, ignore_components=None):
+def find_lib_deps(components_map, elf_config, link_args=None, ignore_components=None):
     ignore_components = ignore_components or []
+    link_args = link_args or {}
     ignore_set = set(ignore_components)
     result = []
     for d in elf_config.get("dependencies", []):
@@ -2016,11 +2244,13 @@ def find_lib_deps(components_map, elf_config, link_args, ignore_components=None)
     return result
 
 
+
 def build_bootloader(sdk_config):
     bootloader_src_dir = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject")
+    bootloader_build_dir = str(Path(BUILD_DIR) / "bootloader")
     code_model = get_cmake_code_model(
         bootloader_src_dir,
-        str(Path(BUILD_DIR) / "bootloader"),
+        bootloader_build_dir,
         [
             "-DIDF_TARGET=" + idf_variant,
             "-DPYTHON_DEPS_CHECKED=1",
@@ -2057,6 +2287,43 @@ def build_bootloader(sdk_config):
         target_configs, ["STATIC_LIBRARY", "OBJECT_LIBRARY"]
     )
 
+    framework_version_list = [int(v) for v in get_framework_version().split(".")]
+    if framework_version_list[:2] >= [6, 0]:
+        # For IDF 6.0+, the bootloader linker scripts are .ld.in templates
+        # (bootloader.memory.ld.in and bootloader.sections.ld.in) that CMake
+        # would normally preprocess via its own CUSTOM_COMMAND targets.
+        # Since PlatformIO does not run the ninja build for the bootloader,
+        # we preprocess them here via SCons instead.
+        #
+        # bootloader.sections.ld.in includes bootloader.sections.common.ld
+        # which lives in the parent ld/ directory, so that directory must be
+        # in the include path alongside the chip-specific subdirectory.
+        ld_src_dir = str(
+            Path(bootloader_src_dir) / "main" / "ld"
+        )
+        ld_chip_dir = str(Path(ld_src_dir) / idf_variant)
+        bootloader_config_dir = str(Path(BUILD_DIR) / "bootloader" / "config")
+
+        for ld_in_name in ("bootloader.memory.ld.in", "bootloader.sections.ld.in"):
+            ld_in_path = str(Path(ld_chip_dir) / ld_in_name)
+            if not os.path.isfile(ld_in_path):
+                continue
+            ld_out_name = ld_in_name[:-3]  # strip ".in"
+            ld_out_path = str(Path(BUILD_DIR) / "bootloader" / "ld" / ld_out_name)
+            preprocessed = preprocess_linker_script(
+                ld_in_path,
+                ld_out_path,
+                [
+                    bootloader_config_dir,
+                    ld_src_dir,       # parent ld/ dir: needed for bootloader.sections.common.ld
+                    ld_chip_dir,      # chip-specific dir: needed for any local includes
+                ],
+            )
+            env.Depends(
+                str(Path("$BUILD_DIR") / "bootloader.elf"),
+                preprocessed,
+            )
+
     # Note: By default the size of bootloader is limited to 0x2000 bytes,
     # in debug mode the footprint size can be easily grow beyond this limit
     build_components(
@@ -2073,82 +2340,7 @@ def build_bootloader(sdk_config):
     )
 
     bootloader_env.MergeFlags(link_args)
-    
-    # Handle ESP-IDF 6.0 linker script preprocessing for .ld.in files
-    # In bootloader context, only .ld.in templates exist and need preprocessing
-    processed_extra_flags = []
-    
-    # Bootloader preprocessing configuration
-    bootloader_config_dir = str(Path(BUILD_DIR) / "bootloader" / "config")
-    bootloader_extra_includes = [
-        str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant)
-    ]
-
-    i = 0
-    while i < len(extra_flags):
-        if extra_flags[i] == "-T" and i + 1 < len(extra_flags):
-            linker_script = extra_flags[i + 1]
-            
-            # Process .ld.in templates directly
-            if linker_script.endswith(".ld.in"):
-                script_name = os.path.basename(linker_script).replace(".ld.in", ".ld")
-                target_script = str(Path(BUILD_DIR) / "bootloader" / script_name)
-                
-                preprocessed_script = preprocess_linker_file(
-                    linker_script,
-                    target_script,
-                    config_dir=bootloader_config_dir,
-                    extra_include_dirs=bootloader_extra_includes
-                )
-                
-                bootloader_env.Depends("$BUILD_DIR/bootloader.elf", preprocessed_script)
-                processed_extra_flags.extend(["-T", target_script])
-            # Handle .ld files - prioritize using original scripts when available
-            elif linker_script.endswith(".ld"):
-                script_basename = os.path.basename(linker_script)
-                
-                # Check if the original .ld file exists in framework and use it directly
-                original_script_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / script_basename)
-                
-                if os.path.isfile(original_script_path):
-                    # Use the original script directly - no preprocessing needed
-                    processed_extra_flags.extend(["-T", original_script_path])
-                else:
-                    # Only generate from template if no original .ld file exists
-                    script_name_in = script_basename.replace(".ld", ".ld.in")
-                    bootloader_script_in_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / script_name_in)
-                    
-                    # ESP32-P4 specific: Check for bootloader.rev3.ld.in
-                    if idf_variant == "esp32p4" and chip_variant == "esp32p4" and script_basename == "bootloader.ld":
-                        bootloader_rev3_path = str(Path(FRAMEWORK_DIR) / "components" / "bootloader" / "subproject" / "main" / "ld" / idf_variant / "bootloader.rev3.ld.in")
-                        if os.path.isfile(bootloader_rev3_path):
-                            bootloader_script_in_path = bootloader_rev3_path
-                    
-                    # Preprocess the .ld.in template to generate the .ld file
-                    if os.path.isfile(bootloader_script_in_path):
-                        target_script = str(Path(BUILD_DIR) / "bootloader" / script_basename)
-                        
-                        preprocessed_script = preprocess_linker_file(
-                            bootloader_script_in_path,
-                            target_script,
-                            config_dir=bootloader_config_dir,
-                            extra_include_dirs=bootloader_extra_includes
-                        )
-                        
-                        bootloader_env.Depends("$BUILD_DIR/bootloader.elf", preprocessed_script)
-                        processed_extra_flags.extend(["-T", target_script])
-                    else:
-                        # Pass through if neither original nor template found (e.g., ROM scripts)
-                        processed_extra_flags.extend(["-T", linker_script])
-            else:
-                # Pass through any other linker flags unchanged
-                processed_extra_flags.extend(["-T", linker_script])
-            i += 2
-        else:
-            processed_extra_flags.append(extra_flags[i])
-            i += 1
-    
-    bootloader_env.Append(LINKFLAGS=processed_extra_flags)
+    bootloader_env.Append(LINKFLAGS=extra_flags)
     bootloader_libs = find_lib_deps(components_map, elf_config, link_args)
 
     bootloader_env.Prepend(__RPATH="-Wl,--start-group ")
@@ -2244,6 +2436,26 @@ def find_default_component(target_configs):
     env.Exit(1)
 
 
+def build_tfpsacrypto(
+    default_env,
+    framework_components_map,
+    tfpsacrypto_config,
+    project_src_dir
+):
+    lib_deps = find_lib_deps(framework_components_map, tfpsacrypto_config)
+
+    extra_obj_files = []
+    for lib_dep in lib_deps:
+        extra_obj_files.extend(lib_dep[0].sources)
+
+    return build_library(
+        default_env,
+        tfpsacrypto_config,
+        project_src_dir,
+        extra_obj_files=extra_obj_files,
+    )
+
+
 def create_version_file():
     version_file = str(Path(FRAMEWORK_DIR) / "version.txt")
     if not os.path.isfile(version_file):
@@ -2328,73 +2540,63 @@ def get_app_partition_offset(pt_table, pt_offset):
     return factory_app_params.get("offset", "0x10000")
 
 
-def preprocess_linker_file(src_ld_script, target_ld_script, config_dir=None, extra_include_dirs=None):
+def preprocess_linker_script(source_script, target_script, extra_include_dirs=None):
     """
-    Preprocess a linker script file (.ld.in) to generate the final .ld file.
-    Supports both IDF 5.x (linker_script_generator.cmake) and IDF 6.x (linker_script_preprocessor.cmake).
-    
+    Preprocess a linker script template (.ld.in) to generate the final .ld file
+    using the ESP-IDF version's CMake preprocessing script.
+
     Args:
-        src_ld_script: Source .ld.in file path
-        target_ld_script: Target .ld file path
-        config_dir: Configuration directory (defaults to BUILD_DIR/config for main app)
-        extra_include_dirs: Additional include directories (list)
+        source_script: Source .ld.in file path
+        target_script: Target .ld file path
+        extra_include_dirs: List of include directories passed as -I flags to
+                            the C preprocessor via -DCFLAGS
     """
-    if config_dir is None:
-        config_dir = str(Path(BUILD_DIR) / "config")
-    
-    # Convert all paths to forward slashes for CMake compatibility on Windows
-    config_dir = fs.to_unix_path(config_dir)
-    src_ld_script = fs.to_unix_path(src_ld_script)
-    target_ld_script = fs.to_unix_path(target_ld_script)
-    
-    # Check IDF version to determine which CMake script to use
+    extra_include_dirs = extra_include_dirs or []
+
     framework_version_list = [int(v) for v in get_framework_version().split(".")]
-    
-    # IDF 6.0+ uses linker_script_preprocessor.cmake with CFLAGS approach
-    if framework_version_list[0] >= 6:
-        include_dirs = [f'"{config_dir}"']
-        include_dirs.append(f'"{fs.to_unix_path(str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld"))}"')
-        
-        if extra_include_dirs:
-            include_dirs.extend(f'"{fs.to_unix_path(dir_path)}"' for dir_path in extra_include_dirs)
-        
-        cflags_value = "-I" + " -I".join(include_dirs)
-        
-        return env.Command(
-            target_ld_script,
-            src_ld_script,
-            env.VerboseAction(
-                " ".join([
-                    f'"{CMAKE_DIR}"',
-                    '-DCC="$CC"',
-                    f'-DSOURCE="{src_ld_script}"',
-                    f'-DTARGET="{target_ld_script}"',
-                    f'-DCFLAGS="{cflags_value}"',
-                    "-P",
-                    f'"{fs.to_unix_path(str(Path(FRAMEWORK_DIR) / "tools" / "cmake" / "linker_script_preprocessor.cmake"))}"',
-                ]),
-                "Generating LD script $TARGET",
+    if framework_version_list[:2] < [6, 0]:
+        # IDF 5.3-5.5 generates this script during its CMake configuration.
+        # linker_script_preprocessor.cmake is only available in IDF 6.x+.
+        cmd = [
+            CMAKE_DIR,
+            "-DCC=%s" % os.path.join(TOOLCHAIN_DIR, "bin", "$CC"),
+            "-DSOURCE=$SOURCE",
+            "-DTARGET=$TARGET",
+            "-DCONFIG_DIR=%s" % fs.to_unix_path(str(Path(BUILD_DIR) / "config")),
+            "-DLD_DIR=%s" % fs.to_unix_path(
+                str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld")
             ),
-        )
-    else:
-        # IDF 5.x: Use legacy linker_script_generator.cmake method
+            "-P",
+            fs.to_unix_path(str(
+                Path("$BUILD_DIR") / "esp-idf" / "esp_system" / "ld"
+                / "linker_script_generator.cmake"
+            )),
+        ]
         return env.Command(
-            target_ld_script,
-            src_ld_script,
-            env.VerboseAction(
-                " ".join([
-                    f'"{CMAKE_DIR}"',
-                    '-DCC="$CC"',
-                    "-DSOURCE=$SOURCE",
-                    "-DTARGET=$TARGET",
-                    f'-DCONFIG_DIR="{config_dir}"',
-                    f'-DLD_DIR="{str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld")}"',
-                    "-P",
-                    f'"{str(Path("$BUILD_DIR") / "esp-idf" / "esp_system" / "ld" / "linker_script_generator.cmake")}"',
-                ]),
-                "Generating LD script $TARGET",
-            ),
+            target_script,
+            source_script,
+            env.VerboseAction(" ".join(cmd), "Generating LD script $TARGET"),
         )
+
+    cmd = [
+        CMAKE_DIR,
+        "-DCC=%s" % os.path.join(TOOLCHAIN_DIR, "bin", "$CC"),
+        "-DSOURCE=$SOURCE",
+        "-DTARGET=$TARGET",
+        '"-DCFLAGS=%s"' % " ".join(
+            '-I\\"%s\\"' % fs.to_unix_path(inc) for inc in extra_include_dirs
+        ),
+        "-P",
+        fs.to_unix_path(str(
+            Path(FRAMEWORK_DIR) / "tools" / "cmake" / "linker_script_preprocessor.cmake"
+        )),
+    ]
+    return env.Command(
+        target_script,
+        source_script,
+        env.VerboseAction(" ".join(cmd), "Generating LD script $TARGET"),
+    )
+
 
 
 def generate_mbedtls_bundle(sdk_config):
@@ -2452,16 +2654,12 @@ def _get_uv_exe():
 def _get_python_deps():
     """Get the required Python dependencies for ESP-IDF"""
     deps = {
-        # https://github.com/platformio/platform-espressif32/issues/635
-        "cryptography": "~=44.0.0",
+        # update Windows ARM64 cryptography when there is a wheel again in actual version
+        "cryptography": ">=46.0.7,<47.0.0" if not WINDOWS_ARM64 else "==46.0.3",
         "pyparsing": ">=3.1.0,<4",
-        "idf-component-manager": "~=2.4.11",
-        "esp-idf-kconfig": "~=3.7.0"
+        "idf-component-manager": "~=3.1.0",
+        "esp-idf-kconfig": "~=3.11.0"
     }
-
-    if IS_WINDOWS:
-        deps["windows-curses"] = ">=2.4.2"
-
     return deps
 
 
@@ -2667,9 +2865,13 @@ if not board.get("build.ldscript", ""):
 
     framework_version_list = [int(v) for v in get_framework_version().split(".")]
     if framework_version_list[:2] > [5, 2]:
-        initial_ld_script = preprocess_linker_file(
+        initial_ld_script = preprocess_linker_script(
             initial_ld_script,
-            str(Path(BUILD_DIR) / "esp-idf" / "esp_system" / "ld" / "memory.ld.in")
+            str(Path(BUILD_DIR) / "esp-idf" / "esp_system" / "ld" / "memory.ld.in"),
+            [
+                str(Path(BUILD_DIR) / "config"),
+                str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld"),
+            ],
         )
 
     linker_script = env.Command(
@@ -2701,7 +2903,7 @@ if not os.path.isdir(PROJECT_SRC_DIR):
     )
     env.Exit(1)
 
-if env.subst("$SRC_FILTER"):
+if env.subst("$SRC_FILTER") and not flag_custom_sdkonfig:
     print(
         (
             "Warning: the 'src_filter' option cannot be used with ESP-IDF. Select source "
@@ -2803,7 +3005,7 @@ default_config_name = find_default_component(target_configs)
 framework_components_map = get_components_map(
     target_configs,
     ["STATIC_LIBRARY", "OBJECT_LIBRARY"],
-    [project_target_name, default_config_name],
+    [project_target_name, default_config_name, "tfpsacrypto"],
 )
 
 project_config = target_configs.get(project_target_name, {})
@@ -2818,6 +3020,16 @@ link_args = extract_link_args(elf_config)
 env.MergeFlags(project_flags)
 
 build_components(env, framework_components_map, PROJECT_DIR)
+
+# A special case for the `tfpsacrypto` lib that has implicit dependencies
+# that merged at interim step
+
+tfpsacrypto_config = target_configs.get("tfpsacrypto", {})
+if tfpsacrypto_config:
+    tfpsacrypto_lib = build_tfpsacrypto(
+        env, framework_components_map, tfpsacrypto_config, PROJECT_SRC_DIR
+    )
+    env.Depends(project_ld_script, tfpsacrypto_lib)
 
 if not elf_config:
     sys.stderr.write("Error: Couldn't load the main firmware target of the project\n")
@@ -2945,12 +3157,12 @@ env.Prepend(
     CPPDEFINES=project_defines,
     ESPIDF_PYTHONEXE=get_python_exe(),
     LINKFLAGS=extra_flags,
-    LIBS=libs,
+    LIBS=libs + ([tfpsacrypto_lib] if tfpsacrypto_config else []),
     FLASH_EXTRA_IMAGES=[
         (
             board.get(
                 "upload.bootloader_offset",
-                "0x1000" if mcu in ["esp32", "esp32s2"] else ("0x2000" if mcu in ["esp32c5", "esp32p4"] else "0x0"),
+                "0x1000" if mcu in ["esp32", "esp32s2"] else ("0x2000" if mcu in ["esp32c5", "esp32p4", "esp32s31"] else "0x0"),
             ),
             str(Path("$BUILD_DIR") / "bootloader.bin"),
         ),
@@ -3069,46 +3281,66 @@ if os.path.isdir(ulp_dir) and os.listdir(ulp_dir) and mcu not in ("esp32c2", "es
 if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PIOFRAMEWORK")):
     def idf_lib_copy(source, target, env):
         def _replace_copy(src, dst):
+            """Copy src over dst. True when dst now holds it, False when not."""
             dst_p = Path(dst)
             dst_p.parent.mkdir(parents=True, exist_ok=True)
             try:
                 shutil.copy2(src, dst)
-            except (OSError, IOError):
-                # Gracefully handle missing source files (e.g., PSRAM libs in non-PSRAM builds)
-                # This is expected when copying variant-specific libraries
-                pass
+                return True
+            except FileNotFoundError:
+                # A missing source is routine: a variant-specific library this
+                # build does not produce, such as the PSRAM ones in a non-PSRAM
+                # build. False says dst was left alone, so a caller moving a
+                # file keeps the copy it has rather than dropping both.
+                return False
             except Exception as e:
+                # Anything else -- permissions, a full disk -- leaves the
+                # package half converted, so say so rather than let the next
+                # build link whatever survived.
                 print(f"Warning: Failed to copy {src} to {dst}: {e}")
+                return False
         env_build = str(Path(env["PROJECT_BUILD_DIR"]) / env["PIOENV"])
         sdkconfig_h_path = str(Path(env_build) / "config" / "sdkconfig.h")
         arduino_libs = str(Path(ARDUINO_FRMWRK_LIB_DIR))
         lib_src = str(Path(env_build) / "esp-idf")
         lib_dst = str(Path(arduino_libs) / chip_variant / "lib")
-        build_script = str(Path(arduino_libs) / chip_variant / "pioarduino-build.py")
         ld_dst = str(Path(arduino_libs) / chip_variant / "ld")
-        mem_var = str(Path(arduino_libs) / chip_variant / board.get("build.arduino.memory_type", (board.get("build.flash_mode", "dio") + "_qspi")))
-        # Ensure destinations exist
+        mem_var = str(arduino_mem_var)
         for d in (lib_dst, ld_dst, mem_var, str(Path(mem_var) / "include")):
             Path(d).mkdir(parents=True, exist_ok=True)
+        # Names the package keeps per memory type rather than in the shared
+        # lib/ and ld/; the set differs per chip. LIBPATH searches lib/ and ld/
+        # ahead of <memory_type>, so one of these in a shared directory shadows
+        # the copy every other memory type links. Read before this build writes
+        # there, so the set describes the package and not the run.
+        per_memory_type = {p.name for p in Path(mem_var).iterdir() if p.is_file()}
         # Walk each component directory recursively so that nested archives
         # (e.g. mbedtls vendored libraries in mbedtls/mbedtls/library/) are
-        # also copied back into the package.  The variant's pioarduino-build.py
-        # supplies the names the link line resolves, so each rebuilt archive
-        # overwrites the stock one it stands in for.
-        copy_idf_component_archives(lib_src, lib_dst, build_script)
+        # also copied back into the package.  When two archives share the same
+        # filename the duplicate is renamed with a numeric suffix (_2, _3, …),
+        # mirroring the rename logic used by esp32-arduino-lib-builder's
+        # copy-libs.sh so the package stays consistent.
+        copy_idf_component_archives(
+            lib_src, lib_dst,
+            build_script=str(Path(arduino_libs) / chip_variant / "pioarduino-build.py"),
+        )
 
-        _replace_copy(str(Path(lib_dst) / "libspi_flash.a"), str(Path(mem_var) / "libspi_flash.a"))
         _replace_copy(str(Path(env_build) / "memory.ld"), str(Path(ld_dst) / "memory.ld"))
         _replace_copy(str(Path(env_build) / "sections.ld"), str(Path(ld_dst) / "sections.ld"))
-        if sdk_config.get("CONFIG_SOC_PSRAM_DMA_CAPABLE", False):
-            _replace_copy(str(Path(lib_dst) / "libesp_psram.a"), str(Path(mem_var) / "libesp_psram.a"))
-            _replace_copy(str(Path(lib_dst) / "libesp_system.a"), str(Path(mem_var) / "libesp_system.a"))
-            _replace_copy(str(Path(lib_dst) / "libfreertos.a"), str(Path(mem_var) / "libfreertos.a"))
-            _replace_copy(str(Path(lib_dst) / "libbootloader_support.a"), str(Path(mem_var) / "libbootloader_support.a"))
-            _replace_copy(str(Path(lib_dst) / "libesp_hw_support.a"), str(Path(mem_var) / "libesp_hw_support.a"))
-            _replace_copy(str(Path(lib_dst) / "libesp_lcd.a"), str(Path(mem_var) / "libesp_lcd.a"))
+
+        # Move the rebuilt per-memory-type files to <memory_type>/, where the
+        # package keeps them, clearing any shared copy whichever build put it
+        # there.
+        for shared_dst in (lib_dst, ld_dst):
+            for name in sorted(per_memory_type):
+                shared_file = Path(shared_dst) / name
+                if not shared_file.is_file():
+                    continue
+                if _replace_copy(str(shared_file), str(Path(mem_var) / name)):
+                    shared_file.unlink()
 
         shutil.copyfile(sdkconfig_h_path, str(Path(mem_var) / "include" / "sdkconfig.h"))
+        shutil.copyfile(str(Path(env.subst("$PROJECT_DIR")) / ("sdkconfig." + env["PIOENV"])), str(Path(mem_var) / "sdkconfig"))
         if not bool(os.path.isfile(str(Path(arduino_libs) / chip_variant / "sdkconfig.orig"))):
             shutil.move(str(Path(arduino_libs) / chip_variant / "sdkconfig"), str(Path(arduino_libs) / chip_variant / "sdkconfig.orig"))
         shutil.copyfile(str(Path(env.subst("$PROJECT_DIR")) / ("sdkconfig." + env["PIOENV"])), str(Path(arduino_libs) / chip_variant / "sdkconfig"))
@@ -3143,6 +3375,10 @@ if ("arduino" in env.subst("$PIOFRAMEWORK")) and ("espidf" not in env.subst("$PI
                 "*** Starting Arduino compile %s with custom libraries ***" % pio_cmd,
             )
         )
+        if flag_custom_sdkonfig:
+            # idf_lib_copy writes the generated config into the package so the
+            # child build can use it. Restore the stock template afterward.
+            restore_arduino_sdkconfig_template()
         if flag_custom_component_add == True or flag_custom_component_remove == True:
             try:
                 shutil.copy(str(Path(ARDUINO_FRAMEWORK_DIR) / "idf_component.yml.orig"), str(Path(ARDUINO_FRAMEWORK_DIR) / "idf_component.yml"))

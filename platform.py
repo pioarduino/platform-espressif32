@@ -17,8 +17,8 @@ import sys
 from platformio.compat import IS_WINDOWS
 
 pyver = sys.version_info
-allowed = (3, 10) <= pyver < (3, 15)
-supported = "3.10, 3.11, 3.12, 3.13, 3.14"
+allowed = (3, 10) <= pyver < (3, 16)
+supported = "3.10, 3.11, 3.12, 3.13, 3.14, 3.15"
 
 if not allowed:
     print(f"ERROR: Python version must be {supported}.", file=sys.stderr)
@@ -104,15 +104,13 @@ COMMON_IDF_PACKAGES = [
 
 CHECK_PACKAGES = [
     "tool-cppcheck",
-    "tool-clangtidy",
-    "tool-pvs-studio"
+    "tool-clangtidy"
 ]
 
-# System-specific configuration
-# Set Platformio env var to use windows_amd64 for all windows architectures
-# only windows_amd64 native espressif toolchains are available
-if IS_WINDOWS:
-    os.environ["PLATFORMIO_SYSTEM_TYPE"] = "windows_amd64"
+FORMAT_PACKAGES = [
+    "tool-clang-format"
+]
+
 
 # exit without git
 if not shutil.which("git"):
@@ -140,51 +138,6 @@ def is_internet_available():
     """
     return has_internet_connection()
 
-
-def patch_file_downloader():
-    """Monkey-patch PlatformIO's FileDownloader to retry on transient HTTP errors."""
-    from platformio.package.download import FileDownloader
-    from platformio.package.exception import PackageException
-
-    # Skip if FileDownloader already has native retry support (platformio-core with RETRY)
-    if hasattr(FileDownloader, "RETRY"):
-        logger.debug("FileDownloader has native retry support, skipping monkey-patch")
-        return
-
-    if getattr(FileDownloader.__init__, "_patched", False):
-        return
-
-    original_init = FileDownloader.__init__
-
-    def patched_init(self, *args, **kwargs):
-        max_retries = 5
-        for attempt in range(max_retries):
-            try:
-                original_init(self, *args, **kwargs)
-                return
-            except PackageException as e:
-                if attempt < max_retries - 1:
-                    delay = 2 ** (attempt + 1)
-                    logger.warning(
-                        "Package download failed: %s. Retrying in %ds... (attempt %d/%d)",
-                        e, delay, attempt + 1, max_retries,
-                    )
-                    try:
-                        if hasattr(self, "_http_response") and self._http_response is not None:
-                            self._http_response.close()
-                        if hasattr(self, "_http_session"):
-                            self._http_session.close()
-                    except (AttributeError, OSError) as cleanup_err:
-                        logger.debug("Retry cleanup failed: %s", cleanup_err)
-                    time.sleep(delay)
-                else:
-                    raise
-
-    patched_init._patched = True
-    FileDownloader.__init__ = patched_init
-
-
-patch_file_downloader()
 
 def safe_file_operation(operation_func):
     """Decorator for safe filesystem operations with error handling."""
@@ -567,6 +520,17 @@ class Espressif32Platform(PlatformBase):
                 not status['has_tools_json']):
             return self._handle_existing_tool(tool_name, paths)
 
+        # Case 3: Package not yet downloaded - fetch skeleton then install
+        if status['has_idf_tools'] and not status['tool_exists']:
+            version = self.packages.get(tool_name, {}).get("version", "")
+            if version:
+                logger.info(f"Downloading {tool_name} ...")
+                pm.install(version)
+                # Re-check after download
+                status = self._check_tool_status(tool_name)
+                if status['has_tools_json']:
+                    return self._install_with_idf_tools(tool_name, paths, penv_python)
+
         logger.debug(f"Tool {tool_name} already configured")
         return True
 
@@ -587,6 +551,10 @@ class Espressif32Platform(PlatformBase):
 
         tl_path = f"file://{Path(IDF_TOOLS_PATH) / 'tools' / tool_name}"
         pm.install(tl_path)
+
+        # Record the installed location so get_package_dir() resolves immediately
+        # in this session, matching what _handle_existing_tool() does on later runs.
+        self.packages[tool_name]["version"] = paths['tool_path']
 
         logger.info(f"Tool {tool_name} successfully installed")
         return True
@@ -765,12 +733,31 @@ class Espressif32Platform(PlatformBase):
             logger.info("esp32_exception_decoder filter detected, installing tool-esp-rom-elfs")
             self.install_tool("tool-esp-rom-elfs")
 
-    def _configure_check_tools(self, variables: Dict) -> None:
+    def _configure_clang_format(self, variables: Dict, targets: List[str]) -> None:
+        """Install clang-format when enabled in platformio.ini or requested by its targets."""
+        value = variables.get("custom_clang_format", "")
+        if isinstance(value, bool):
+            enabled = value
+        elif isinstance(value, int):
+            enabled = bool(value)
+        else:
+            enabled = str(value).strip().lower() in ("1", "true", "yes", "on", "check", "write")
+        if not enabled:
+            enabled = any(
+                target in ("clangformat", "clangformat-write") for target in targets
+            )
+        if enabled:
+            for package in FORMAT_PACKAGES:
+                self.install_tool(package)
+
+    def _configure_check_tools(self, variables: Dict, targets: List[str]) -> None:
         """Configure static analysis and check tools based on configuration."""
         check_tools = variables.get("check_tool", [])
         self.install_tool("contrib-piohome")
-        if not check_tools:
+        if "check" not in targets and "check" not in sys.argv:
             return
+        if not check_tools:
+            check_tools = ["cppcheck"]
 
         for package in CHECK_PACKAGES:
             if any(tool in package for tool in check_tools):
@@ -943,7 +930,8 @@ class Espressif32Platform(PlatformBase):
                 self._install_common_idf_packages()
 
             self._configure_rom_elfs_for_exception_decoder(variables)
-            self._configure_check_tools(variables)
+            self._configure_clang_format(variables, targets)
+            self._configure_check_tools(variables, targets)
             self._configure_clangd_tool()
             self._handle_dfuutil_tool(variables)
 

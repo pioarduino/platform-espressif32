@@ -1,4 +1,4 @@
-name: CI Examples Arduino IDF 5.5.x based
+name: CI Examples Arduino IDF 5.5.6 based
 
 on:
   workflow_dispatch:      # Manually start a workflow
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-15]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         example:
           - "examples/arduino-blink"
           - "examples/arduino-fatfs"
@@ -24,7 +24,6 @@ jobs:
           - "examples/arduino-NimBLE-SampleScan"
           - "examples/arduino-matter-light"
           - "examples/arduino-matter-CHIPoBLEThread"
-          - "examples/tasmota"
           - "examples/espidf-arduino-matter-light"
           - "examples/espidf-arduino-blink"
           - "examples/espidf-arduino-littlefs"
@@ -42,14 +41,6 @@ jobs:
           - "examples/espidf-ulp-lp"
         exclude:
           - os: windows-latest
-            example: "examples/espidf-ulp"
-          - os: windows-latest
-            example: "examples/espidf-ulp-lp"
-          - os: windows-latest
-            example: "examples/espidf-ulp-riscv"
-          - os: windows-latest
-            example: "examples/espidf-arduino-C6-ULP-blink"
-          - os: windows-latest
             example: "examples/espidf-arduino-matter-light"
     runs-on: ${{ matrix.os }}
     steps:
@@ -57,7 +48,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.15"
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -67,11 +58,6 @@ jobs:
         run: |
           uv pip install --system pioarduino
           pio pkg install --global --platform file://.
-      - name: git clone Tasmota and add to examples
-        if: "matrix.example == 'examples/tasmota'"
-        run: |
-          git clone -b development --depth 1 https://github.com/arendst/Tasmota.git examples/tasmota
-          cp examples/tasmota_platformio_override.ini examples/tasmota/platformio_override.ini
       - name: Build examples
         env:
           PYTHONIOENCODING: utf-8
