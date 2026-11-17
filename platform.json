@@ -33,13 +33,13 @@
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/arduino-esp32/archive/master.zip"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.13/esp32-core-3.3.13.tar.xz"
     },
     "framework-arduinoespressif32-libs": {
       "type": "framework",
       "optional": true,
       "owner": "espressif",
-      "version": "https://github.com/espressif/esp32-arduino-lib-builder/releases/download/idf-release_v5.5/esp32-arduino-libs-idf-release_v5.5-a45de8cc-v1.zip"
+      "version": "https://github.com/espressif/arduino-esp32/releases/download/3.3.13/esp32-core-3.3.13-libs.tar.xz"
     },
     "framework-arduino-c2-skeleton-lib": {
       "type": "framework",
