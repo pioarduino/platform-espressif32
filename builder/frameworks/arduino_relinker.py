@@ -332,7 +332,7 @@ def _create_arduino_sdkconfig(sdkconfig_path, mcu):
 
     # MCU-specific options.
     # Single-core MCUs get CONFIG_FREERTOS_UNICORE=y;
-    # dual-core MCUs (esp32, esp32s3) omit the key entirely.
+    # dual-core MCUs (esp32, esp32s3, esp32s31) omit the key entirely.
     mcu_configs = {
         "esp32": ["CONFIG_IDF_TARGET_ESP32=y"],
         "esp32s2": [
@@ -340,6 +340,7 @@ def _create_arduino_sdkconfig(sdkconfig_path, mcu):
             "CONFIG_FREERTOS_UNICORE=y",
         ],
         "esp32s3": ["CONFIG_IDF_TARGET_ESP32S3=y"],
+        "esp32s31": ["CONFIG_IDF_TARGET_ESP32S31=y"],
         "esp32c2": [
             "CONFIG_IDF_TARGET_ESP32C2=y",
             "CONFIG_FREERTOS_UNICORE=y",
