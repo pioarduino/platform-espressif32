@@ -17,10 +17,10 @@ $ pio run
 $ pio run --target upload
 
 # Build specific environment
-$ pio run -e esp32-p4r3
+$ pio run -e esp32-p4-evboard
 
 # Upload firmware for the specific environment
-$ pio run -e esp32-p4r3 --target upload
+$ pio run -e esp32-p4-evboard --target upload
 
 # Clean build files
 $ pio run --target clean
