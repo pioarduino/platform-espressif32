@@ -17,10 +17,10 @@ $ pio run
 $ pio run --target upload
 
 # Build specific environment
-$ pio run -e esp32-s2-saola-1
+$ pio run -e esp32-p4r3
 
 # Upload firmware for the specific environment
-$ pio run -e esp32-s2-saola-1 --target upload
+$ pio run -e esp32-p4r3 --target upload
 
 # Clean build files
 $ pio run --target clean
