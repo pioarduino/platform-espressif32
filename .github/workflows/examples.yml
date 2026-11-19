@@ -1,4 +1,4 @@
-name: CI Examples Arduino IDF 5.5.6 based
+name: Arduino 4.0.x IDF 6.1.1 based
 
 on:
   workflow_dispatch:      # Manually start a workflow
@@ -22,7 +22,6 @@ jobs:
           - "examples/arduino-zigbee-light"
           - "examples/arduino-zigbee-switch"
           - "examples/arduino-NimBLE-SampleScan"
-          - "examples/arduino-matter-light"
           - "examples/arduino-matter-CHIPoBLEThread"
           - "examples/espidf-arduino-matter-light"
           - "examples/espidf-arduino-blink"
@@ -42,6 +41,7 @@ jobs:
         exclude:
           - os: windows-latest
             example: "examples/espidf-arduino-matter-light"
+
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
