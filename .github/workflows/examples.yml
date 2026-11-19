@@ -23,6 +23,7 @@ jobs:
           - "examples/arduino-zigbee-switch"
           - "examples/arduino-NimBLE-SampleScan"
           - "examples/arduino-matter-CHIPoBLEThread"
+          - "examples/arduino-matter-light"
           - "examples/espidf-arduino-matter-light"
           - "examples/espidf-arduino-blink"
           - "examples/espidf-arduino-littlefs"
@@ -48,7 +49,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.15"
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
