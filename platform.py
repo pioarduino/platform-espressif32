@@ -111,6 +111,11 @@ FORMAT_PACKAGES = [
     "tool-clang-format"
 ]
 
+# System-specific configuration
+# Set Platformio env var to use windows_amd64 for all windows architectures
+# only windows_amd64 native espressif toolchains are available
+if IS_WINDOWS:
+    os.environ["PLATFORMIO_SYSTEM_TYPE"] = "windows_amd64"
 
 # exit without git
 if not shutil.which("git"):
