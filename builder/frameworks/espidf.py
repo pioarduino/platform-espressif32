@@ -2034,7 +2034,10 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
                         config, build_flags, source_index)
                 if build_flags.startswith("-include "):
                     header = build_flags[len("-include "):].strip("\" ")
-                    build_env.AppendUnique(CCFLAGS=[("-include", header)])
+                    include_pair = ("-include", header)
+                    build_env.AppendUnique(CCFLAGS=[include_pair])
+                    if cg.get("language", "") == "ASM":
+                        build_env.AppendUnique(ASPPFLAGS=[include_pair])
                 else:
                     parsed_flags = parse_flag_extended(build_env, build_flags)
                     build_env.AppendUnique(**parsed_flags)
