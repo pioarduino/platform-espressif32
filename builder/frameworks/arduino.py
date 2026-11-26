@@ -533,3 +533,6 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
 
     build_script_path = str(Path(FRAMEWORK_DIR) / "tools" / "pioarduino-build.py")
     SConscript(build_script_path)
+
+    from arduino_link_libs import configure_arduino_link_libs
+    configure_arduino_link_libs(env, FRAMEWORK_DIR, chip_variant)
