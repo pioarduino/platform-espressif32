@@ -2374,6 +2374,7 @@ def build_bootloader(sdk_config):
                     bootloader_config_dir,
                     ld_src_dir,       # parent ld/ dir: needed for bootloader.sections.common.ld
                     ld_chip_dir,      # chip-specific dir: needed for any local includes
+                    str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld"),
                 ],
             )
             env.Depends(
@@ -2635,14 +2636,20 @@ def preprocess_linker_script(source_script, target_script, extra_include_dirs=No
             env.VerboseAction(" ".join(cmd), "Generating LD script $TARGET"),
         )
 
+    cflags_parts = []
+    if framework_version_list[:2] >= [6, 2]:
+        # IDF 6.2+ moved -C out of linker_script_preprocessor.cmake into caller CFLAGS
+        cflags_parts.append("-C")
+    cflags_parts.extend(
+        '-I\\"%s\\"' % fs.to_unix_path(inc) for inc in extra_include_dirs
+    )
+
     cmd = [
         CMAKE_DIR,
         "-DCC=%s" % os.path.join(TOOLCHAIN_DIR, "bin", "$CC"),
         "-DSOURCE=$SOURCE",
         "-DTARGET=$TARGET",
-        '"-DCFLAGS=%s"' % " ".join(
-            '-I\\"%s\\"' % fs.to_unix_path(inc) for inc in extra_include_dirs
-        ),
+        '"-DCFLAGS=%s"' % " ".join(cflags_parts),
         "-P",
         fs.to_unix_path(str(
             Path(FRAMEWORK_DIR) / "tools" / "cmake" / "linker_script_preprocessor.cmake"
