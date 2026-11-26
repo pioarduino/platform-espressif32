@@ -27,6 +27,10 @@
  */
 
 #include <Arduino.h>
+#define OTA_UPGRADE_MANUFACTURER 0x1001
+#define OTA_UPGRADE_IMAGE_TYPE 0x1011
+#define OTA_UPGRADE_RUNNING_FILE_VERSION 0x00000001
+
 #ifndef ZIGBEE_MODE_ED
 #error "Zigbee end device mode is not selected in Tools->Zigbee mode"
 #endif
