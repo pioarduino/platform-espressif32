@@ -535,4 +535,6 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
     SConscript(build_script_path)
 
     from arduino_link_libs import configure_arduino_link_libs
-    configure_arduino_link_libs(env, FRAMEWORK_DIR, chip_variant)
+    configure_arduino_link_libs(
+        env, FRAMEWORK_DIR, path_cache.framework_lib_dir, chip_variant
+    )

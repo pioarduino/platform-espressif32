@@ -32,12 +32,10 @@ class TestArduinoLinkLibs(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.framework = Path(self.temporary.name)
+        self.framework = Path(self.temporary.name) / "framework-arduinoespressif32"
+        self.framework_libs = Path(self.temporary.name) / "framework-arduinoespressif32-libs"
         self.matter_path = self.framework / "libraries" / "Matter"
-        self.archive = (
-            self.framework / "tools" / "esp32-arduino-libs" / "esp32c3"
-            / "lib" / "libbt.matter.a"
-        )
+        self.archive = self.framework_libs / "esp32c3" / "lib" / "libbt.matter.a"
 
     def configure(self, dependent=True, library_path=None, archive=True):
         if archive:
@@ -49,7 +47,7 @@ class TestArduinoLinkLibs(unittest.TestCase):
         env = FakeEnvironment(
             ["-lbt", "-lbtdm_app", "-lbt", "bt", "btbb"], [library]
         )
-        configure_arduino_link_libs(env, self.framework, "esp32c3")
+        configure_arduino_link_libs(env, self.framework, self.framework_libs, "esp32c3")
         env.ProcessProjectDeps()
         self.assertTrue(env.processed)
         return env["LIBS"]
@@ -69,6 +67,22 @@ class TestArduinoLinkLibs(unittest.TestCase):
     def test_ignores_other_libraries_named_matter(self):
         self.assertEqual(self.configure(library_path=self.framework / "other" / "Matter")[0], "-lbt")
 
+    def test_ignores_archive_outside_framework_libs_package(self):
+        old_archive = (
+            self.framework / "tools" / "esp32-arduino-libs" / "esp32c3"
+            / "lib" / "libbt.matter.a"
+        )
+        old_archive.parent.mkdir(parents=True)
+        old_archive.touch()
+        self.assertEqual(self.configure(archive=False)[0], "-lbt")
+
+    def test_preserves_normal_archive_without_framework_libs_package(self):
+        library = SimpleNamespace(is_dependent=True, path=self.matter_path)
+        env = FakeEnvironment(["-lbt"], [library])
+        configure_arduino_link_libs(env, self.framework, None, "esp32c3")
+        env.ProcessProjectDeps()
+        self.assertEqual(env["LIBS"], ["-lbt"])
+
     def test_selects_libraries_added_during_dependency_processing(self):
         self.archive.parent.mkdir(parents=True)
         self.archive.touch()
@@ -80,7 +94,7 @@ class TestArduinoLinkLibs(unittest.TestCase):
             env["LIBS"].extend(["-lbt", "-lbt"])
 
         env.ProcessProjectDeps = discover_dependencies
-        configure_arduino_link_libs(env, self.framework, "esp32c3")
+        configure_arduino_link_libs(env, self.framework, self.framework_libs, "esp32c3")
         env.ProcessProjectDeps()
         self.assertEqual(env["LIBS"], ["-lbt.matter", "-lbt.matter"])
 
