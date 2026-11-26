@@ -5,13 +5,20 @@ from pathlib import Path
 
 def create_zigbee_ota_image(source, target, env):
     defines = env.get("CPPDEFINES", [])
-    if isinstance(defines, dict):
-        names = set(defines)
-    else:
-        names = {
-            str(define[0] if isinstance(define, (tuple, list)) else define).split("=", 1)[0]
-            for define in defines
-        }
+    if isinstance(defines, str):
+        defines = defines.split()
+    elif isinstance(defines, (dict, tuple)):
+        defines = [defines]
+
+    names = set()
+    for define in defines:
+        if isinstance(define, dict):
+            names.update(str(name).split("=", 1)[0] for name in define)
+        elif isinstance(define, (tuple, list)):
+            if define:
+                names.add(str(define[0]).split("=", 1)[0])
+        elif define is not None:
+            names.add(str(define).split("=", 1)[0])
     mode = next((name for name in ("ZIGBEE_MODE_ED", "ZIGBEE_MODE_ZCZR") if name in names), None)
     if not mode:
         return

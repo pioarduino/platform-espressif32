@@ -56,6 +56,29 @@ class TestZigbeeOta(unittest.TestCase):
                 run.reset_mock()
 
     @patch("zigbee_ota.subprocess.run")
+    def test_normalizes_scons_cppdefines(self, run):
+        run.return_value.returncode = 0
+        for defines, mode in [
+            ("ZIGBEE_MODE_ED", "ZIGBEE_MODE_ED"),
+            ("OTHER ZIGBEE_MODE_ZCZR=1", "ZIGBEE_MODE_ZCZR"),
+            ({"ZIGBEE_MODE_ED": 1}, "ZIGBEE_MODE_ED"),
+            ([{"ZIGBEE_MODE_ZCZR": 1}], "ZIGBEE_MODE_ZCZR"),
+            (("ZIGBEE_MODE_ED", 1), "ZIGBEE_MODE_ED"),
+        ]:
+            with self.subTest(defines=defines):
+                env = FakeEnvironment(self.framework, self.root, defines)
+                create_zigbee_ota_image([], [self.binary], env)
+                run.assert_called_once()
+                self.assertIn(f"--zigbee-mode=-D{mode}", run.call_args.args[0])
+                run.reset_mock()
+
+    @patch("zigbee_ota.subprocess.run")
+    def test_dictionary_values_do_not_enable_zigbee(self, run):
+        env = FakeEnvironment(self.framework, self.root, [{"OTHER": "ZIGBEE_MODE_ED"}])
+        create_zigbee_ota_image([], [self.binary], env)
+        run.assert_not_called()
+
+    @patch("zigbee_ota.subprocess.run")
     def test_skips_when_zigbee_is_disabled(self, run):
         env = FakeEnvironment(self.framework, self.root, ["UNRELATED_DEFINE"])
         create_zigbee_ota_image([], [self.binary], env)
