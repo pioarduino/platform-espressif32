@@ -13,8 +13,7 @@ not use an LED or a decommissioning button.
 | ESP32-C5-DevKitC-1 | `c5-matter` | `c5-control` | Wi-Fi |
 | ESP32-H2-DevKitM-1 | `h2-matter` | `h2-control` | Thread |
 
-The project points to this platform checkout using `symlink://../..`. It
-requires an Arduino framework and matching prebuilt libraries that include
+It requires Arduino >= 4.0.0 with the matching prebuilt libraries that include
 Matter, CHIPoBLE, and, for the C5, `libespressif__esp_matter.wifi.a`. The
 Matter-specific Bluetooth archive is optional: the linker falls back to
 `libbt.a` when `libbt.matter.a` is absent.
