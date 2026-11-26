@@ -534,6 +534,9 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
     build_script_path = str(Path(FRAMEWORK_DIR) / "tools" / "pioarduino-build.py")
     SConscript(build_script_path)
 
+    from zigbee_ota import create_zigbee_ota_image
+    env["ARDUINO_ZIGBEE_OTA_ACTION"] = create_zigbee_ota_image
+
     if (arduino_lib_compile_flag == "Inactive" and
             not config.has_option(current_env_section, "custom_sdkconfig") and
             "espidf.custom_sdkconfig" not in board):

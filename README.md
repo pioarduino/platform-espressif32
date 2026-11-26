@@ -50,6 +50,11 @@ The Wiki is AI generated and insane detailed and accurate.
 
 # Features
 
+## Zigbee OTA Images
+
+Arduino Zigbee projects can automatically generate OTA images from their
+firmware binaries. See [Zigbee OTA images](docs/ZIGBEE_OTA.md) for setup.
+
 ## Filesystem Support
 
 pioarduino provides native support for multiple filesystem options, allowing you to choose the best solution for your project's needs:

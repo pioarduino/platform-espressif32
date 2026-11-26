@@ -1828,6 +1828,10 @@ else:
     else:
         target_firm = env.ElfToBin(str(Path("$BUILD_DIR") / "${PROGNAME}"), target_elf)
         env.Depends(target_firm, "checkprogsize")
+        if env.get("ARDUINO_ZIGBEE_OTA_ACTION"):
+            zigbee_ota_action = env.Action(env["ARDUINO_ZIGBEE_OTA_ACTION"])
+            zigbee_ota_action.strfunction = lambda target, source, env: ""
+            env.AddPostAction(target_firm, zigbee_ota_action)
         silent_action = env.Action(esp32_create_combined_bin)
         # Silence scons command output
         silent_action.strfunction = lambda target, source, env: ""
