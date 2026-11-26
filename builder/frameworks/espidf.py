@@ -1459,6 +1459,28 @@ def filter_args(args, allowed, ignore=None):
     return result
 
 
+def _group_paired_flags(tokens):
+    """Group two-token flags (e.g. '-include', 'foo.h') into tuples so sorting preserves pairs."""
+    paired = []
+    i = 0
+    n = len(tokens)
+    while i < n:
+        tok = tokens[i]
+        if (
+            tok.startswith("-")
+            and not tok.startswith("-D")
+            and i + 1 < n
+            and not tokens[i + 1].startswith("-")
+            and not tokens[i + 1].startswith("@")
+        ):
+            paired.append((tok, tokens[i + 1]))
+            i += 2
+        else:
+            paired.append(tok)
+            i += 1
+    return paired
+
+
 def get_app_flags(app_config, default_config):
     def _extract_flags(config):
         import shlex
@@ -1495,11 +1517,19 @@ def get_app_flags(app_config, default_config):
     app_flags = _extract_flags(app_config)
     default_flags = _extract_flags(default_config)
 
-    # Flags are sorted because CMake randomly populates build flags in code model
+    def _sort_flags(flag_list):
+        return sorted(
+            _group_paired_flags(flag_list),
+            key=lambda x: x[0] if isinstance(x, tuple) else x,
+        )
+
+    # Prefer default_flags (__pio_env) for the global env so component-specific
+    # interface flags on main (e.g. -include from esp_hosted) do not leak globally.
+    # Flags are sorted because CMake randomly populates build flags in code model.
     return {
-        "ASPPFLAGS": sorted(app_flags.get("ASM", default_flags.get("ASM"))),
-        "CFLAGS": sorted(app_flags.get("C", default_flags.get("C"))),
-        "CXXFLAGS": sorted(app_flags.get("CXX", default_flags.get("CXX"))),
+        "ASPPFLAGS": _sort_flags(default_flags.get("ASM") or app_flags.get("ASM", [])),
+        "CFLAGS": _sort_flags(default_flags.get("C") or app_flags.get("C", [])),
+        "CXXFLAGS": _sort_flags(default_flags.get("CXX") or app_flags.get("CXX", [])),
     }
 
 
@@ -1962,7 +1992,10 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
         compile_commands = cg.get("compileCommandFragments", [])
         build_env = default_env.Clone()
         build_env.SetOption("implicit_cache", 1)
-        for cc in compile_commands:
+        cc_idx = 0
+        while cc_idx < len(compile_commands):
+            cc = compile_commands[cc_idx]
+            cc_idx += 1
             raw_fragment = cc.get("fragment", "")
             # Handle GCC response files (@file) introduced in IDF 5.5.3+
             # Read the file contents and add flags individually instead of
@@ -1985,15 +2018,39 @@ def prepare_build_envs(config, default_env, debug_allowed=True):
                 # -mlongcalls is harmless but wasteful)
                 continue
             build_flags = raw_fragment.strip("\" ")
+            if (
+                build_flags.startswith("-")
+                and not build_flags.startswith("-D")
+                and cc_idx < len(compile_commands)
+            ):
+                next_frag = compile_commands[cc_idx].get("fragment", "").strip("\" ")
+                if next_frag and not next_frag.startswith("-") and not next_frag.startswith("@"):
+                    build_flags = "%s %s" % (build_flags, next_frag)
+                    cc_idx += 1
             if not build_flags.startswith("-D"):
                 if build_flags.startswith("-include") and ".." in build_flags:
                     source_index = cg.get("sourceIndexes")[0]
                     build_flags = _fix_component_relative_include(
                         config, build_flags, source_index)
-                parsed_flags = parse_flag_extended(build_env, build_flags)
-                build_env.AppendUnique(**parsed_flags)
-                if cg.get("language", "") == "ASM":
-                    build_env.AppendUnique(ASPPFLAGS=parsed_flags.get("CCFLAGS", []))
+                if build_flags.startswith("-include "):
+                    header = build_flags[len("-include "):].strip("\" ")
+                    include_pair = ("-include", header)
+                    cg_lang = cg.get("language", "")
+                    if cg_lang == "ASM":
+                        if include_pair not in build_env.get("ASPPFLAGS", []):
+                            build_env.AppendUnique(ASPPFLAGS=[include_pair])
+                    else:
+                        lang_var = "CFLAGS" if cg_lang == "C" else ("CXXFLAGS" if cg_lang == "CXX" else None)
+                        already_present = include_pair in build_env.get("CCFLAGS", []) or (
+                            lang_var is not None and include_pair in build_env.get(lang_var, [])
+                        )
+                        if not already_present:
+                            build_env.AppendUnique(CCFLAGS=[include_pair])
+                else:
+                    parsed_flags = parse_flag_extended(build_env, build_flags)
+                    build_env.AppendUnique(**parsed_flags)
+                    if cg.get("language", "") == "ASM":
+                        build_env.AppendUnique(ASPPFLAGS=parsed_flags.get("CCFLAGS", []))
         build_env.AppendUnique(CPPDEFINES=defines, CPPPATH=includes)
         if sys_includes:
             build_env.Append(CCFLAGS=[("-isystem", inc) for inc in sys_includes])
@@ -2317,6 +2374,7 @@ def build_bootloader(sdk_config):
                     bootloader_config_dir,
                     ld_src_dir,       # parent ld/ dir: needed for bootloader.sections.common.ld
                     ld_chip_dir,      # chip-specific dir: needed for any local includes
+                    str(Path(FRAMEWORK_DIR) / "components" / "esp_system" / "ld"),
                 ],
             )
             env.Depends(
@@ -2578,14 +2636,20 @@ def preprocess_linker_script(source_script, target_script, extra_include_dirs=No
             env.VerboseAction(" ".join(cmd), "Generating LD script $TARGET"),
         )
 
+    cflags_parts = []
+    if framework_version_list[:2] >= [6, 2]:
+        # IDF 6.2+ moved -C out of linker_script_preprocessor.cmake into caller CFLAGS
+        cflags_parts.append("-C")
+    cflags_parts.extend(
+        '-I\\"%s\\"' % fs.to_unix_path(inc) for inc in extra_include_dirs
+    )
+
     cmd = [
         CMAKE_DIR,
         "-DCC=%s" % os.path.join(TOOLCHAIN_DIR, "bin", "$CC"),
         "-DSOURCE=$SOURCE",
         "-DTARGET=$TARGET",
-        '"-DCFLAGS=%s"' % " ".join(
-            '-I\\"%s\\"' % fs.to_unix_path(inc) for inc in extra_include_dirs
-        ),
+        '"-DCFLAGS=%s"' % " ".join(cflags_parts),
         "-P",
         fs.to_unix_path(str(
             Path(FRAMEWORK_DIR) / "tools" / "cmake" / "linker_script_preprocessor.cmake"
