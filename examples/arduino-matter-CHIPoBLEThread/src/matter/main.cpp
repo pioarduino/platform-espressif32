@@ -11,7 +11,7 @@ bool onLightChange(bool state) {
 void setup() {
   Serial.begin(115200);
 
-#ifdef EXAMPLE_MATTER_THREAD
+#ifdef ARDUINO_MATTER_NETWORK_THREAD
   const matterNetwork_t network = MATTER_NETWORK_THREAD;
 #else
   const matterNetwork_t network = MATTER_NETWORK_WIFI;
