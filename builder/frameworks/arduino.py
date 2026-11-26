@@ -533,3 +533,16 @@ if ("arduino" in pioframework and "espidf" not in pioframework and
 
     build_script_path = str(Path(FRAMEWORK_DIR) / "tools" / "pioarduino-build.py")
     SConscript(build_script_path)
+
+    if (arduino_lib_compile_flag == "Inactive" and
+            not config.has_option(current_env_section, "custom_sdkconfig") and
+            "espidf.custom_sdkconfig" not in board):
+        env.AppendUnique(LINKFLAGS=[
+            "-Wl,--wrap=esp_bt_mem_release",
+            "-Wl,--wrap=esp_bt_controller_mem_release",
+        ])
+
+    from arduino_link_libs import configure_arduino_link_libs
+    configure_arduino_link_libs(
+        env, FRAMEWORK_DIR, path_cache.framework_lib_dir, chip_variant
+    )
