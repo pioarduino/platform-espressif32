@@ -15,7 +15,7 @@ build_flags = -DZIGBEE_MODE_ED
 
 Define the OTA metadata as literal integers in a source file directly inside
 the project's source directory (`src/` by default), as in the Arduino Zigbee
-OTA client example:
+OTA light example:
 
 ```cpp
 #define OTA_UPGRADE_MANUFACTURER 0x1001

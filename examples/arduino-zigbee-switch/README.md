@@ -29,10 +29,6 @@ To get more information about the Espressif boards see [Espressif Development Ki
 * Select the COM port: `Tools -> Port: xxx where the `xxx` is the detected COM port.
 * Optional: Set debug level to info to see logs from Zigbee stack: `Tools -> Core Debug Level: Info`.
 
-With an Arduino framework version that includes the OTA image generator, PlatformIO
-builds create a Zigbee OTA image in `.pio/build/esp32-c6-devkitc-1/`. Increment
-`OTA_UPGRADE_RUNNING_FILE_VERSION` in the sketch when producing a newer image.
-
 ## Troubleshooting
 
 If the End device flashed with the example `Zigbee_Light_Bulb` is not connecting to the coordinator, erase the flash of the End device before flashing the example to the board. It is recommended to do this if you re-flash the coordinator.
