@@ -112,13 +112,30 @@ def generate_ulp_config(target_config):
         riscv_ulp_enabled = sdk_config.get("ULP_COPROC_TYPE_RISCV", False)
         lp_core_ulp_enabled = sdk_config.get("ULP_COPROC_TYPE_LP_CORE", False)
 
-        if not lp_core_ulp_enabled:
-            ulp_toolchain = "toolchain-%sulp%s.cmake"% (
-                "" if riscv_ulp_enabled else idf_variant + "-",
-                "-riscv" if riscv_ulp_enabled else "",
-            )
+        ulp_subproject_dir = str(Path(FRAMEWORK_DIR) / "components" / "ulp" / "subproject")
+        if os.path.isdir(ulp_subproject_dir):
+            if lp_core_ulp_enabled:
+                ulp_toolchain_path = str(
+                    Path(ulp_subproject_dir) / "components" / "lp_core" / "toolchain-lp-core-riscv.cmake"
+                )
+            elif riscv_ulp_enabled:
+                ulp_toolchain_path = str(
+                    Path(ulp_subproject_dir) / "components" / "ulp_riscv" / "toolchain-ulp-riscv.cmake"
+                )
+            else:
+                ulp_toolchain_path = str(
+                    Path(ulp_subproject_dir) / "components" / "ulp_fsm" / ("toolchain-%s-ulp.cmake" % idf_variant)
+                )
         else:
-            ulp_toolchain = "toolchain-lp-core-riscv.cmake"
+            ulp_subproject_dir = str(Path(FRAMEWORK_DIR) / "components" / "ulp" / "cmake")
+            if not lp_core_ulp_enabled:
+                ulp_toolchain = "toolchain-%sulp%s.cmake" % (
+                    "" if riscv_ulp_enabled else idf_variant + "-",
+                    "-riscv" if riscv_ulp_enabled else "",
+                )
+            else:
+                ulp_toolchain = "toolchain-lp-core-riscv.cmake"
+            ulp_toolchain_path = str(Path(ulp_subproject_dir) / ulp_toolchain)
 
         comp_includes_list = get_component_includes(target_config)
         plain_includes_list = app_includes["plain_includes"]
@@ -134,21 +151,20 @@ def generate_ulp_config(target_config):
             "PYTHON": env.subst("$PYTHONEXE"),
             "ADD_PICOLIBC_SPECS": "ON" if sdk_config.get("LIBC_PICOLIBC", False) else "OFF",
             "SDKCONFIG_CMAKE": str(Path(BUILD_DIR) / "config" / "sdkconfig.cmake"),
-            "CMAKE_MODULE_PATH": str(Path(FRAMEWORK_DIR) / "components" / "ulp" / "cmake"),
+            "CMAKE_MODULE_PATH": ulp_subproject_dir,
         })
 
         cmd = (
             str(Path(platform.get_package_dir("tool-cmake")) / "bin" / "cmake"),
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
             "-DCMAKE_GENERATOR=Ninja",
-            "-DCMAKE_TOOLCHAIN_FILE="
-            + str(Path(FRAMEWORK_DIR) / "components" / "ulp" / "cmake" / ulp_toolchain),
+            "-DCMAKE_TOOLCHAIN_FILE=" + ulp_toolchain_path,
             "-C",
             ULP_PRELOAD_FILE,
             "-GNinja",
             "-B",
             ULP_BUILD_DIR,
-            str(Path(FRAMEWORK_DIR) / "components" / "ulp" / "cmake"),
+            ulp_subproject_dir,
         )
 
         result = exec_command(cmd)
